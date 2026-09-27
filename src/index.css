@@ -1,0 +1,184 @@
+@import "tailwindcss";
+@import "./styles/tokens.css";
+
+html {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 16px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+
+  background: var(--color-bg);
+  color: var(--color-text);
+
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Desktop readability
+|--------------------------------------------------------------------------
+|
+| الكثير من مكونات TEO STORE تستخدم نصوص 7px - 11px.
+| على الهاتف تبقى الأحجام الحالية متوازنة.
+| على الكمبيوتر نقوم برفع النصوص الصغيرة فقط حتى تصبح مقروءة بوضوح.
+|
+*/
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 17px;
+  }
+
+  /*
+  |----------------------------------------------------------------------
+  | Arbitrary Tailwind pixel text sizes
+  |----------------------------------------------------------------------
+  */
+
+  [class~="text-[7px]"] {
+    font-size: 11px !important;
+    line-height: 1.45 !important;
+  }
+
+  [class~="text-[8px]"] {
+    font-size: 11px !important;
+    line-height: 1.45 !important;
+  }
+
+  [class~="text-[9px]"] {
+    font-size: 12px !important;
+    line-height: 1.5 !important;
+  }
+
+  [class~="text-[10px]"] {
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+  }
+
+  [class~="text-[11px]"] {
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+  }
+
+  [class~="text-[12px]"] {
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+  }
+
+  /*
+  |----------------------------------------------------------------------
+  | Standard Tailwind typography
+  |----------------------------------------------------------------------
+  */
+
+  .text-xs {
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+  }
+
+  .text-sm {
+    font-size: 16px !important;
+    line-height: 1.6 !important;
+  }
+
+  /*
+  |----------------------------------------------------------------------
+  | Inputs / selects / textareas
+  |----------------------------------------------------------------------
+  */
+
+  input,
+  textarea,
+  select {
+    font-size: 15px;
+  }
+
+  /*
+  |----------------------------------------------------------------------
+  | Improve very small badges / counters
+  |----------------------------------------------------------------------
+  */
+
+  [class*="rounded-full"][class~="text-[7px]"],
+  [class*="rounded-full"][class~="text-[8px]"],
+  [class*="rounded-full"][class~="text-[9px]"],
+  [class*="rounded-full"][class~="text-[10px]"] {
+    font-weight: 800 !important;
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Large desktop
+|--------------------------------------------------------------------------
+*/
+
+@media (min-width: 1440px) {
+  html {
+    font-size: 18px;
+  }
+
+  [class~="text-[7px]"],
+  [class~="text-[8px]"] {
+    font-size: 12px !important;
+  }
+
+  [class~="text-[9px]"] {
+    font-size: 13px !important;
+  }
+
+  [class~="text-[10px]"] {
+    font-size: 14px !important;
+  }
+
+  [class~="text-[11px]"],
+  [class~="text-[12px]"] {
+    font-size: 15px !important;
+  }
+
+  .text-xs {
+    font-size: 15px !important;
+  }
+
+  .text-sm {
+    font-size: 16px !important;
+  }
+}
