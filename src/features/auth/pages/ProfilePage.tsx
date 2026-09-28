@@ -2,7 +2,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react'
 
@@ -30,33 +29,23 @@ type DigitalOrderRow = {
   id: string
   order_number: string
   user_id: string
-
   service_name: string
   plan_label: string
-
   total_amount: number
   currency: string
-
   amount_received: number | null
   amount_remaining: number | null
-
   payment_method_name: string | null
-
   fulfillment_sent_at: string | null
   customer_confirmed_at: string | null
-
   payment_issue_reason: string | null
-
   dispute_status: string | null
   dispute_reason_code: string | null
   dispute_reason: string | null
-
   status: string
-
   rejection_code: string | null
   rejection_reason: string | null
   rejected_at: string | null
-
   created_at: string
   updated_at: string
 }
@@ -64,18 +53,13 @@ type DigitalOrderRow = {
 type CustomerNotificationRow = {
   id: string
   user_id: string
-
   order_id: string | null
   order_number: string | null
-
   type: string
   title: string
   message: string
-
   action_url: string | null
-
   is_read: boolean
-
   created_at: string
   read_at: string | null
 }
@@ -85,10 +69,8 @@ type DigitalOrderReviewRow = {
   order_id: string
   order_number: string
   user_id: string
-
   rating: number
   comment: string | null
-
   created_at: string
   updated_at: string
 }
@@ -96,13 +78,10 @@ type DigitalOrderReviewRow = {
 type StoreReviewRow = {
   id: string
   user_id: string
-
   milestone: number
   completed_orders_count: number
-
   rating: number
   comment: string | null
-
   created_at: string
   updated_at: string
 }
@@ -119,6 +98,160 @@ type WhatsappSupportSetting = {
   number: string
   messageFr: string
   messageAr: string
+}
+
+type ProfileSection =
+  | 'home'
+  | 'orders'
+  | 'notifications'
+  | 'reviews'
+  | 'account'
+  | 'support'
+
+type IconName =
+  | 'orders'
+  | 'bell'
+  | 'star'
+  | 'user'
+  | 'support'
+  | 'whatsapp'
+  | 'store'
+  | 'logout'
+  | 'refresh'
+  | 'home'
+  | 'arrow'
+  | 'globe'
+
+function Icon({
+  name,
+  className = 'h-5 w-5',
+}: {
+  name: IconName
+  className?: string
+}) {
+  const props = {
+    className,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
+  }
+
+  if (name === 'orders') {
+    return (
+      <svg {...props}>
+        <path d="M6 4h12l1 16H5L6 4Z" />
+        <path d="M9 8a3 3 0 0 0 6 0" />
+      </svg>
+    )
+  }
+
+  if (name === 'bell') {
+    return (
+      <svg {...props}>
+        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+        <path d="M10 21h4" />
+      </svg>
+    )
+  }
+
+  if (name === 'star') {
+    return (
+      <svg {...props}>
+        <path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z" />
+      </svg>
+    )
+  }
+
+  if (name === 'user') {
+    return (
+      <svg {...props}>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
+      </svg>
+    )
+  }
+
+  if (name === 'support') {
+    return (
+      <svg {...props}>
+        <path d="M4 13a8 8 0 0 1 16 0" />
+        <path d="M4 13v4a2 2 0 0 0 2 2h1v-6H4Z" />
+        <path d="M20 13v4a2 2 0 0 1-2 2h-1v-6h3Z" />
+      </svg>
+    )
+  }
+
+  if (name === 'whatsapp') {
+    return (
+      <svg {...props}>
+        <path d="M20.5 11.6a8.5 8.5 0 0 1-12.6 7.5L3 20.5l1.4-4.7A8.5 8.5 0 1 1 20.5 11.6Z" />
+        <path d="M8.5 8.3c.2-.5.4-.5.7-.5h.6c.2 0 .4.1.5.4l.8 1.8c.1.3.1.5-.1.7l-.6.8c-.2.2-.2.4 0 .7.7 1.2 1.7 2.2 3 2.9.3.2.5.1.7-.1l.8-1c.2-.3.5-.3.8-.2l1.8.8c.3.1.4.3.4.5 0 .3-.2 1.5-.8 2.1-.6.6-1.5.9-2.4.7-1-.2-2.3-.7-3.8-2-1.2-1-2.1-2.1-2.8-3.2-.7-1.2-1.2-2.5-.9-3.4.2-.5.8-1.5 1.3-2Z" />
+      </svg>
+    )
+  }
+
+  if (name === 'store') {
+    return (
+      <svg {...props}>
+        <path d="M4 10h16" />
+        <path d="M5 10v10h14V10" />
+        <path d="M3 10 5 4h14l2 6" />
+        <path d="M9 20v-6h6v6" />
+      </svg>
+    )
+  }
+
+  if (name === 'logout') {
+    return (
+      <svg {...props}>
+        <path d="M10 5H5v14h5" />
+        <path d="M14 8l4 4-4 4" />
+        <path d="M18 12H9" />
+      </svg>
+    )
+  }
+
+  if (name === 'refresh') {
+    return (
+      <svg {...props}>
+        <path d="M20 7v5h-5" />
+        <path d="M4 17v-5h5" />
+        <path d="M6.1 8A7 7 0 0 1 18 6l2 6" />
+        <path d="M17.9 16A7 7 0 0 1 6 18l-2-6" />
+      </svg>
+    )
+  }
+
+  if (name === 'home') {
+    return (
+      <svg {...props}>
+        <path d="M3 11.5 12 4l9 7.5" />
+        <path d="M5.5 10v10h13V10" />
+        <path d="M9.5 20v-6h5v6" />
+      </svg>
+    )
+  }
+
+  if (name === 'globe') {
+    return (
+      <svg {...props}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M3 12h18" />
+        <path d="M12 3c2.5 2.6 3.8 5.6 3.8 9S14.5 18.4 12 21" />
+        <path d="M12 3C9.5 5.6 8.2 8.6 8.2 12S9.5 18.4 12 21" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg {...props}>
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  )
 }
 
 function normalizeDigitalStatus(
@@ -141,13 +274,7 @@ function normalizeDigitalStatus(
 }
 
 function ProfilePage() {
-  const navigate =
-    useNavigate()
-
-  const notificationsRef =
-    useRef<HTMLDivElement | null>(
-      null,
-    )
+  const navigate = useNavigate()
 
   const {
     language,
@@ -162,14 +289,6 @@ function ProfilePage() {
     setUser,
   ] =
     useState<ProfileUser | null>(
-      null,
-    )
-
-  const [
-    whatsappSupport,
-    setWhatsappSupport,
-  ] =
-    useState<WhatsappSupportSetting | null>(
       null,
     )
 
@@ -206,6 +325,22 @@ function ProfilePage() {
     )
 
   const [
+    whatsappSupport,
+    setWhatsappSupport,
+  ] =
+    useState<WhatsappSupportSetting | null>(
+      null,
+    )
+
+  const [
+    activeSection,
+    setActiveSection,
+  ] =
+    useState<ProfileSection>(
+      'home',
+    )
+
+  const [
     isLoading,
     setIsLoading,
   ] =
@@ -224,12 +359,6 @@ function ProfilePage() {
     useState<string | null>(
       null,
     )
-
-  const [
-    notificationsOpen,
-    setNotificationsOpen,
-  ] =
-    useState(false)
 
   const [
     reviewOrder,
@@ -558,15 +687,15 @@ function ProfilePage() {
           return
         }
 
-        const value =
+        const raw =
           data?.setting_value
 
         if (
-          !value ||
-          typeof value !==
+          !raw ||
+          typeof raw !==
             'object' ||
           Array.isArray(
-            value,
+            raw,
           )
         ) {
           setWhatsappSupport(
@@ -576,32 +705,30 @@ function ProfilePage() {
           return
         }
 
-        const setting =
-          value as Record<
+        const value =
+          raw as Record<
             string,
             unknown
           >
 
-        const number =
-          typeof setting.number ===
-            'string'
-            ? setting.number
-                .replace(
-                  /\D/g,
-                  '',
-                )
-            : ''
-
         const active =
-          typeof setting.active ===
+          typeof value.active ===
             'boolean'
-            ? setting.active
+            ? value.active
             : true
+
+        const number =
+          typeof value.number ===
+            'string'
+            ? value.number.replace(
+                /\D/g,
+                '',
+              )
+            : ''
 
         if (
           !active ||
-          number.length ===
-            0
+          !number
         ) {
           setWhatsappSupport(
             null,
@@ -617,15 +744,15 @@ function ProfilePage() {
           number,
 
           messageFr:
-            typeof setting.messageFr ===
+            typeof value.messageFr ===
               'string'
-              ? setting.messageFr
+              ? value.messageFr
               : 'Bonjour TEO STORE, j’ai besoin d’aide.',
 
           messageAr:
-            typeof setting.messageAr ===
+            typeof value.messageAr ===
               'string'
-              ? setting.messageAr
+              ? value.messageAr
               : 'مرحبًا TEO STORE، أحتاج إلى المساعدة.',
         })
       },
@@ -651,15 +778,19 @@ function ProfilePage() {
             loadOrders(
               userId,
             ),
+
             loadNotifications(
               userId,
             ),
+
             loadReviews(
               userId,
             ),
+
             loadStoreReviews(
               userId,
             ),
+
             loadSupportWhatsapp(),
           ])
 
@@ -691,104 +822,6 @@ function ProfilePage() {
         loadSupportWhatsapp,
       ],
     )
-
-  useEffect(
-    () => {
-      const handleClickOutside =
-        (
-          event:
-            MouseEvent,
-        ) => {
-          const target =
-            event.target as Node
-
-          if (
-            notificationsRef.current &&
-            !notificationsRef.current.contains(
-              target,
-            )
-          ) {
-            setNotificationsOpen(
-              false,
-            )
-          }
-        }
-
-      document.addEventListener(
-        'mousedown',
-        handleClickOutside,
-      )
-
-      return () => {
-        document.removeEventListener(
-          'mousedown',
-          handleClickOutside,
-        )
-      }
-    },
-    [],
-  )
-
-  useEffect(
-    () => {
-      const handleEscape =
-        (
-          event:
-            KeyboardEvent,
-        ) => {
-          if (
-            event.key !==
-            'Escape'
-          ) {
-            return
-          }
-
-          setNotificationsOpen(
-            false,
-          )
-
-          if (
-            !isSubmittingReview
-          ) {
-            setReviewOrder(
-              null,
-            )
-
-            setReviewError(
-              null,
-            )
-          }
-
-          if (
-            !isSubmittingStoreReview
-          ) {
-            setStoreReviewOpen(
-              false,
-            )
-
-            setStoreReviewError(
-              null,
-            )
-          }
-        }
-
-      document.addEventListener(
-        'keydown',
-        handleEscape,
-      )
-
-      return () => {
-        document.removeEventListener(
-          'keydown',
-          handleEscape,
-        )
-      }
-    },
-    [
-      isSubmittingReview,
-      isSubmittingStoreReview,
-    ],
-  )
 
   useEffect(
     () => {
@@ -864,10 +897,7 @@ function ProfilePage() {
             phone:
               typeof authUser.phone ===
                 'string' &&
-              authUser.phone
-                .trim()
-                .length >
-                0
+              authUser.phone.trim()
                 ? authUser.phone.trim()
                 : typeof metadataPhone ===
                     'string'
@@ -877,10 +907,7 @@ function ProfilePage() {
             fullName:
               typeof metadataName ===
                 'string' &&
-              metadataName
-                .trim()
-                .length >
-                0
+              metadataName.trim()
                 ? metadataName.trim()
                 : authUser.email
                     ?.split(
@@ -1150,54 +1177,6 @@ function ProfilePage() {
           )
           .subscribe()
 
-      const settingsChannel =
-        supabase
-          .channel(
-            `customer-profile-settings-${Date.now()}`,
-          )
-          .on(
-            'postgres_changes',
-            {
-              event:
-                '*',
-
-              schema:
-                'public',
-
-              table:
-                'app_settings',
-            },
-            (
-              payload,
-            ) => {
-              const next =
-                payload.new as
-                  | {
-                      setting_key?: string
-                    }
-                  | undefined
-
-              const previous =
-                payload.old as
-                  | {
-                      setting_key?: string
-                    }
-                  | undefined
-
-              const settingKey =
-                next?.setting_key ??
-                previous?.setting_key
-
-              if (
-                settingKey ===
-                'support_whatsapp'
-              ) {
-                void loadSupportWhatsapp()
-              }
-            },
-          )
-          .subscribe()
-
       const handleWindowFocus =
         () => {
           if (
@@ -1260,11 +1239,6 @@ function ProfilePage() {
             storeReviewsChannel,
           )
 
-        void supabase
-          .removeChannel(
-            settingsChannel,
-          )
-
         window.removeEventListener(
           'focus',
           handleWindowFocus,
@@ -1283,8 +1257,63 @@ function ProfilePage() {
       loadOrders,
       loadReviews,
       loadStoreReviews,
-      loadSupportWhatsapp,
       navigate,
+    ],
+  )
+
+  useEffect(
+    () => {
+      const handleEscape =
+        (
+          event:
+            KeyboardEvent,
+        ) => {
+          if (
+            event.key !==
+            'Escape'
+          ) {
+            return
+          }
+
+          if (
+            !isSubmittingReview
+          ) {
+            setReviewOrder(
+              null,
+            )
+
+            setReviewError(
+              null,
+            )
+          }
+
+          if (
+            !isSubmittingStoreReview
+          ) {
+            setStoreReviewOpen(
+              false,
+            )
+
+            setStoreReviewError(
+              null,
+            )
+          }
+        }
+
+      document.addEventListener(
+        'keydown',
+        handleEscape,
+      )
+
+      return () =>
+        document.removeEventListener(
+          'keydown',
+          handleEscape,
+        )
+    },
+    [
+      isSubmittingReview,
+      isSubmittingStoreReview,
     ],
   )
 
@@ -1584,10 +1613,6 @@ function ProfilePage() {
     ) => {
       await markNotificationRead(
         notification,
-      )
-
-      setNotificationsOpen(
-        false,
       )
 
       if (
@@ -1971,7 +1996,7 @@ function ProfilePage() {
       )
     }
 
-  const getDigitalStatusLabel =
+  const getStatusLabel =
     (
       value:
         string,
@@ -1981,84 +2006,82 @@ function ProfilePage() {
           value,
         )
 
-      if (
-        status ===
-        'payment_review'
-      ) {
-        return isArabic
-          ? 'جارٍ التحقق من الدفع'
-          : 'Vérification du paiement'
-      }
+      const ar:
+        Record<
+          DigitalOrderStatus,
+          string
+        > = {
+          payment_review:
+            'جارٍ التحقق من الدفع',
 
-      if (
-        status ===
-        'payment_partial'
-      ) {
-        return isArabic
-          ? 'مطلوب إكمال الدفع'
-          : 'Complément requis'
-      }
+          payment_partial:
+            'مطلوب إكمال الدفع',
 
-      if (
-        status ===
-        'payment_confirmed'
-      ) {
-        return isArabic
-          ? 'تم تأكيد الدفع'
-          : 'Paiement confirmé'
-      }
+          payment_confirmed:
+            'تم تأكيد الدفع',
 
-      if (
-        status ===
-        'processing'
-      ) {
-        return isArabic
-          ? 'قيد التجهيز'
-          : 'En traitement'
-      }
+          processing:
+            'قيد التجهيز',
 
-      if (
-        status ===
-        'fulfillment_sent'
-      ) {
-        return isArabic
-          ? 'تم إرسال الخدمة'
-          : 'Service envoyé'
-      }
+          fulfillment_sent:
+            'تم إرسال الخدمة',
 
-      if (
-        status ===
-        'disputed'
-      ) {
-        return isArabic
-          ? 'نزاع مفتوح'
-          : 'Litige ouvert'
-      }
+          disputed:
+            'نزاع مفتوح',
 
-      if (
-        status ===
-        'completed'
-      ) {
-        return isArabic
-          ? 'تم تأكيد الاستلام'
-          : 'Commande terminée'
-      }
+          completed:
+            'تم تأكيد الاستلام',
 
-      if (
-        status ===
-        'cancelled'
-      ) {
-        return isArabic
-          ? 'تم إلغاء الطلب'
-          : 'Commande annulée'
-      }
+          cancelled:
+            'تم إلغاء الطلب',
+
+          refunded:
+            'تم الاسترجاع',
+        }
+
+      const fr:
+        Record<
+          DigitalOrderStatus,
+          string
+        > = {
+          payment_review:
+            'Vérification du paiement',
+
+          payment_partial:
+            'Complément requis',
+
+          payment_confirmed:
+            'Paiement confirmé',
+
+          processing:
+            'En traitement',
+
+          fulfillment_sent:
+            'Service envoyé',
+
+          disputed:
+            'Litige ouvert',
+
+          completed:
+            'Commande terminée',
+
+          cancelled:
+            'Commande annulée',
+
+          refunded:
+            'Remboursée',
+        }
 
       return isArabic
-        ? 'تم الاسترجاع'
-        : 'Remboursée'
+        ? ar[
+            status
+          ]
+        : fr[
+            status
+          ]
     }
 
-  const getDigitalStatusClasses =
+  const getStatusClasses =
     (
       value:
         string,
@@ -2230,14 +2253,11 @@ function ProfilePage() {
       value:
         string,
     ) => {
-      const locale =
-        isArabic
-          ? 'ar-MR-u-nu-latn'
-          : 'fr-FR-u-nu-latn'
-
       try {
         return new Intl.DateTimeFormat(
-          locale,
+          isArabic
+            ? 'ar-MR-u-nu-latn'
+            : 'fr-FR-u-nu-latn',
           {
             dateStyle:
               'medium',
@@ -2266,12 +2286,15 @@ function ProfilePage() {
       currency:
         string,
     ) => {
-      const normalizedAmount =
+      const normalized =
         new Intl.NumberFormat(
           'fr-FR-u-nu-latn',
           {
             numberingSystem:
               'latn',
+
+            maximumFractionDigits:
+              2,
           },
         ).format(
           Number(
@@ -2280,47 +2303,29 @@ function ProfilePage() {
         )
 
       return formatCurrencyText(
-        `${normalizedAmount} ${currency}`,
+        `${normalized} ${currency}`,
       )
     }
 
-  const scrollToSection =
+  const openSection =
     (
-      sectionId:
-        string,
+      section:
+        ProfileSection,
     ) => {
-      document
-        .getElementById(
-          sectionId,
-        )
-        ?.scrollIntoView({
-          behavior:
-            'smooth',
-
-          block:
-            'start',
-        })
-    }
-
-  const openNotifications =
-    () => {
-      setNotificationsOpen(
-        true,
+      setActiveSection(
+        section,
       )
 
-      window.setTimeout(
-        () => {
-          notificationsRef.current
-            ?.scrollIntoView({
-              behavior:
-                'smooth',
+      window.scrollTo({
+        top:
+          0,
 
-              block:
-                'center',
-            })
-        },
-        50,
-      )
+        left:
+          0,
+
+        behavior:
+          'smooth',
+      })
     }
 
   const openWhatsappSupport =
@@ -2336,13 +2341,10 @@ function ProfilePage() {
           ? whatsappSupport.messageAr
           : whatsappSupport.messageFr
 
-      const url =
+      window.open(
         `https://wa.me/${whatsappSupport.number}?text=${encodeURIComponent(
           message,
-        )}`
-
-      window.open(
-        url,
+        )}`,
         '_blank',
         'noopener,noreferrer',
       )
@@ -2350,18 +2352,28 @@ function ProfilePage() {
 
   const handleSignOut =
     async () => {
-      try {
+      const {
+        error,
+      } =
         await supabase.auth
           .signOut()
-      } finally {
-        navigate(
-          '/connexion',
-          {
-            replace:
-              true,
-          },
+
+      if (error) {
+        console.error(
+          'Unable to sign out:',
+          error,
         )
+
+        return
       }
+
+      navigate(
+        '/connexion',
+        {
+          replace:
+            true,
+        },
+      )
     }
 
   const handleRefresh =
@@ -2383,7 +2395,7 @@ function ProfilePage() {
     isLoading
   ) {
     return (
-      <main className="min-h-[60vh] bg-[#f7f9fc]">
+      <main className="min-h-[60vh] bg-[#f6f7fb]">
         <Container>
           <div className="flex min-h-[60vh] items-center justify-center">
             <div className="text-center">
@@ -2407,7 +2419,7 @@ function ProfilePage() {
     return null
   }
 
-  const initials =
+  const firstLetter =
     user.fullName
       .trim()
       .charAt(
@@ -2416,6 +2428,57 @@ function ProfilePage() {
       .toUpperCase() ||
     'T'
 
+  const latestOrder =
+    orders[
+      0
+    ] ??
+    null
+
+  const sectionTitle =
+    activeSection ===
+    'home'
+      ? isArabic
+        ? 'حسابي'
+        : 'Mon compte'
+      : activeSection ===
+          'orders'
+        ? isArabic
+          ? 'طلباتي'
+          : 'Mes commandes'
+        : activeSection ===
+            'notifications'
+          ? isArabic
+            ? 'إشعاراتي'
+            : 'Mes notifications'
+          : activeSection ===
+              'reviews'
+            ? isArabic
+              ? 'تقييماتي'
+              : 'Mes avis'
+            : activeSection ===
+                'account'
+              ? isArabic
+                ? 'معلومات حسابي'
+                : 'Mes informations'
+              : isArabic
+                ? 'خدمة الزبائن'
+                : 'Service client'
+
+  const rowArrow =
+    (
+      <span
+        className={
+          isArabic
+            ? 'rotate-180 text-slate-300'
+            : 'text-slate-300'
+        }
+      >
+        <Icon
+          name="arrow"
+        />
+      </span>
+    )
+
   return (
     <main
       dir={
@@ -2423,763 +2486,303 @@ function ProfilePage() {
           ? 'rtl'
           : 'ltr'
       }
-      className="min-h-screen overflow-x-hidden bg-[#f5f6f8] pb-10 pt-4 sm:py-8 lg:py-12"
+      className="min-h-screen bg-[#f6f7fb] pb-8"
     >
-      <Container>
-        <div className="mx-auto max-w-6xl">
-          <section className="lg:hidden">
-            <div className="overflow-hidden rounded-[26px] bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950 p-5 text-white shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
-              <div className="flex items-start gap-3">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-white/10 text-xl font-black uppercase ring-1 ring-white/10">
-                  {
-                    initials
-                  }
-                </div>
+      <div className="border-b border-slate-200 bg-white">
+        <Container>
+          <div className="mx-auto flex min-h-[72px] max-w-5xl items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">
+                TEO STORE
+              </p>
 
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-300">
-                    TEO STORE
-                  </p>
-
-                  <h1 className="mt-1 truncate text-xl font-black">
-                    {
-                      user.fullName
-                    }
-                  </h1>
-
-                  <p
-                    dir="ltr"
-                    className="mt-1 truncate text-left text-xs font-semibold text-white/55"
-                  >
-                    {
-                      user.email
-                    }
-                  </p>
-
-                  {user.phone && (
-                    <p
-                      dir="ltr"
-                      className="mt-1 truncate text-left text-xs font-semibold text-white/45"
-                    >
-                      {
-                        user.phone
-                      }
-                    </p>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={
-                    handleRefresh
-                  }
-                  disabled={
-                    isRefreshing
-                  }
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-white/10 text-lg font-black ring-1 ring-white/10 disabled:opacity-50"
-                  aria-label={
-                    isArabic
-                      ? 'تحديث الحساب'
-                      : 'Actualiser le compte'
-                  }
-                >
-                  <span
-                    className={
-                      isRefreshing
-                        ? 'animate-spin'
-                        : ''
-                    }
-                  >
-                    ↻
-                  </span>
-                </button>
-              </div>
-
-              <div className="mt-5 grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    scrollToSection(
-                      'profile-orders',
-                    )
-                  }
-                  className="rounded-[16px] bg-white/[0.08] px-3 py-3 text-center ring-1 ring-white/10"
-                >
-                  <p className="text-lg font-black">
-                    {
-                      orders.length
-                    }
-                  </p>
-
-                  <p className="mt-1 text-[10px] font-bold text-white/55">
-                    {isArabic
-                      ? 'الطلبات'
-                      : 'Commandes'}
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={
-                    openNotifications
-                  }
-                  className="rounded-[16px] bg-white/[0.08] px-3 py-3 text-center ring-1 ring-white/10"
-                >
-                  <p className="text-lg font-black">
-                    {
-                      unreadNotifications.length
-                    }
-                  </p>
-
-                  <p className="mt-1 text-[10px] font-bold text-white/55">
-                    {isArabic
-                      ? 'جديدة'
-                      : 'Nouvelles'}
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    scrollToSection(
-                      'profile-reviews',
-                    )
-                  }
-                  className="rounded-[16px] bg-white/[0.08] px-3 py-3 text-center ring-1 ring-white/10"
-                >
-                  <p className="text-lg font-black">
-                    {
-                      reviews.length +
-                      storeReviews.length
-                    }
-                  </p>
-
-                  <p className="mt-1 text-[10px] font-bold text-white/55">
-                    {isArabic
-                      ? 'تقييمات'
-                      : 'Avis'}
-                  </p>
-                </button>
-              </div>
+              <h1 className="mt-1 truncate text-xl font-black tracking-[-0.03em] text-slate-950 sm:text-2xl">
+                {
+                  sectionTitle
+                }
+              </h1>
             </div>
 
-            {(
-              pendingReviewOrders.length >
-                0 ||
-              pendingStoreReviewMilestone !==
-                null
-            ) && (
-              <div className="mt-4 rounded-[20px] border border-amber-200 bg-amber-50 p-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-amber-500 text-lg text-white">
-                    ★
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black text-amber-950">
-                      {isArabic
-                        ? 'لديك تقييم بانتظارك'
-                        : 'Un avis vous attend'}
-                    </p>
-
-                    <p className="mt-1 text-xs leading-5 text-amber-700">
-                      {isArabic
-                        ? 'شارك رأيك عن الخدمات أو تجربة TEO STORE.'
-                        : 'Partagez votre avis sur vos services ou votre expérience TEO STORE.'}
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        scrollToSection(
-                          'profile-reviews',
-                        )
-                      }
-                      className="mt-3 h-9 rounded-xl bg-amber-500 px-4 text-xs font-black text-white"
-                    >
-                      {isArabic
-                        ? 'عرض التقييمات'
-                        : 'Voir les avis'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-4 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              <button
-                type="button"
-                onClick={() =>
-                  scrollToSection(
-                    'profile-orders',
-                  )
-                }
-                className="flex min-h-[68px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start"
-              >
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-blue-50 text-xl">
-                  🛍️
-                </span>
-
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-black text-slate-950">
-                    {isArabic
-                      ? 'طلباتي'
-                      : 'Mes commandes'}
-                  </span>
-
-                  <span className="mt-1 block text-xs text-slate-400">
-                    {isArabic
-                      ? `${orders.length} طلبات`
-                      : `${orders.length} commandes`}
-                  </span>
-                </span>
-
-                <span className="text-xl text-slate-300">
-                  {isArabic
-                    ? '‹'
-                    : '›'}
-                </span>
-              </button>
+            <div className="flex shrink-0 gap-2">
+              {activeSection !==
+                'home' && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    openSection(
+                      'home',
+                    )
+                  }
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600"
+                  aria-label={
+                    isArabic
+                      ? 'العودة إلى الحساب'
+                      : 'Retour au compte'
+                  }
+                >
+                  <Icon
+                    name="home"
+                    className="h-4 w-4"
+                  />
+                </button>
+              )}
 
               <button
                 type="button"
                 onClick={
-                  openNotifications
+                  handleRefresh
                 }
-                className="flex min-h-[68px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start"
-              >
-                <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-violet-50 text-xl">
-                  🔔
-
-                  {unreadNotifications.length >
-                    0 && (
-                    <span
-                      dir="ltr"
-                      className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-black text-white"
-                    >
-                      {unreadNotifications.length >
-                      99
-                        ? '99+'
-                        : unreadNotifications.length}
-                    </span>
-                  )}
-                </span>
-
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-black text-slate-950">
-                    {isArabic
-                      ? 'الإشعارات'
-                      : 'Notifications'}
-                  </span>
-
-                  <span className="mt-1 block text-xs text-slate-400">
-                    {unreadNotifications.length >
-                    0
-                      ? isArabic
-                        ? `${unreadNotifications.length} إشعارات جديدة`
-                        : `${unreadNotifications.length} nouvelles notifications`
-                      : isArabic
-                        ? 'لا توجد إشعارات جديدة'
-                        : 'Aucune nouvelle notification'}
-                  </span>
-                </span>
-
-                <span className="text-xl text-slate-300">
-                  {isArabic
-                    ? '‹'
-                    : '›'}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  scrollToSection(
-                    'profile-reviews',
-                  )
+                disabled={
+                  isRefreshing
                 }
-                className="flex min-h-[68px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start"
-              >
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-amber-50 text-xl">
-                  ⭐
-                </span>
-
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-black text-slate-950">
-                    {isArabic
-                      ? 'تقييماتي'
-                      : 'Mes avis'}
-                  </span>
-
-                  <span className="mt-1 block text-xs text-slate-400">
-                    {isArabic
-                      ? 'تقييم الخدمات وتجربة المتجر'
-                      : 'Avis produits et expérience boutique'}
-                  </span>
-                </span>
-
-                <span className="text-xl text-slate-300">
-                  {isArabic
-                    ? '‹'
-                    : '›'}
-                </span>
-              </button>
-
-              <div className="flex min-h-[68px] items-center gap-3 border-b border-slate-100 px-4">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-emerald-50 text-xl">
-                  👤
-                </span>
-
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-black text-slate-950">
-                    {isArabic
-                      ? 'معلوماتي'
-                      : 'Mes informations'}
-                  </span>
-
-                  <span className="mt-1 block truncate text-xs text-slate-400">
-                    {user.phone ||
-                      user.email}
-                  </span>
-                </span>
-              </div>
-
-              <div className="flex min-h-[68px] items-center gap-3 px-4">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-sky-50 text-xl">
-                  🌐
-                </span>
-
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-black text-slate-950">
-                    {isArabic
-                      ? 'اللغة'
-                      : 'Langue'}
-                  </span>
-
-                  <span className="mt-1 block text-xs text-slate-400">
-                    {isArabic
-                      ? 'العربية'
-                      : 'Français'}
-                  </span>
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              {orders.length >
-                0 && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate(
-                      `/commande/${orders[0].order_number}`,
-                    )
-                  }
-                  className="flex min-h-[68px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start"
-                >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-blue-50 text-xl">
-                    💬
-                  </span>
-
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-black text-slate-950">
-                      {isArabic
-                        ? 'الدعم داخل الموقع'
-                        : 'Support sur le site'}
-                    </span>
-
-                    <span className="mt-1 block text-xs text-slate-400">
-                      {isArabic
-                        ? 'افتح آخر طلب للمتابعة أو طلب المساعدة'
-                        : 'Ouvrez votre dernière commande pour le suivi ou l’assistance'}
-                    </span>
-                  </span>
-
-                  <span className="text-xl text-slate-300">
-                    {isArabic
-                      ? '‹'
-                      : '›'}
-                  </span>
-                </button>
-              )}
-
-              {whatsappSupport && (
-                <button
-                  type="button"
-                  onClick={
-                    openWhatsappSupport
-                  }
-                  className="flex min-h-[68px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start"
-                >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-emerald-50 text-xl">
-                    💚
-                  </span>
-
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-black text-slate-950">
-                      WhatsApp
-                    </span>
-
-                    <span className="mt-1 block text-xs text-slate-400">
-                      {isArabic
-                        ? 'تواصل سريع مع خدمة الزبائن'
-                        : 'Contact rapide avec le service client'}
-                    </span>
-                  </span>
-
-                  <span className="text-xl text-slate-300">
-                    {isArabic
-                      ? '‹'
-                      : '›'}
-                  </span>
-                </button>
-              )}
-
-              <div className="flex min-h-[68px] items-center gap-3 border-b border-slate-100 px-4 opacity-60">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-slate-100 text-xl">
-                  🔒
-                </span>
-
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-black text-slate-950">
-                    {isArabic
-                      ? 'سياسة الخصوصية'
-                      : 'Politique de confidentialité'}
-                  </span>
-
-                  <span className="mt-1 block text-xs text-slate-400">
-                    {isArabic
-                      ? 'سيتم ربط الصفحة القانونية عند إضافتها'
-                      : 'La page sera reliée dès son ajout'}
-                  </span>
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  void handleSignOut()
-                }
-                className="flex min-h-[68px] w-full items-center gap-3 px-4 text-start"
-              >
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-rose-50 text-xl">
-                  ↗
-                </span>
-
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-black text-rose-600">
-                    {isArabic
-                      ? 'تسجيل الخروج'
-                      : 'Se déconnecter'}
-                  </span>
-
-                  <span className="mt-1 block text-xs text-slate-400">
-                    {isArabic
-                      ? 'الخروج من حساب TEO STORE'
-                      : 'Quitter votre compte TEO STORE'}
-                  </span>
-                </span>
-              </button>
-            </div>
-          </section>
-
-          <div className="mt-5 grid gap-5 lg:mt-0 lg:grid-cols-[300px_1fr]">
-            <aside className="hidden h-fit rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.05)] lg:sticky lg:top-28 lg:block">
-              <div className="flex items-center gap-3">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-gradient-to-br from-blue-600 to-indigo-600 text-lg font-black uppercase text-white shadow-sm">
-                  {
-                    initials
-                  }
-                </div>
-
-                <div className="min-w-0">
-                  <p className="truncate text-base font-black text-slate-950">
-                    {
-                      user.fullName
-                    }
-                  </p>
-
-                  <p
-                    dir="ltr"
-                    className="mt-1 truncate text-left text-xs font-semibold text-slate-500"
-                  >
-                    {
-                      user.email
-                    }
-                  </p>
-
-                  {user.phone && (
-                    <p
-                      dir="ltr"
-                      className="mt-1 truncate text-left text-xs font-semibold text-slate-400"
-                    >
-                      {
-                        user.phone
-                      }
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-5 border-t border-slate-100 pt-5">
-                <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">
-                  {isArabic
-                    ? 'الحساب'
-                    : 'Compte'}
-                </p>
-
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  {isArabic
-                    ? 'تابع طلباتك وإشعاراتك وتقييماتك من مكان واحد.'
-                    : 'Suivez vos commandes, notifications et avis depuis un seul espace.'}
-                </p>
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    scrollToSection(
-                      'profile-orders',
-                    )
-                  }
-                  className="rounded-[14px] bg-slate-50 p-3 text-center"
-                >
-                  <p className="text-xl font-black text-slate-950">
-                    {
-                      orders.length
-                    }
-                  </p>
-
-                  <p className="mt-1 text-[10px] font-bold text-slate-400">
-                    {isArabic
-                      ? 'الطلبات'
-                      : 'Commandes'}
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={
-                    openNotifications
-                  }
-                  className="rounded-[14px] bg-slate-50 p-3 text-center"
-                >
-                  <p className="text-xl font-black text-slate-950">
-                    {
-                      unreadNotifications.length
-                    }
-                  </p>
-
-                  <p className="mt-1 text-[10px] font-bold text-slate-400">
-                    {isArabic
-                      ? 'إشعارات'
-                      : 'Notifications'}
-                  </p>
-                </button>
-              </div>
-
-              {pendingReviewOrders.length >
-                0 && (
-                <div className="mt-4 rounded-[18px] border border-amber-100 bg-amber-50 p-4">
-                  <p className="text-sm font-black text-amber-800">
-                    {isArabic
-                      ? 'تقييمات معلقة'
-                      : 'Avis en attente'}
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-amber-700">
-                    {isArabic
-                      ? 'لديك خدمات مكتملة تحتاج إلى تقييم.'
-                      : 'Des services terminés attendent encore votre avis.'}
-                  </p>
-                </div>
-              )}
-
-              {pendingStoreReviewMilestone !==
-                null && (
-                <button
-                  type="button"
-                  onClick={
-                    openStoreReviewModal
-                  }
-                  className="mt-3 w-full rounded-[16px] border border-blue-100 bg-blue-50 p-4 text-start"
-                >
-                  <p className="text-sm font-black text-blue-900">
-                    {isArabic
-                      ? '★ قيّم TEO STORE'
-                      : '★ Évaluez TEO STORE'}
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-blue-700">
-                    {isArabic
-                      ? `وصلت إلى ${pendingStoreReviewMilestone} طلبات مكتملة.`
-                      : `Vous avez atteint ${pendingStoreReviewMilestone} commandes terminées.`}
-                  </p>
-                </button>
-              )}
-
-              <Link
-                to="/services-numeriques"
-                className="mt-5 flex h-11 items-center justify-center rounded-[14px] bg-gradient-to-r from-blue-600 to-indigo-600 px-3 text-center text-sm font-black text-white"
-              >
-                {isArabic
-                  ? 'استكشاف الخدمات'
-                  : 'Explorer les services'}
-              </Link>
-
-              <div className="mt-3 grid gap-2">
-                {orders.length >
-                  0 && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigate(
-                        `/commande/${orders[0].order_number}`,
-                      )
-                    }
-                    className="flex h-11 items-center justify-center rounded-[14px] border border-slate-200 bg-white px-3 text-sm font-black text-slate-700"
-                  >
-                    {isArabic
-                      ? 'الدعم داخل الموقع'
-                      : 'Support sur le site'}
-                  </button>
-                )}
-
-                {whatsappSupport && (
-                  <button
-                    type="button"
-                    onClick={
-                      openWhatsappSupport
-                    }
-                    className="flex h-11 items-center justify-center rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 text-sm font-black text-emerald-700"
-                  >
-                    WhatsApp
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    void handleSignOut()
-                  }
-                  className="flex h-11 items-center justify-center rounded-[14px] border border-rose-100 bg-rose-50 px-3 text-sm font-black text-rose-600"
-                >
-                  {isArabic
-                    ? 'تسجيل الخروج'
-                    : 'Se déconnecter'}
-                </button>
-              </div>
-            </aside>
-
-            <section className="min-w-0">
-              <div className="hidden lg:flex lg:items-end lg:justify-between">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-600">
-                    TEO STORE
-                  </p>
-
-                  <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-slate-950">
-                    {isArabic
-                      ? 'حسابي'
-                      : 'Mon compte'}
-                  </h1>
-
-                  <p className="mt-2 max-w-xl text-sm leading-7 text-slate-500">
-                    {isArabic
-                      ? 'طلباتك وإشعاراتك وتقييماتك وخدمة الزبائن.'
-                      : 'Vos commandes, notifications, avis et service client.'}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={
-                    handleRefresh
-                  }
-                  disabled={
-                    isRefreshing
-                  }
-                  className="flex h-11 items-center gap-2 rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-black text-slate-600 disabled:opacity-50"
-                >
-                  <span
-                    className={
-                      isRefreshing
-                        ? 'animate-spin'
-                        : ''
-                    }
-                  >
-                    ↻
-                  </span>
-
-                  {isArabic
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-50"
+                aria-label={
+                  isArabic
                     ? 'تحديث'
-                    : 'Actualiser'}
-                </button>
-              </div>
-
-              {errorMessage && (
-                <div className="mt-5 rounded-[18px] border border-rose-100 bg-rose-50 p-4">
-                  <p className="text-sm font-bold text-rose-700">
-                    {
-                      errorMessage
-                    }
-                  </p>
-                </div>
-              )}
-
-              <div
-                ref={
-                  notificationsRef
+                    : 'Actualiser'
                 }
-                className="relative mt-5"
               >
-                <div className="flex items-center justify-between rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-violet-50 text-lg">
-                      🔔
-                    </span>
+                <Icon
+                  name="refresh"
+                  className={
+                    isRefreshing
+                      ? 'h-4 w-4 animate-spin'
+                      : 'h-4 w-4'
+                  }
+                />
+              </button>
+            </div>
+          </div>
+        </Container>
+      </div>
 
-                    <div>
-                      <p className="text-sm font-black text-slate-950">
-                        {isArabic
-                          ? 'الإشعارات'
-                          : 'Notifications'}
-                      </p>
+      <Container className="py-4 sm:py-6">
+        <div className="mx-auto max-w-5xl">
+          {errorMessage && (
+            <div className="mb-4 rounded-[18px] border border-rose-100 bg-rose-50 p-4">
+              <p className="text-sm font-bold text-rose-700">
+                {
+                  errorMessage
+                }
+              </p>
+            </div>
+          )}
 
-                      <p className="mt-0.5 text-xs text-slate-400">
-                        {unreadNotifications.length >
-                        0
-                          ? isArabic
-                            ? `${unreadNotifications.length} جديدة`
-                            : `${unreadNotifications.length} nouvelles`
-                          : isArabic
-                            ? 'لا توجد إشعارات جديدة'
-                            : 'Aucune nouvelle notification'}
-                      </p>
-                    </div>
+          {activeSection ===
+            'home' && (
+            <div className="space-y-4">
+              <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)] sm:p-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xl font-black uppercase text-white">
+                    {
+                      firstLetter
+                    }
                   </div>
 
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-lg font-black text-slate-950 sm:text-xl">
+                      {
+                        user.fullName
+                      }
+                    </p>
+
+                    <p
+                      dir="ltr"
+                      className="mt-1 truncate text-left text-xs font-semibold text-slate-500 sm:text-sm"
+                    >
+                      {
+                        user.email
+                      }
+                    </p>
+
+                    {user.phone && (
+                      <p
+                        dir="ltr"
+                        className="mt-1 truncate text-left text-xs font-semibold text-slate-400"
+                      >
+                        {
+                          user.phone
+                        }
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-3 divide-x divide-slate-100 overflow-hidden rounded-[18px] border border-slate-100 bg-slate-50">
                   <button
                     type="button"
                     onClick={() =>
-                      setNotificationsOpen(
-                        (
-                          current,
-                        ) =>
-                          !current,
+                      openSection(
+                        'orders',
                       )
                     }
-                    className="relative flex h-10 w-10 items-center justify-center rounded-[12px] border border-slate-200 bg-white text-slate-500"
-                    aria-label={
-                      isArabic
-                        ? 'فتح الإشعارات'
-                        : 'Ouvrir les notifications'
-                    }
+                    className="px-2 py-4 text-center"
                   >
-                    {notificationsOpen
-                      ? '×'
-                      : '›'}
+                    <p
+                      dir="ltr"
+                      className="text-xl font-black text-slate-950"
+                    >
+                      {
+                        orders.length
+                      }
+                    </p>
+
+                    <p className="mt-1 text-[10px] font-bold text-slate-400 sm:text-xs">
+                      {isArabic
+                        ? 'الطلبات'
+                        : 'Commandes'}
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openSection(
+                        'notifications',
+                      )
+                    }
+                    className="px-2 py-4 text-center"
+                  >
+                    <p
+                      dir="ltr"
+                      className="text-xl font-black text-slate-950"
+                    >
+                      {
+                        unreadNotifications.length
+                      }
+                    </p>
+
+                    <p className="mt-1 text-[10px] font-bold text-slate-400 sm:text-xs">
+                      {isArabic
+                        ? 'جديدة'
+                        : 'Nouvelles'}
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openSection(
+                        'reviews',
+                      )
+                    }
+                    className="px-2 py-4 text-center"
+                  >
+                    <p
+                      dir="ltr"
+                      className="text-xl font-black text-slate-950"
+                    >
+                      {
+                        completedOrdersCount
+                      }
+                    </p>
+
+                    <p className="mt-1 text-[10px] font-bold text-slate-400 sm:text-xs">
+                      {isArabic
+                        ? 'مكتملة'
+                        : 'Terminées'}
+                    </p>
+                  </button>
+                </div>
+              </section>
+
+              {(
+                pendingReviewOrders.length >
+                  0 ||
+                pendingStoreReviewMilestone !==
+                  null
+              ) && (
+                <section className="rounded-[20px] border border-amber-200 bg-amber-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-amber-500 text-white">
+                      <Icon
+                        name="star"
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-black text-amber-950">
+                        {isArabic
+                          ? 'لديك تقييم بانتظارك'
+                          : 'Un avis vous attend'}
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-amber-700">
+                        {isArabic
+                          ? 'بعض الطلبات المكتملة أو تجربة المتجر تحتاج إلى تقييمك.'
+                          : 'Des commandes terminées ou votre expérience boutique attendent votre avis.'}
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openSection(
+                            'reviews',
+                          )
+                        }
+                        className="mt-3 h-9 rounded-xl bg-amber-500 px-4 text-xs font-black text-white"
+                      >
+                        {isArabic
+                          ? 'عرض التقييمات'
+                          : 'Voir les avis'}
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={() =>
+                    openSection(
+                      'orders',
+                    )
+                  }
+                  className="flex min-h-[76px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start transition hover:bg-slate-50 sm:px-5"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-blue-50 text-blue-600">
+                    <Icon
+                      name="orders"
+                    />
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-black text-slate-950 sm:text-base">
+                      {isArabic
+                        ? 'طلباتي'
+                        : 'Mes commandes'}
+                    </span>
+
+                    <span className="mt-1 block text-xs text-slate-400">
+                      {latestOrder
+                        ? isArabic
+                          ? `${orders.length} طلب — آخر طلب ${latestOrder.order_number}`
+                          : `${orders.length} commandes — dernière ${latestOrder.order_number}`
+                        : isArabic
+                          ? 'لم تقم بأي طلب بعد'
+                          : 'Aucune commande pour le moment'}
+                    </span>
+                  </span>
+
+                  {
+                    rowArrow
+                  }
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    openSection(
+                      'notifications',
+                    )
+                  }
+                  className="flex min-h-[76px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start transition hover:bg-slate-50 sm:px-5"
+                >
+                  <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-violet-50 text-violet-600">
+                    <Icon
+                      name="bell"
+                    />
 
                     {unreadNotifications.length >
                       0 && (
@@ -3193,196 +2796,298 @@ function ProfilePage() {
                           : unreadNotifications.length}
                       </span>
                     )}
-                  </button>
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-black text-slate-950 sm:text-base">
+                      {isArabic
+                        ? 'إشعاراتي'
+                        : 'Mes notifications'}
+                    </span>
+
+                    <span className="mt-1 block text-xs text-slate-400">
+                      {unreadNotifications.length >
+                      0
+                        ? isArabic
+                          ? `${unreadNotifications.length} إشعارات جديدة`
+                          : `${unreadNotifications.length} nouvelles notifications`
+                        : isArabic
+                          ? 'لا توجد إشعارات جديدة'
+                          : 'Aucune nouvelle notification'}
+                    </span>
+                  </span>
+
+                  {
+                    rowArrow
+                  }
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    openSection(
+                      'reviews',
+                    )
+                  }
+                  className="flex min-h-[76px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start transition hover:bg-slate-50 sm:px-5"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-amber-50 text-amber-500">
+                    <Icon
+                      name="star"
+                    />
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-black text-slate-950 sm:text-base">
+                      {isArabic
+                        ? 'تقييماتي'
+                        : 'Mes avis'}
+                    </span>
+
+                    <span className="mt-1 block text-xs text-slate-400">
+                      {isArabic
+                        ? 'تقييم الخدمات وتجربتك مع TEO STORE'
+                        : 'Avis produits et expérience TEO STORE'}
+                    </span>
+                  </span>
+
+                  {
+                    rowArrow
+                  }
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    openSection(
+                      'account',
+                    )
+                  }
+                  className="flex min-h-[76px] w-full items-center gap-3 px-4 text-start transition hover:bg-slate-50 sm:px-5"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-emerald-50 text-emerald-600">
+                    <Icon
+                      name="user"
+                    />
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-black text-slate-950 sm:text-base">
+                      {isArabic
+                        ? 'معلومات حسابي'
+                        : 'Mes informations'}
+                    </span>
+
+                    <span className="mt-1 block truncate text-xs text-slate-400">
+                      {user.phone ||
+                        user.email}
+                    </span>
+                  </span>
+
+                  {
+                    rowArrow
+                  }
+                </button>
+              </section>
+
+              <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={() =>
+                    openSection(
+                      'support',
+                    )
+                  }
+                  className="flex min-h-[76px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start transition hover:bg-slate-50 sm:px-5"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-cyan-50 text-cyan-600">
+                    <Icon
+                      name="support"
+                    />
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-black text-slate-950 sm:text-base">
+                      {isArabic
+                        ? 'خدمة الزبائن'
+                        : 'Service client'}
+                    </span>
+
+                    <span className="mt-1 block text-xs text-slate-400">
+                      {isArabic
+                        ? 'مساعدة داخل الموقع وWhatsApp'
+                        : 'Assistance sur le site et WhatsApp'}
+                    </span>
+                  </span>
+
+                  {
+                    rowArrow
+                  }
+                </button>
+
+                <Link
+                  to="/services-numeriques"
+                  className="flex min-h-[76px] items-center gap-3 px-4 text-start transition hover:bg-slate-50 sm:px-5"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-indigo-50 text-indigo-600">
+                    <Icon
+                      name="store"
+                    />
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-black text-slate-950 sm:text-base">
+                      {isArabic
+                        ? 'استكشاف الخدمات'
+                        : 'Explorer les services'}
+                    </span>
+
+                    <span className="mt-1 block text-xs text-slate-400">
+                      {isArabic
+                        ? 'الخدمات الرقمية وeSIM'
+                        : 'Services numériques et eSIM'}
+                    </span>
+                  </span>
+
+                  {
+                    rowArrow
+                  }
+                </Link>
+              </section>
+
+              {latestOrder && (
+                <section className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                        {isArabic
+                          ? 'آخر طلب'
+                          : 'Dernière commande'}
+                      </p>
+
+                      <p
+                        dir="ltr"
+                        className="mt-1 text-left text-sm font-black text-blue-600"
+                      >
+                        {
+                          latestOrder.order_number
+                        }
+                      </p>
+                    </div>
+
+                    <span
+                      className={[
+                        'rounded-full border px-3 py-2 text-[10px] font-black sm:text-xs',
+
+                        getStatusClasses(
+                          latestOrder.status,
+                        ),
+                      ].join(
+                        ' ',
+                      )}
+                    >
+                      {getStatusLabel(
+                        latestOrder.status,
+                      )}
+                    </span>
+                  </div>
+
+                  <p className="mt-4 font-black text-slate-950">
+                    {
+                      latestOrder.service_name
+                    }
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    {
+                      latestOrder.plan_label
+                    }
+                  </p>
+
+                  <Link
+                    to={`/commande/${latestOrder.order_number}`}
+                    className="mt-4 flex h-11 w-full items-center justify-center rounded-[13px] bg-slate-950 px-4 text-sm font-black text-white sm:w-fit"
+                  >
+                    {isArabic
+                      ? 'متابعة الطلب'
+                      : 'Suivre la commande'}
+                  </Link>
+                </section>
+              )}
+            </div>
+          )}
+
+          {activeSection ===
+            'orders' && (
+            <section>
+              <div className="mb-4 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-sm font-black text-slate-950">
+                    {isArabic
+                      ? 'جميع طلباتك'
+                      : 'Toutes vos commandes'}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    {isArabic
+                      ? 'تابع الدفع والتجهيز والتسليم من هنا.'
+                      : 'Suivez le paiement, le traitement et la livraison.'}
+                  </p>
                 </div>
 
-                {notificationsOpen && (
-                  <div className="mt-2 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_25px_70px_rgba(15,23,42,0.16)]">
-                    <div className="flex items-center justify-between border-b border-slate-100 p-4">
-                      <h2 className="font-black text-slate-950">
-                        {isArabic
-                          ? 'الإشعارات'
-                          : 'Notifications'}
-                      </h2>
-
-                      {unreadNotifications.length >
-                        0 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void markAllNotificationsRead()
-                          }
-                          className="text-xs font-black text-blue-600"
-                        >
-                          {isArabic
-                            ? 'قراءة الكل'
-                            : 'Tout lire'}
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="max-h-[460px] overflow-y-auto p-2">
-                      {notifications.length >
-                      0 ? (
-                        notifications.map(
-                          (
-                            notification,
-                          ) => (
-                            <button
-                              key={
-                                notification.id
-                              }
-                              type="button"
-                              onClick={() =>
-                                void handleNotificationClick(
-                                  notification,
-                                )
-                              }
-                              className={[
-                                'mb-1 w-full rounded-[16px] p-3 text-start',
-                                notification.is_read
-                                  ? 'bg-white'
-                                  : 'bg-blue-50',
-                              ].join(
-                                ' ',
-                              )}
-                            >
-                              <p className="text-sm font-black text-slate-900">
-                                {getNotificationTitle(
-                                  notification,
-                                )}
-                              </p>
-
-                              <p className="mt-1 text-xs leading-5 text-slate-500">
-                                {getNotificationMessage(
-                                  notification,
-                                )}
-                              </p>
-
-                              <p
-                                dir="ltr"
-                                className="mt-2 text-left text-[10px] text-slate-400"
-                              >
-                                {formatDate(
-                                  notification.created_at,
-                                )}
-                              </p>
-                            </button>
-                          ),
-                        )
-                      ) : (
-                        <div className="p-8 text-center text-sm font-bold text-slate-400">
-                          {isArabic
-                            ? 'لا توجد إشعارات'
-                            : 'Aucune notification'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <span
+                  dir="ltr"
+                  className="rounded-full bg-blue-50 px-3 py-1.5 text-sm font-black text-blue-700"
+                >
+                  {
+                    orders.length
+                  }
+                </span>
               </div>
 
-              <section
-                id="profile-reviews"
-                className="mt-5 scroll-mt-24 overflow-hidden rounded-[24px] border border-blue-100 bg-white shadow-sm"
-              >
-                <div className="bg-gradient-to-r from-slate-950 via-blue-950 to-indigo-950 p-5 text-white">
-                  <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-300">
-                    TEO STORE
-                  </p>
+              {orders.length >
+              0 ? (
+                <div className="space-y-3">
+                  {orders.map(
+                    (
+                      order,
+                    ) => {
+                      const status =
+                        normalizeDigitalStatus(
+                          order.status,
+                        )
 
-                  <h2 className="mt-2 text-xl font-black">
-                    {isArabic
-                      ? 'تقييم تجربتك'
-                      : 'Vos évaluations'}
-                  </h2>
+                      const needsReview =
+                        status ===
+                          'completed' &&
+                        !reviewOrderIds.has(
+                          order.id,
+                        )
 
-                  <p className="mt-2 text-sm leading-6 text-white/60">
-                    {isArabic
-                      ? `لديك ${completedOrdersCount} طلبات مكتملة. يظهر تقييم للمتجر كل 5 طلبات مكتملة.`
-                      : `Vous avez ${completedOrdersCount} commandes terminées. Un avis boutique est proposé toutes les 5 commandes.`}
-                  </p>
-                </div>
-
-                <div className="p-4 sm:p-5">
-                  {pendingStoreReviewMilestone !==
-                  null ? (
-                    <div className="rounded-[18px] border border-amber-200 bg-amber-50 p-4">
-                      <p className="font-black text-amber-900">
-                        {isArabic
-                          ? `وصلت إلى ${pendingStoreReviewMilestone} طلبات مكتملة 🎉`
-                          : `Vous avez atteint ${pendingStoreReviewMilestone} commandes terminées 🎉`}
-                      </p>
-
-                      <p className="mt-1 text-xs leading-5 text-amber-700">
-                        {isArabic
-                          ? 'شاركنا رأيك العام في تجربة TEO STORE.'
-                          : 'Partagez votre avis général sur votre expérience TEO STORE.'}
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={
-                          openStoreReviewModal
-                        }
-                        className="mt-4 h-11 rounded-xl bg-amber-500 px-5 text-sm font-black text-white"
-                      >
-                        {isArabic
-                          ? 'تقييم TEO STORE'
-                          : 'Évaluer TEO STORE'}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="rounded-[18px] bg-slate-50 p-4">
-                      <p className="text-sm font-black text-slate-800">
-                        {isArabic
-                          ? 'لا يوجد تقييم للمتجر مطلوب الآن'
-                          : 'Aucun avis boutique requis maintenant'}
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-500">
-                        {isArabic
-                          ? `يتبقى ${ordersUntilNextStoreReview} طلبات مكتملة حتى التقييم القادم.`
-                          : `Il reste ${ordersUntilNextStoreReview} commandes terminées avant le prochain avis.`}
-                      </p>
-                    </div>
-                  )}
-
-                  {pendingReviewOrders.length >
-                    0 && (
-                    <div className="mt-5">
-                      <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                        {isArabic
-                          ? 'تقييمات خدمات معلقة'
-                          : 'Avis produits en attente'}
-                      </p>
-
-                      <div className="mt-3 space-y-3">
-                        {pendingReviewOrders.map(
-                          (
-                            order,
-                          ) => (
-                            <div
-                              key={
-                                order.id
-                              }
-                              className="flex flex-col gap-3 rounded-[17px] border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between"
-                            >
-                              <div>
+                      return (
+                        <article
+                          key={
+                            order.id
+                          }
+                          className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm"
+                        >
+                          <div className="p-4 sm:p-5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
                                 <p
                                   dir="ltr"
-                                  className="text-xs font-black text-blue-600"
+                                  className="text-left text-[11px] font-black text-blue-600"
                                 >
                                   {
                                     order.order_number
                                   }
                                 </p>
 
-                                <p className="mt-1 font-black text-slate-950">
+                                <h2 className="mt-2 truncate text-base font-black text-slate-950">
                                   {
                                     order.service_name
                                   }
-                                </p>
+                                </h2>
 
                                 <p className="mt-1 text-xs text-slate-500">
                                   {
@@ -3391,6 +3096,84 @@ function ProfilePage() {
                                 </p>
                               </div>
 
+                              <span
+                                className={[
+                                  'max-w-[48%] rounded-full border px-2.5 py-1.5 text-center text-[9px] font-black leading-4 sm:text-xs',
+
+                                  getStatusClasses(
+                                    status,
+                                  ),
+                                ].join(
+                                  ' ',
+                                )}
+                              >
+                                {getStatusLabel(
+                                  status,
+                                )}
+                              </span>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                              <div className="rounded-[14px] bg-slate-50 p-3">
+                                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                                  {isArabic
+                                    ? 'المبلغ'
+                                    : 'Montant'}
+                                </p>
+
+                                <p
+                                  dir="ltr"
+                                  className="mt-1 text-left text-sm font-black text-slate-900"
+                                >
+                                  {formatAmount(
+                                    order.total_amount,
+                                    order.currency,
+                                  )}
+                                </p>
+                              </div>
+
+                              <div className="rounded-[14px] bg-slate-50 p-3">
+                                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                                  {isArabic
+                                    ? 'الدفع'
+                                    : 'Paiement'}
+                                </p>
+
+                                <p className="mt-1 truncate text-sm font-black text-slate-900">
+                                  {order.payment_method_name ??
+                                    '—'}
+                                </p>
+                              </div>
+
+                              <div className="col-span-2 rounded-[14px] bg-slate-50 p-3 sm:col-span-1">
+                                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                                  {isArabic
+                                    ? 'التاريخ'
+                                    : 'Date'}
+                                </p>
+
+                                <p
+                                  dir="ltr"
+                                  className="mt-1 text-left text-xs font-bold text-slate-700"
+                                >
+                                  {formatDate(
+                                    order.created_at,
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+
+                            {status ===
+                              'payment_partial' &&
+                              order.payment_issue_reason && (
+                                <div className="mt-3 rounded-[14px] border border-orange-200 bg-orange-50 p-3 text-xs font-bold leading-5 text-orange-700">
+                                  {
+                                    order.payment_issue_reason
+                                  }
+                                </div>
+                              )}
+
+                            {needsReview && (
                               <button
                                 type="button"
                                 onClick={() =>
@@ -3398,366 +3181,730 @@ function ProfilePage() {
                                     order,
                                   )
                                 }
-                                className="h-11 rounded-xl bg-amber-500 px-5 text-sm font-black text-white"
+                                className="mt-3 flex h-10 w-full items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-xs font-black text-amber-700"
                               >
                                 {isArabic
-                                  ? 'ترك تقييم'
-                                  : 'Laisser un avis'}
+                                  ? 'قيّم هذه الخدمة'
+                                  : 'Évaluer ce service'}
                               </button>
-                            </div>
-                          ),
-                        )}
-                      </div>
-                    </div>
-                  )}
+                            )}
 
-                  {storeReviews.length >
-                    0 && (
-                    <div className="mt-5">
-                      <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                        {isArabic
-                          ? 'تقييمات المتجر السابقة'
-                          : 'Vos avis boutique précédents'}
-                      </p>
-
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        {[...storeReviews]
-                          .sort(
-                            (
-                              a,
-                              b,
-                            ) =>
-                              b.milestone -
-                              a.milestone,
-                          )
-                          .map(
-                            (
-                              item,
-                            ) => (
-                              <div
-                                key={
-                                  item.id
-                                }
-                                className="rounded-[16px] border border-slate-200 bg-slate-50 p-4"
-                              >
-                                <div className="flex items-center justify-between gap-3">
-                                  <p className="text-sm font-black text-slate-900">
-                                    {isArabic
-                                      ? `بعد ${item.milestone} طلبات`
-                                      : `Après ${item.milestone} commandes`}
-                                  </p>
-
-                                  <span
-                                    dir="ltr"
-                                    className="shrink-0 font-black text-amber-500"
-                                  >
-                                    {
-                                      item.rating
-                                    }
-                                    /5 ★
-                                  </span>
-                                </div>
-
-                                {item.comment && (
-                                  <p className="mt-2 text-xs leading-5 text-slate-500">
-                                    {
-                                      item.comment
-                                    }
-                                  </p>
-                                )}
-                              </div>
-                            ),
-                          )}
-                      </div>
-                    </div>
-                  )}
-
-                  {reviews.length >
-                    0 && (
-                    <div className="mt-5">
-                      <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                        {isArabic
-                          ? 'تقييمات الخدمات السابقة'
-                          : 'Vos avis produits précédents'}
-                      </p>
-
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        {reviews.map(
-                          (
-                            review,
-                          ) => (
-                            <div
-                              key={
-                                review.id
-                              }
-                              className="rounded-[16px] border border-slate-200 bg-slate-50 p-4"
+                            <Link
+                              to={`/commande/${order.order_number}`}
+                              className="mt-3 flex h-11 w-full items-center justify-center rounded-[13px] bg-slate-950 px-4 text-sm font-black text-white"
                             >
-                              <div className="flex items-center justify-between gap-3">
-                                <p
-                                  dir="ltr"
-                                  className="truncate text-xs font-black text-blue-600"
-                                >
-                                  {
-                                    review.order_number
-                                  }
-                                </p>
-
-                                <span
-                                  dir="ltr"
-                                  className="shrink-0 text-sm font-black text-amber-500"
-                                >
-                                  {
-                                    review.rating
-                                  }
-                                  /5 ★
-                                </span>
-                              </div>
-
-                              {review.comment && (
-                                <p className="mt-2 text-xs leading-5 text-slate-500">
-                                  {
-                                    review.comment
-                                  }
-                                </p>
-                              )}
-
-                              <p
-                                dir="ltr"
-                                className="mt-3 text-left text-[10px] text-slate-400"
-                              >
-                                {formatDate(
-                                  review.created_at,
-                                )}
-                              </p>
-                            </div>
-                          ),
-                        )}
-                      </div>
-                    </div>
+                              {isArabic
+                                ? 'فتح الطلب'
+                                : 'Ouvrir la commande'}
+                            </Link>
+                          </div>
+                        </article>
+                      )
+                    },
                   )}
                 </div>
-              </section>
+              ) : (
+                <div className="rounded-[22px] border border-dashed border-slate-300 bg-white p-8 text-center">
+                  <Icon
+                    name="orders"
+                    className="mx-auto h-8 w-8 text-slate-300"
+                  />
 
-              <section
-                id="profile-orders"
-                className="mt-7 scroll-mt-24"
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-xl font-black text-slate-950">
+                  <p className="mt-4 font-black text-slate-700">
                     {isArabic
-                      ? 'طلباتي الرقمية'
-                      : 'Mes commandes numériques'}
-                  </h2>
+                      ? 'لا توجد طلبات حتى الآن'
+                      : 'Aucune commande pour le moment'}
+                  </p>
 
-                  <span className="rounded-full bg-blue-50 px-3 py-1.5 text-sm font-black text-blue-700">
+                  <Link
+                    to="/services-numeriques"
+                    className="mt-5 inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
+                  >
+                    {isArabic
+                      ? 'استكشاف الخدمات'
+                      : 'Explorer les services'}
+                  </Link>
+                </div>
+              )}
+            </section>
+          )}
+
+          {activeSection ===
+            'notifications' && (
+            <section>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-slate-950">
+                    {isArabic
+                      ? 'آخر تحديثات طلباتك'
+                      : 'Dernières mises à jour'}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    {isArabic
+                      ? `${unreadNotifications.length} غير مقروءة`
+                      : `${unreadNotifications.length} non lues`}
+                  </p>
+                </div>
+
+                {unreadNotifications.length >
+                  0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void markAllNotificationsRead()
+                    }
+                    className="h-10 rounded-xl border border-blue-100 bg-blue-50 px-3 text-xs font-black text-blue-700"
+                  >
+                    {isArabic
+                      ? 'قراءة الكل'
+                      : 'Tout lire'}
+                  </button>
+                )}
+              </div>
+
+              <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
+                {notifications.length >
+                0 ? (
+                  <div className="divide-y divide-slate-100">
+                    {notifications.map(
+                      (
+                        notification,
+                      ) => (
+                        <button
+                          key={
+                            notification.id
+                          }
+                          type="button"
+                          onClick={() =>
+                            void handleNotificationClick(
+                              notification,
+                            )
+                          }
+                          className={[
+                            'flex w-full gap-3 p-4 text-start transition hover:bg-slate-50 sm:p-5',
+
+                            notification.is_read
+                              ? 'bg-white'
+                              : 'bg-blue-50/60',
+                          ].join(
+                            ' ',
+                          )}
+                        >
+                          <span
+                            className={[
+                              'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px]',
+
+                              notification.is_read
+                                ? 'bg-slate-100 text-slate-500'
+                                : 'bg-blue-600 text-white',
+                            ].join(
+                              ' ',
+                            )}
+                          >
+                            <Icon
+                              name="bell"
+                              className="h-4 w-4"
+                            />
+                          </span>
+
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-black text-slate-950">
+                              {getNotificationTitle(
+                                notification,
+                              )}
+                            </span>
+
+                            <span className="mt-1 block text-xs leading-5 text-slate-500">
+                              {getNotificationMessage(
+                                notification,
+                              )}
+                            </span>
+
+                            <span
+                              dir="ltr"
+                              className="mt-2 block text-left text-[10px] text-slate-400"
+                            >
+                              {formatDate(
+                                notification.created_at,
+                              )}
+                            </span>
+                          </span>
+                        </button>
+                      ),
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-10 text-center">
+                    <Icon
+                      name="bell"
+                      className="mx-auto h-8 w-8 text-slate-300"
+                    />
+
+                    <p className="mt-4 font-black text-slate-600">
+                      {isArabic
+                        ? 'لا توجد إشعارات'
+                        : 'Aucune notification'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {activeSection ===
+            'reviews' && (
+            <section className="space-y-4">
+              <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-amber-50 text-amber-500">
+                    <Icon
+                      name="star"
+                    />
+                  </span>
+
+                  <div>
+                    <p className="font-black text-slate-950">
+                      {isArabic
+                        ? 'تقييم تجربتك'
+                        : 'Évaluez votre expérience'}
+                    </p>
+
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      {isArabic
+                        ? `${completedOrdersCount} طلبات مكتملة. تقييم المتجر يظهر كل 5 طلبات.`
+                        : `${completedOrdersCount} commandes terminées. L’avis boutique apparaît toutes les 5 commandes.`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {pendingStoreReviewMilestone !==
+                null && (
+                <div className="rounded-[22px] border border-blue-100 bg-blue-50 p-5">
+                  <p className="font-black text-blue-950">
+                    {isArabic
+                      ? `وصلت إلى ${pendingStoreReviewMilestone} طلبات مكتملة`
+                      : `Vous avez atteint ${pendingStoreReviewMilestone} commandes terminées`}
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-blue-700">
+                    {isArabic
+                      ? 'شاركنا تقييمك العام لخدمة TEO STORE.'
+                      : 'Partagez votre avis général sur TEO STORE.'}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={
+                      openStoreReviewModal
+                    }
+                    className="mt-4 h-11 rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
+                  >
+                    {isArabic
+                      ? 'تقييم TEO STORE'
+                      : 'Évaluer TEO STORE'}
+                  </button>
+                </div>
+              )}
+
+              {pendingReviewOrders.length >
+                0 && (
+                <div className="overflow-hidden rounded-[22px] border border-amber-200 bg-white shadow-sm">
+                  <div className="border-b border-amber-100 bg-amber-50 px-4 py-3">
+                    <p className="text-sm font-black text-amber-900">
+                      {isArabic
+                        ? 'خدمات تحتاج إلى تقييم'
+                        : 'Services à évaluer'}
+                    </p>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    {pendingReviewOrders.map(
+                      (
+                        order,
+                      ) => (
+                        <div
+                          key={
+                            order.id
+                          }
+                          className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="min-w-0">
+                            <p
+                              dir="ltr"
+                              className="text-left text-[11px] font-black text-blue-600"
+                            >
+                              {
+                                order.order_number
+                              }
+                            </p>
+
+                            <p className="mt-1 truncate font-black text-slate-950">
+                              {
+                                order.service_name
+                              }
+                            </p>
+
+                            <p className="mt-1 text-xs text-slate-500">
+                              {
+                                order.plan_label
+                              }
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openReviewModal(
+                                order,
+                              )
+                            }
+                            className="h-10 rounded-xl bg-amber-500 px-4 text-xs font-black text-white"
+                          >
+                            {isArabic
+                              ? 'تقييم'
+                              : 'Évaluer'}
+                          </button>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-black text-slate-950">
+                    {isArabic
+                      ? 'تقييمات TEO STORE السابقة'
+                      : 'Avis TEO STORE précédents'}
+                  </p>
+
+                  <span
+                    dir="ltr"
+                    className="text-xs font-black text-slate-400"
+                  >
                     {
-                      orders.length
+                      storeReviews.length
                     }
                   </span>
                 </div>
 
-                {orders.length >
+                {storeReviews.length >
                 0 ? (
-                  <div className="space-y-4">
-                    {orders.map(
-                      (
-                        order,
-                      ) => {
-                        const status =
-                          normalizeDigitalStatus(
-                            order.status,
-                          )
-
-                        const needsReview =
-                          status ===
-                            'completed' &&
-                          !reviewOrderIds.has(
-                            order.id,
-                          )
-
-                        return (
-                          <article
+                  <div className="mt-4 space-y-3">
+                    {[...storeReviews]
+                      .sort(
+                        (
+                          a,
+                          b,
+                        ) =>
+                          b.milestone -
+                          a.milestone,
+                      )
+                      .map(
+                        (
+                          item,
+                        ) => (
+                          <div
                             key={
-                              order.id
+                              item.id
                             }
-                            className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm"
+                            className="rounded-[16px] bg-slate-50 p-4"
                           >
-                            <div className="p-4 sm:p-5">
-                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                <div className="min-w-0">
-                                  <p
-                                    dir="ltr"
-                                    className="text-left text-xs font-black text-blue-600"
-                                  >
-                                    {
-                                      order.order_number
-                                    }
-                                  </p>
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-sm font-black text-slate-900">
+                                {isArabic
+                                  ? `بعد ${item.milestone} طلبات`
+                                  : `Après ${item.milestone} commandes`}
+                              </p>
 
-                                  <h3 className="mt-2 truncate text-base font-black text-slate-950">
-                                    {
-                                      order.service_name
-                                    }
-                                  </h3>
-
-                                  <p className="mt-1 text-sm text-slate-500">
-                                    {
-                                      order.plan_label
-                                    }
-                                  </p>
-                                </div>
-
-                                <span
-                                  className={[
-                                    'w-fit rounded-full border px-3 py-2 text-xs font-black',
-                                    getDigitalStatusClasses(
-                                      status,
-                                    ),
-                                  ].join(
-                                    ' ',
-                                  )}
-                                >
-                                  {getDigitalStatusLabel(
-                                    status,
-                                  )}
-                                </span>
-                              </div>
-
-                              {status ===
-                                'payment_partial' &&
-                                order.payment_issue_reason && (
-                                  <div className="mt-4 rounded-[15px] border border-orange-200 bg-orange-50 p-3">
-                                    <p className="text-xs font-bold leading-5 text-orange-700">
-                                      {
-                                        order.payment_issue_reason
-                                      }
-                                    </p>
-                                  </div>
-                                )}
-
-                              {needsReview && (
-                                <div className="mt-4 rounded-[16px] border border-amber-200 bg-amber-50 p-4">
-                                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <p className="text-sm font-black text-amber-800">
-                                      {isArabic
-                                        ? '★ تقييم هذه الخدمة ما زال معلقًا'
-                                        : '★ Votre avis est encore en attente'}
-                                    </p>
-
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        openReviewModal(
-                                          order,
-                                        )
-                                      }
-                                      className="h-10 rounded-xl bg-amber-500 px-4 text-sm font-black text-white"
-                                    >
-                                      {isArabic
-                                        ? 'تقييم'
-                                        : 'Évaluer'}
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-
-                              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                                <div className="rounded-[15px] bg-slate-50 p-3">
-                                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
-                                    {isArabic
-                                      ? 'المبلغ'
-                                      : 'Montant'}
-                                  </p>
-
-                                  <p
-                                    dir="ltr"
-                                    className="mt-2 break-words text-left text-sm font-black text-slate-900"
-                                  >
-                                    {formatAmount(
-                                      order.total_amount,
-                                      order.currency,
-                                    )}
-                                  </p>
-                                </div>
-
-                                <div className="rounded-[15px] bg-slate-50 p-3">
-                                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
-                                    {isArabic
-                                      ? 'الدفع'
-                                      : 'Paiement'}
-                                  </p>
-
-                                  <p className="mt-2 truncate text-sm font-black text-slate-900">
-                                    {order.payment_method_name ??
-                                      '—'}
-                                  </p>
-                                </div>
-
-                                <div className="col-span-2 rounded-[15px] bg-slate-50 p-3 sm:col-span-1">
-                                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
-                                    {isArabic
-                                      ? 'التاريخ'
-                                      : 'Date'}
-                                  </p>
-
-                                  <p
-                                    dir="ltr"
-                                    className="mt-2 text-left text-xs font-bold text-slate-700"
-                                  >
-                                    {formatDate(
-                                      order.created_at,
-                                    )}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="mt-4 border-t border-slate-100 pt-4">
-                                <Link
-                                  to={`/commande/${order.order_number}`}
-                                  className="flex h-11 w-full items-center justify-center rounded-[13px] bg-slate-950 px-5 text-sm font-black text-white sm:ml-auto sm:w-fit"
-                                >
-                                  {isArabic
-                                    ? 'متابعة الطلب'
-                                    : 'Suivre la commande'}
-                                </Link>
-                              </div>
+                              <span
+                                dir="ltr"
+                                className="font-black text-amber-500"
+                              >
+                                {
+                                  item.rating
+                                }
+                                /5 ★
+                              </span>
                             </div>
-                          </article>
-                        )
-                      },
+
+                            {item.comment && (
+                              <p className="mt-2 text-xs leading-5 text-slate-500">
+                                {
+                                  item.comment
+                                }
+                              </p>
+                            )}
+                          </div>
+                        ),
+                      )}
+                  </div>
+                ) : (
+                  <p className="mt-4 text-xs text-slate-400">
+                    {isArabic
+                      ? `يتبقى ${ordersUntilNextStoreReview} طلبات مكتملة حتى التقييم القادم.`
+                      : `Il reste ${ordersUntilNextStoreReview} commandes terminées avant le prochain avis.`}
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-black text-slate-950">
+                    {isArabic
+                      ? 'تقييمات الخدمات السابقة'
+                      : 'Avis produits précédents'}
+                  </p>
+
+                  <span
+                    dir="ltr"
+                    className="text-xs font-black text-slate-400"
+                  >
+                    {
+                      reviews.length
+                    }
+                  </span>
+                </div>
+
+                {reviews.length >
+                0 ? (
+                  <div className="mt-4 space-y-3">
+                    {reviews.map(
+                      (
+                        review,
+                      ) => (
+                        <div
+                          key={
+                            review.id
+                          }
+                          className="rounded-[16px] bg-slate-50 p-4"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <p
+                              dir="ltr"
+                              className="truncate text-left text-xs font-black text-blue-600"
+                            >
+                              {
+                                review.order_number
+                              }
+                            </p>
+
+                            <span
+                              dir="ltr"
+                              className="shrink-0 font-black text-amber-500"
+                            >
+                              {
+                                review.rating
+                              }
+                              /5 ★
+                            </span>
+                          </div>
+
+                          {review.comment && (
+                            <p className="mt-2 text-xs leading-5 text-slate-500">
+                              {
+                                review.comment
+                              }
+                            </p>
+                          )}
+
+                          <p
+                            dir="ltr"
+                            className="mt-2 text-left text-[10px] text-slate-400"
+                          >
+                            {formatDate(
+                              review.created_at,
+                            )}
+                          </p>
+                        </div>
+                      ),
                     )}
                   </div>
                 ) : (
-                  <div className="rounded-[24px] border border-dashed border-slate-300 bg-white p-8 text-center">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] bg-blue-50 text-2xl">
-                      🛍️
-                    </div>
+                  <p className="mt-4 text-xs text-slate-400">
+                    {isArabic
+                      ? 'لم ترسل أي تقييم للخدمات بعد.'
+                      : 'Vous n’avez encore publié aucun avis produit.'}
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
 
-                    <p className="mt-4 font-black text-slate-700">
-                      {isArabic
-                        ? 'لا توجد طلبات حتى الآن'
-                        : 'Aucune commande pour le moment'}
+          {activeSection ===
+            'account' && (
+            <section className="space-y-4">
+              <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xl font-black uppercase text-white">
+                    {
+                      firstLetter
+                    }
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="truncate text-lg font-black text-slate-950">
+                      {
+                        user.fullName
+                      }
                     </p>
 
-                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                    <p className="mt-1 text-xs text-slate-400">
                       {isArabic
-                        ? 'اختر خدمة رقمية وابدأ أول طلب لك.'
-                        : 'Choisissez un service numérique et passez votre première commande.'}
+                        ? 'حساب TEO STORE'
+                        : 'Compte TEO STORE'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 divide-y divide-slate-100 border-t border-slate-100">
+                  <div className="py-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                      {isArabic
+                        ? 'الاسم'
+                        : 'Nom'}
                     </p>
 
-                    <Link
-                      to="/services-numeriques"
-                      className="mt-5 inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
+                    <p className="mt-1 text-sm font-black text-slate-900">
+                      {
+                        user.fullName
+                      }
+                    </p>
+                  </div>
+
+                  <div className="py-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                      {isArabic
+                        ? 'البريد الإلكتروني'
+                        : 'E-mail'}
+                    </p>
+
+                    <p
+                      dir="ltr"
+                      className="mt-1 break-all text-left text-sm font-black text-slate-900"
                     >
+                      {user.email ||
+                        '—'}
+                    </p>
+                  </div>
+
+                  <div className="py-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
                       {isArabic
-                        ? 'استكشاف الخدمات'
-                        : 'Explorer les services'}
-                    </Link>
+                        ? 'الهاتف'
+                        : 'Téléphone'}
+                    </p>
+
+                    <p
+                      dir="ltr"
+                      className="mt-1 text-left text-sm font-black text-slate-900"
+                    >
+                      {user.phone ||
+                        '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
+                <div className="flex min-h-[74px] items-center gap-3 border-b border-slate-100 px-4 sm:px-5">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-sky-50 text-sky-600">
+                    <Icon
+                      name="globe"
+                    />
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-black text-slate-950">
+                      {isArabic
+                        ? 'اللغة'
+                        : 'Langue'}
+                    </span>
+
+                    <span className="mt-1 block text-xs text-slate-400">
+                      {isArabic
+                        ? 'العربية'
+                        : 'Français'}
+                    </span>
+                  </span>
+                </div>
+
+                <div className="flex min-h-[74px] items-center gap-3 px-4 opacity-70 sm:px-5">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-slate-100 text-slate-500">
+                    <Icon
+                      name="user"
+                    />
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-black text-slate-950">
+                      {isArabic
+                        ? 'سياسة الخصوصية'
+                        : 'Politique de confidentialité'}
+                    </span>
+
+                    <span className="mt-1 block text-xs text-slate-400">
+                      {isArabic
+                        ? 'سنربط الصفحة القانونية عند تجهيزها.'
+                        : 'La page juridique sera reliée lorsqu’elle sera prête.'}
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void handleSignOut()
+                }
+                className="flex min-h-[68px] w-full items-center justify-center gap-2 rounded-[18px] border border-rose-100 bg-rose-50 px-4 text-sm font-black text-rose-600"
+              >
+                <Icon
+                  name="logout"
+                />
+
+                {isArabic
+                  ? 'تسجيل الخروج'
+                  : 'Se déconnecter'}
+              </button>
+            </section>
+          )}
+
+          {activeSection ===
+            'support' && (
+            <section className="space-y-4">
+              <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] bg-blue-50 text-blue-600">
+                    <Icon
+                      name="support"
+                    />
+                  </span>
+
+                  <div>
+                    <p className="font-black text-slate-950">
+                      {isArabic
+                        ? 'كيف نساعدك؟'
+                        : 'Comment pouvons-nous vous aider ?'}
+                    </p>
+
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      {isArabic
+                        ? 'يمكنك متابعة أي مشكلة مرتبطة بطلبك داخل الموقع، أو التواصل سريعًا مع خدمة الزبائن عبر WhatsApp.'
+                        : 'Suivez tout problème lié à une commande sur le site, ou contactez rapidement le service client via WhatsApp.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
+                {latestOrder && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(
+                        `/commande/${latestOrder.order_number}`,
+                      )
+                    }
+                    className="flex min-h-[82px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start transition hover:bg-slate-50 sm:px-5"
+                  >
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] bg-blue-50 text-blue-600">
+                      <Icon
+                        name="orders"
+                      />
+                    </span>
+
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-black text-slate-950">
+                        {isArabic
+                          ? 'الدعم المرتبط بطلب'
+                          : 'Assistance liée à une commande'}
+                      </span>
+
+                      <span className="mt-1 block text-xs leading-5 text-slate-400">
+                        {isArabic
+                          ? `افتح آخر طلب ${latestOrder.order_number} لمتابعة حالته أو النزاع.`
+                          : `Ouvrez votre dernière commande ${latestOrder.order_number} pour son suivi ou un litige.`}
+                      </span>
+                    </span>
+
+                    {
+                      rowArrow
+                    }
+                  </button>
+                )}
+
+                {whatsappSupport ? (
+                  <button
+                    type="button"
+                    onClick={
+                      openWhatsappSupport
+                    }
+                    className="flex min-h-[82px] w-full items-center gap-3 px-4 text-start transition hover:bg-slate-50 sm:px-5"
+                  >
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] bg-emerald-50 text-emerald-600">
+                      <Icon
+                        name="whatsapp"
+                      />
+                    </span>
+
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-black text-slate-950">
+                        WhatsApp
+                      </span>
+
+                      <span className="mt-1 block text-xs leading-5 text-slate-400">
+                        {isArabic
+                          ? 'تواصل مباشرة مع خدمة الزبائن.'
+                          : 'Contactez directement le service client.'}
+                      </span>
+                    </span>
+
+                    {
+                      rowArrow
+                    }
+                  </button>
+                ) : (
+                  <div className="flex min-h-[82px] items-center gap-3 px-4 opacity-60 sm:px-5">
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] bg-slate-100 text-slate-500">
+                      <Icon
+                        name="whatsapp"
+                      />
+                    </span>
+
+                    <div>
+                      <p className="text-sm font-black text-slate-800">
+                        WhatsApp
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-400">
+                        {isArabic
+                          ? 'غير متاح حاليًا.'
+                          : 'Indisponible actuellement.'}
+                      </p>
+                    </div>
                   </div>
                 )}
-              </section>
+              </div>
+
+              <div className="rounded-[20px] border border-blue-100 bg-blue-50 p-4">
+                <p className="text-xs font-black text-blue-900">
+                  {isArabic
+                    ? 'للمشاكل المتعلقة بطلب موجود'
+                    : 'Pour un problème lié à une commande'}
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-blue-700">
+                  {isArabic
+                    ? 'يفضل فتح الطلب داخل TEO STORE أولًا، لأن رقم الطلب وحالته وتفاصيل الدفع تكون موجودة هناك.'
+                    : 'Ouvrez d’abord la commande dans TEO STORE : son numéro, son statut et les informations de paiement y sont déjà disponibles.'}
+                </p>
+              </div>
             </section>
-          </div>
+          )}
         </div>
       </Container>
 
@@ -3765,7 +3912,7 @@ function ProfilePage() {
         <div className="fixed inset-0 z-[150] flex items-end justify-center bg-slate-950/65 backdrop-blur-sm sm:items-center sm:p-4">
           <div className="max-h-[94dvh] w-full overflow-y-auto rounded-t-[28px] bg-white p-5 sm:max-w-lg sm:rounded-[28px]">
             <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
+              <div>
                 <p className="text-xs font-black uppercase text-amber-600">
                   TEO STORE
                 </p>
@@ -3796,11 +3943,6 @@ function ProfilePage() {
                   isSubmittingReview
                 }
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-black"
-                aria-label={
-                  isArabic
-                    ? 'إغلاق'
-                    : 'Fermer'
-                }
               >
                 ×
               </button>
@@ -3832,23 +3974,20 @@ function ProfilePage() {
                         star
                       }
                       type="button"
+                      disabled={
+                        isSubmittingReview
+                      }
                       onClick={() =>
                         setReviewRating(
                           star,
                         )
                       }
-                      disabled={
-                        isSubmittingReview
-                      }
-                      className={[
-                        'text-3xl transition hover:scale-110',
+                      className={
                         star <=
                         reviewRating
-                          ? 'text-amber-400'
-                          : 'text-slate-200',
-                      ].join(
-                        ' ',
-                      )}
+                          ? 'text-3xl text-amber-400'
+                          : 'text-3xl text-slate-200'
+                      }
                     >
                       ★
                     </button>
@@ -3867,45 +4006,35 @@ function ProfilePage() {
               </p>
             </div>
 
-            <label className="mt-5 block">
-              <span className="text-sm font-black text-slate-700">
-                {isArabic
-                  ? 'تعليقك'
-                  : 'Votre commentaire'}
-              </span>
-
-              <textarea
-                rows={4}
-                value={
-                  reviewComment
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setReviewComment(
-                    event.target.value,
-                  )
-                }
-                disabled={
-                  isSubmittingReview
-                }
-                placeholder={
-                  isArabic
-                    ? 'شارك تجربتك مع هذه الخدمة...'
-                    : 'Partagez votre expérience avec ce service...'
-                }
-                className="mt-2 w-full resize-none rounded-[16px] border border-slate-200 bg-slate-50 p-4 text-sm outline-none transition focus:border-amber-400 focus:bg-white"
-              />
-            </label>
+            <textarea
+              rows={4}
+              value={
+                reviewComment
+              }
+              onChange={(
+                event,
+              ) =>
+                setReviewComment(
+                  event.target.value,
+                )
+              }
+              disabled={
+                isSubmittingReview
+              }
+              placeholder={
+                isArabic
+                  ? 'شارك تجربتك مع هذه الخدمة...'
+                  : 'Partagez votre expérience...'
+              }
+              className="mt-5 w-full resize-none rounded-[16px] border border-slate-200 bg-slate-50 p-4 text-sm outline-none"
+            />
 
             {reviewError && (
-              <div className="mt-4 rounded-[14px] border border-rose-100 bg-rose-50 p-3">
-                <p className="text-sm font-bold text-rose-700">
-                  {
-                    reviewError
-                  }
-                </p>
-              </div>
+              <p className="mt-3 text-sm font-bold text-rose-600">
+                {
+                  reviewError
+                }
+              </p>
             )}
 
             <div className="mt-5 grid grid-cols-2 gap-2">
@@ -3917,7 +4046,7 @@ function ProfilePage() {
                 disabled={
                   isSubmittingReview
                 }
-                className="h-12 rounded-xl border border-slate-200 font-black text-slate-700 disabled:opacity-50"
+                className="h-12 rounded-xl border border-slate-200 font-black"
               >
                 {isArabic
                   ? 'لاحقًا'
@@ -3980,11 +4109,6 @@ function ProfilePage() {
                     isSubmittingStoreReview
                   }
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-black"
-                  aria-label={
-                    isArabic
-                      ? 'إغلاق'
-                      : 'Fermer'
-                  }
                 >
                   ×
                 </button>
@@ -4016,23 +4140,20 @@ function ProfilePage() {
                           star
                         }
                         type="button"
+                        disabled={
+                          isSubmittingStoreReview
+                        }
                         onClick={() =>
                           setStoreReviewRating(
                             star,
                           )
                         }
-                        disabled={
-                          isSubmittingStoreReview
-                        }
-                        className={[
-                          'text-3xl transition hover:scale-110',
+                        className={
                           star <=
                           storeReviewRating
-                            ? 'text-amber-400'
-                            : 'text-slate-200',
-                        ].join(
-                          ' ',
-                        )}
+                            ? 'text-3xl text-amber-400'
+                            : 'text-3xl text-slate-200'
+                        }
                       >
                         ★
                       </button>
@@ -4078,7 +4199,7 @@ function ProfilePage() {
                       ? 'ما رأيك في الخدمة والدفع والتسليم والدعم؟'
                       : 'Que pensez-vous du service, paiement, livraison et support ?'
                   }
-                  className="mt-2 w-full resize-none rounded-[16px] border border-slate-200 bg-slate-50 p-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white"
+                  className="mt-2 w-full resize-none rounded-[16px] border border-slate-200 bg-slate-50 p-4 text-sm outline-none focus:border-blue-400 focus:bg-white"
                 />
               </label>
 
@@ -4101,7 +4222,7 @@ function ProfilePage() {
                   disabled={
                     isSubmittingStoreReview
                   }
-                  className="h-12 rounded-[14px] border border-slate-200 text-sm font-black text-slate-700 disabled:opacity-50"
+                  className="h-12 rounded-[14px] border border-slate-200 text-sm font-black text-slate-700"
                 >
                   {isArabic
                     ? 'لاحقًا'
