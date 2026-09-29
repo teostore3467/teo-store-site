@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -38,101 +39,52 @@ import {
   getLocalizedServiceName,
 } from '../data/serviceCatalogTranslations'
 
-type PaymentMethodId =
-  | 'bankily'
-  | 'masrvi'
-  | 'sedad'
-
 type PaymentMethod = {
-  id: PaymentMethodId
+  id: string
+  code: string
   name: string
-  shortName: string
-  paymentNumber: string
-  active: boolean
-  instructionsFr: string
-  instructionsAr: string
-}
-
-type AppSettingRow = {
-  setting_key: string
-  setting_value: Record<string, unknown> | null
+  payment_number: string
+  image_path: string | null
+  instructions_fr: string | null
+  instructions_ar: string | null
+  is_active: boolean
+  sort_order: number
+  created_at?: string
+  updated_at?: string
 }
 
 const PAYMENT_PROOFS_BUCKET =
   'payment-proofs'
 
+const PAYMENT_METHODS_BUCKET =
+  'payment-methods'
+
 const MAX_PAYMENT_PROOF_SIZE =
   5 * 1024 * 1024
-
-const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
-  {
-    id: 'bankily',
-    name: 'Bankily',
-    shortName: 'BA',
-    paymentNumber: '37109097',
-    active: true,
-    instructionsFr:
-      'Effectuez le paiement puis envoyez la preuve.',
-    instructionsAr:
-      'قم بالدفع ثم أرسل إثبات العملية.',
-  },
-  {
-    id: 'masrvi',
-    name: 'Masrvi',
-    shortName: 'MA',
-    paymentNumber: '37109097',
-    active: true,
-    instructionsFr:
-      'Effectuez le paiement puis envoyez la preuve.',
-    instructionsAr:
-      'قم بالدفع ثم أرسل إثبات العملية.',
-  },
-  {
-    id: 'sedad',
-    name: 'Sedad',
-    shortName: 'SE',
-    paymentNumber: '37109097',
-    active: true,
-    instructionsFr:
-      'Effectuez le paiement puis envoyez la preuve.',
-    instructionsAr:
-      'قم بالدفع ثم أرسل إثبات العملية.',
-  },
-]
-
-function readString(
-  value: unknown,
-  fallback: string,
-) {
-  return typeof value === 'string'
-    ? value
-    : fallback
-}
-
-function readBoolean(
-  value: unknown,
-  fallback: boolean,
-) {
-  return typeof value === 'boolean'
-    ? value
-    : fallback
-}
 
 function getPaymentProofExtension(
   file: File,
 ) {
-  if (file.type === 'image/png') {
+  if (
+    file.type ===
+    'image/png'
+  ) {
     return 'png'
   }
 
   if (
-    file.type === 'image/jpeg' ||
-    file.type === 'image/jpg'
+    file.type ===
+      'image/jpeg' ||
+    file.type ===
+      'image/jpg'
   ) {
     return 'jpg'
   }
 
-  if (file.type === 'image/webp') {
+  if (
+    file.type ===
+    'image/webp'
+  ) {
     return 'webp'
   }
 
@@ -146,10 +98,13 @@ function getPaymentProofExtension(
         '',
       )
 
-  return extension || 'jpg'
+  return (
+    extension ||
+    'jpg'
+  )
 }
 
-function createOrderNumber() {
+function createProofReference() {
   return `TEO-${Math.floor(
     100000 +
       Math.random() *
@@ -158,10 +113,14 @@ function createOrderNumber() {
 }
 
 function DigitalCheckoutPage() {
-  const { productSlug } =
+  const {
+    productSlug,
+  } =
     useParams()
 
-  const [searchParams] =
+  const [
+    searchParams,
+  ] =
     useSearchParams()
 
   const location =
@@ -173,108 +132,156 @@ function DigitalCheckoutPage() {
   const {
     language,
     formatCurrencyText,
-  } = useLanguage()
+  } =
+    useLanguage()
 
   const isArabic =
-    language === 'ar'
+    language ===
+    'ar'
 
   const [
     authChecking,
     setAuthChecking,
-  ] = useState(true)
+  ] =
+    useState(
+      true,
+    )
 
   const [
     authenticatedUserId,
     setAuthenticatedUserId,
   ] =
-    useState<string | null>(
+    useState<
+      string | null
+    >(
       null,
     )
 
   const [
     customerName,
     setCustomerName,
-  ] = useState('')
+  ] =
+    useState(
+      '',
+    )
 
   const [
     customerPhone,
     setCustomerPhone,
-  ] = useState('')
+  ] =
+    useState(
+      '',
+    )
 
   const [
     customerValues,
     setCustomerValues,
-  ] = useState<
-    Record<
-      string,
-      string | boolean
-    >
-  >({})
+  ] =
+    useState<
+      Record<
+        string,
+        | string
+        | boolean
+      >
+    >(
+      {},
+    )
 
   const [
     paymentMethods,
     setPaymentMethods,
-  ] = useState<
-    PaymentMethod[]
-  >(
-    DEFAULT_PAYMENT_METHODS,
-  )
+  ] =
+    useState<
+      PaymentMethod[]
+    >(
+      [],
+    )
 
   const [
-    selectedPaymentId,
-    setSelectedPaymentId,
+    paymentMethodsLoading,
+    setPaymentMethodsLoading,
   ] =
-    useState<PaymentMethodId | null>(
-      null,
+    useState(
+      true,
+    )
+
+  const [
+    selectedPaymentCode,
+    setSelectedPaymentCode,
+  ] =
+    useState(
+      '',
     )
 
   const [
     paymentProofFile,
     setPaymentProofFile,
   ] =
-    useState<File | null>(
+    useState<
+      File | null
+    >(
       null,
     )
 
   const [
     paymentProofName,
     setPaymentProofName,
-  ] = useState('')
+  ] =
+    useState(
+      '',
+    )
 
   const [
     paymentSenderNumber,
     setPaymentSenderNumber,
-  ] = useState('')
+  ] =
+    useState(
+      '',
+    )
 
   const [
     paymentNumberCopied,
     setPaymentNumberCopied,
-  ] = useState(false)
+  ] =
+    useState(
+      false,
+    )
 
   const [
     isSubmitting,
     setIsSubmitting,
-  ] = useState(false)
+  ] =
+    useState(
+      false,
+    )
 
   const [
     submissionError,
     setSubmissionError,
   ] =
-    useState<string | null>(
+    useState<
+      string | null
+    >(
       null,
     )
 
   const groupId =
-    searchParams.get('groupId')
+    searchParams.get(
+      'groupId',
+    )
 
   const planId =
-    searchParams.get('planId')
+    searchParams.get(
+      'planId',
+    )
 
   const [
     service,
     setService,
   ] =
-    useState<ServiceCatalogItem | null>(
+    useState<
+      ServiceCatalogItem | null
+    >(
       null,
     )
 
@@ -282,36 +289,203 @@ function DigitalCheckoutPage() {
     catalogLoading,
     setCatalogLoading,
   ] =
-    useState(true)
+    useState(
+      true,
+    )
 
-  const activePaymentMethods =
-    useMemo(
-      () =>
-        paymentMethods.filter(
-          (method) =>
-            method.active &&
-            method.paymentNumber
-              .trim()
-              .length > 0,
-        ),
-      [
-        paymentMethods,
-      ],
+  const loadPaymentMethods =
+    useCallback(
+      async () => {
+        const {
+          data,
+          error,
+        } =
+          await supabase
+            .from(
+              'payment_methods',
+            )
+            .select(`
+              id,
+              code,
+              name,
+              payment_number,
+              image_path,
+              instructions_fr,
+              instructions_ar,
+              is_active,
+              sort_order,
+              created_at,
+              updated_at
+            `)
+            .eq(
+              'is_active',
+              true,
+            )
+            .order(
+              'sort_order',
+              {
+                ascending:
+                  true,
+              },
+            )
+            .order(
+              'created_at',
+              {
+                ascending:
+                  true,
+              },
+            )
+
+        if (
+          error
+        ) {
+          console.error(
+            'Unable to load payment methods:',
+            error,
+          )
+
+          setPaymentMethods(
+            [],
+          )
+
+          setPaymentMethodsLoading(
+            false,
+          )
+
+          return
+        }
+
+        const methods =
+          (
+            data ??
+            []
+          ) as PaymentMethod[]
+
+        setPaymentMethods(
+          methods,
+        )
+
+        setSelectedPaymentCode(
+          (
+            current,
+          ) => {
+            if (
+              !current
+            ) {
+              return ''
+            }
+
+            const stillExists =
+              methods.some(
+                (
+                  method,
+                ) =>
+                  method.code ===
+                  current,
+              )
+
+            return stillExists
+              ? current
+              : ''
+          },
+        )
+
+        setPaymentMethodsLoading(
+          false,
+        )
+      },
+      [],
+    )
+
+  useEffect(
+    () => {
+      void loadPaymentMethods()
+
+      const channel =
+        supabase
+          .channel(
+            `digital-checkout-payment-methods-${Date.now()}`,
+          )
+          .on(
+            'postgres_changes',
+            {
+              event:
+                '*',
+
+              schema:
+                'public',
+
+              table:
+                'payment_methods',
+            },
+            () => {
+              void loadPaymentMethods()
+            },
+          )
+          .subscribe()
+
+      return () => {
+        void supabase
+          .removeChannel(
+            channel,
+          )
+      }
+    },
+    [
+      loadPaymentMethods,
+    ],
+  )
+
+  const getPaymentMethodImageUrl =
+    useCallback(
+      (
+        imagePath:
+          | string
+          | null,
+      ) => {
+        if (
+          !imagePath
+        ) {
+          return null
+        }
+
+        const {
+          data,
+        } =
+          supabase.storage
+            .from(
+              PAYMENT_METHODS_BUCKET,
+            )
+            .getPublicUrl(
+              imagePath,
+            )
+
+        return (
+          data.publicUrl ||
+          null
+        )
+      },
+      [],
     )
 
   const selectedGroup =
     useMemo(
       () => {
-        if (!service) {
+        if (
+          !service
+        ) {
           return null
         }
 
         return (
           service.groups.find(
-            (group) =>
+            (
+              group,
+            ) =>
               group.id ===
               groupId,
-          ) ?? null
+          ) ??
+          null
         )
       },
       [
@@ -323,16 +497,21 @@ function DigitalCheckoutPage() {
   const selectedPlan =
     useMemo(
       () => {
-        if (!selectedGroup) {
+        if (
+          !selectedGroup
+        ) {
           return null
         }
 
         return (
           selectedGroup.plans.find(
-            (plan) =>
+            (
+              plan,
+            ) =>
               plan.id ===
               planId,
-          ) ?? null
+          ) ??
+          null
         )
       },
       [
@@ -344,27 +523,34 @@ function DigitalCheckoutPage() {
   const selectedPayment =
     useMemo(
       () => {
-        if (!selectedPaymentId) {
+        if (
+          !selectedPaymentCode
+        ) {
           return null
         }
 
         return (
-          activePaymentMethods.find(
-            (method) =>
-              method.id ===
-              selectedPaymentId,
-          ) ?? null
+          paymentMethods.find(
+            (
+              method,
+            ) =>
+              method.code ===
+              selectedPaymentCode &&
+              method.is_active,
+          ) ??
+          null
         )
       },
       [
-        activePaymentMethods,
-        selectedPaymentId,
+        paymentMethods,
+        selectedPaymentCode,
       ],
     )
 
   useEffect(
     () => {
-      let active = true
+      let active =
+        true
 
       const loadService =
         async () => {
@@ -372,8 +558,12 @@ function DigitalCheckoutPage() {
             true,
           )
 
-          if (!productSlug) {
-            if (active) {
+          if (
+            !productSlug
+          ) {
+            if (
+              active
+            ) {
               setService(
                 null,
               )
@@ -392,24 +582,32 @@ function DigitalCheckoutPage() {
                 productSlug,
               )
 
-            if (active) {
+            if (
+              active
+            ) {
               setService(
                 nextService,
               )
             }
-          } catch (error) {
+          } catch (
+            error
+          ) {
             console.error(
               'Unable to load checkout service:',
               error,
             )
 
-            if (active) {
+            if (
+              active
+            ) {
               setService(
                 null,
               )
             }
           } finally {
-            if (active) {
+            if (
+              active
+            ) {
               setCatalogLoading(
                 false,
               )
@@ -420,7 +618,8 @@ function DigitalCheckoutPage() {
       void loadService()
 
       return () => {
-        active = false
+        active =
+          false
       }
     },
     [
@@ -430,174 +629,8 @@ function DigitalCheckoutPage() {
 
   useEffect(
     () => {
-      let active = true
-
-      const loadPaymentMethods =
-        async () => {
-          try {
-            const {
-              data,
-              error,
-            } =
-              await supabase
-                .from(
-                  'app_settings',
-                )
-                .select(
-                  'setting_key, setting_value',
-                )
-                .in(
-                  'setting_key',
-                  [
-                    'payment_bankily',
-                    'payment_masrvi',
-                    'payment_sedad',
-                  ],
-                )
-
-            if (!active) {
-              return
-            }
-
-            if (error) {
-              console.error(
-                'Unable to load payment settings:',
-                error,
-              )
-
-              setPaymentMethods(
-                DEFAULT_PAYMENT_METHODS,
-              )
-
-              return
-            }
-
-            const rows =
-              (data ??
-                []) as AppSettingRow[]
-
-            const nextMethods =
-              DEFAULT_PAYMENT_METHODS.map(
-                (
-                  fallback,
-                ) => {
-                  const row =
-                    rows.find(
-                      (
-                        item,
-                      ) =>
-                        item.setting_key ===
-                        `payment_${fallback.id}`,
-                    )
-
-                  if (
-                    !row ||
-                    !row.setting_value
-                  ) {
-                    return fallback
-                  }
-
-                  const value =
-                    row.setting_value
-
-                  return {
-                    id:
-                      fallback.id,
-
-                    name:
-                      readString(
-                        value.name,
-                        fallback.name,
-                      ),
-
-                    shortName:
-                      fallback.shortName,
-
-                    paymentNumber:
-                      readString(
-                        value.number ??
-                          value.paymentNumber,
-                        fallback.paymentNumber,
-                      ),
-
-                    active:
-                      readBoolean(
-                        value.active,
-                        fallback.active,
-                      ),
-
-                    instructionsFr:
-                      readString(
-                        value.instructionsFr,
-                        fallback.instructionsFr,
-                      ),
-
-                    instructionsAr:
-                      readString(
-                        value.instructionsAr,
-                        fallback.instructionsAr,
-                      ),
-                  }
-                },
-              )
-
-            setPaymentMethods(
-              nextMethods,
-            )
-
-            setSelectedPaymentId(
-              (
-                current,
-              ) => {
-                if (!current) {
-                  return null
-                }
-
-                const exists =
-                  nextMethods.some(
-                    (
-                      method,
-                    ) =>
-                      method.id ===
-                        current &&
-                      method.active &&
-                      method.paymentNumber
-                        .trim()
-                        .length >
-                        0,
-                  )
-
-                return exists
-                  ? current
-                  : null
-              },
-            )
-          } catch (error) {
-            console.error(
-              'Unable to load payment settings:',
-              error,
-            )
-
-            if (active) {
-              setPaymentMethods(
-                DEFAULT_PAYMENT_METHODS,
-              )
-            }
-          }
-        }
-
-      void loadPaymentMethods()
-
-      return () => {
-        active = false
-      }
-    },
-    [],
-  )
-
-  useEffect(
-    () => {
-      let active = true
+      let active =
+        true
 
       const checkAuthentication =
         async () => {
@@ -612,7 +645,9 @@ function DigitalCheckoutPage() {
             await supabase.auth
               .getUser()
 
-          if (!active) {
+          if (
+            !active
+          ) {
             return
           }
 
@@ -640,6 +675,63 @@ function DigitalCheckoutPage() {
             data.user.id,
           )
 
+          const metadataName =
+            data.user
+              .user_metadata
+              ?.full_name
+
+          if (
+            typeof metadataName ===
+              'string' &&
+            metadataName
+              .trim()
+              .length >
+              0
+          ) {
+            setCustomerName(
+              (
+                current,
+              ) =>
+                current ||
+                metadataName.trim(),
+            )
+          }
+
+          const authPhone =
+            typeof data.user
+              .phone ===
+              'string'
+              ? data.user.phone
+              : ''
+
+          const metadataPhone =
+            typeof data.user
+              .user_metadata
+              ?.phone ===
+              'string'
+              ? data.user
+                  .user_metadata
+                  .phone
+              : ''
+
+          const resolvedPhone =
+            authPhone
+              .trim() ||
+            metadataPhone
+              .trim()
+
+          if (
+            resolvedPhone
+          ) {
+            setCustomerPhone(
+              (
+                current,
+              ) =>
+                current ||
+                resolvedPhone,
+            )
+          }
+
           setAuthChecking(
             false,
           )
@@ -648,7 +740,8 @@ function DigitalCheckoutPage() {
       void checkAuthentication()
 
       return () => {
-        active = false
+        active =
+          false
       }
     },
     [
@@ -661,8 +754,12 @@ function DigitalCheckoutPage() {
   useEffect(
     () => {
       window.scrollTo({
-        top: 0,
-        left: 0,
+        top:
+          0,
+
+        left:
+          0,
+
         behavior:
           'instant',
       })
@@ -676,20 +773,12 @@ function DigitalCheckoutPage() {
 
   useEffect(
     () => {
-      setCustomerName(
-        '',
-      )
-
-      setCustomerPhone(
-        '',
-      )
-
       setCustomerValues(
         {},
       )
 
-      setSelectedPaymentId(
-        null,
+      setSelectedPaymentCode(
+        '',
       )
 
       setPaymentProofFile(
@@ -737,6 +826,7 @@ function DigitalCheckoutPage() {
           current,
         ) => ({
           ...current,
+
           [fieldId]:
             value,
         }),
@@ -760,7 +850,9 @@ function DigitalCheckoutPage() {
         null,
       )
 
-      if (!file) {
+      if (
+        !file
+      ) {
         setPaymentProofFile(
           null,
         )
@@ -775,6 +867,7 @@ function DigitalCheckoutPage() {
       const allowedTypes = [
         'image/png',
         'image/jpeg',
+        'image/jpg',
         'image/webp',
       ]
 
@@ -838,12 +931,14 @@ function DigitalCheckoutPage() {
 
   const handleCopyPaymentNumber =
     async () => {
-      if (!selectedPayment) {
+      if (
+        !selectedPayment
+      ) {
         return
       }
 
       const value =
-        selectedPayment.paymentNumber
+        selectedPayment.payment_number
 
       const fallbackCopy =
         () => {
@@ -867,6 +962,7 @@ function DigitalCheckoutPage() {
             )
 
           textarea.focus()
+
           textarea.select()
 
           document.execCommand(
@@ -951,7 +1047,9 @@ function DigitalCheckoutPage() {
     )
   }
 
-  if (!authenticatedUserId) {
+  if (
+    !authenticatedUserId
+  ) {
     return null
   }
 
@@ -1072,7 +1170,9 @@ function DigitalCheckoutPage() {
   const serviceLetter =
     service.name
       .trim()
-      .charAt(0)
+      .charAt(
+        0,
+      )
       .toUpperCase() ||
     'T'
 
@@ -1136,7 +1236,9 @@ function DigitalCheckoutPage() {
               field.id
             ]
 
-          if (!field.required) {
+          if (
+            !field.required
+          ) {
             return true
           }
 
@@ -1144,8 +1246,10 @@ function DigitalCheckoutPage() {
             field.type ===
             'checkbox'
           ) {
-            return value ===
+            return (
+              value ===
               true
+            )
           }
 
           return (
@@ -1187,23 +1291,26 @@ function DigitalCheckoutPage() {
     ) => {
       const instructions =
         isArabic
-          ? method.instructionsAr
-          : method.instructionsFr
+          ? method.instructions_ar
+          : method.instructions_fr
 
       if (
+        instructions &&
         instructions
           .trim()
           .length >
-        0
+          0
       ) {
         return instructions
       }
 
-      if (isArabic) {
-        return `أرسل مبلغ الطلب إلى رقم ${method.name} الخاص بـ TEO STORE.`
+      if (
+        isArabic
+      ) {
+        return `قم بتحويل مبلغ الطلب من تطبيق ${method.name} إلى رقم TEO STORE ثم ارفع إثبات الدفع.`
       }
 
-      return `Effectuez le paiement vers le numéro ${method.name} TEO STORE.`
+      return `Effectuez le transfert depuis ${method.name} vers le numéro TEO STORE puis ajoutez votre preuve de paiement.`
     }
 
   const paymentSteps =
@@ -1211,23 +1318,23 @@ function DigitalCheckoutPage() {
       ? isArabic
         ? [
             `افتح تطبيق ${selectedPayment.name} على هاتفك.`,
-            'سجّل الدخول إلى حسابك في التطبيق.',
+            'سجّل الدخول إلى حسابك.',
             'اختر التحويل أو إرسال الأموال.',
-            `أدخل رقم TEO STORE: ${selectedPayment.paymentNumber}.`,
+            `أدخل رقم المستفيد الخاص بـ TEO STORE: ${selectedPayment.payment_number}.`,
             `أدخل مبلغ الطلب بالضبط: ${totalLabel}.`,
-            'راجع الرقم والمبلغ ثم أكد عملية التحويل.',
-            'بعد نجاح العملية، التقط Screenshot لإثبات الدفع.',
-            'ارجع إلى TEO STORE، أدخل رقمك المستخدم للدفع وارفع الصورة ثم أكد الطلب.',
+            'راجع رقم المستفيد والمبلغ جيدًا ثم أكد التحويل.',
+            'بعد نجاح العملية، التقط Screenshot واضحة لإثبات الدفع.',
+            'ارجع إلى TEO STORE، أدخل الرقم الذي دفعت منه، ارفع الصورة ثم أكد الطلب.',
           ]
         : [
             `Ouvrez l’application ${selectedPayment.name} sur votre téléphone.`,
-            'Connectez-vous à votre compte dans l’application.',
+            'Connectez-vous à votre compte.',
             'Choisissez le transfert ou l’envoi d’argent.',
-            `Saisissez le numéro TEO STORE : ${selectedPayment.paymentNumber}.`,
+            `Saisissez le numéro bénéficiaire TEO STORE : ${selectedPayment.payment_number}.`,
             `Saisissez exactement le montant : ${totalLabel}.`,
-            'Vérifiez le numéro et le montant, puis confirmez le transfert.',
-            'Après le paiement, faites une capture d’écran de la transaction.',
-            'Revenez sur TEO STORE, indiquez votre numéro d’envoi, ajoutez la capture puis confirmez la commande.',
+            'Vérifiez soigneusement le numéro et le montant puis confirmez le transfert.',
+            'Après le paiement, faites une capture d’écran claire de la transaction.',
+            'Revenez sur TEO STORE, indiquez le numéro utilisé, ajoutez la capture puis confirmez la commande.',
           ]
       : []
 
@@ -1264,14 +1371,18 @@ function DigitalCheckoutPage() {
           await supabase.auth
             .getUser()
 
-        if (userError) {
+        if (
+          userError
+        ) {
           throw userError
         }
 
         const user =
           userData.user
 
-        if (!user) {
+        if (
+          !user
+        ) {
           const redirectPath =
             `${location.pathname}${location.search}`
 
@@ -1288,8 +1399,65 @@ function DigitalCheckoutPage() {
           return
         }
 
+        /*
+         * Revalidate the selected payment method immediately
+         * before uploading the proof / creating the order.
+         *
+         * This prevents using a payment method that an admin
+         * disabled while the checkout page was already open.
+         */
+        const {
+          data:
+            authoritativePayment,
+
+          error:
+            authoritativePaymentError,
+        } =
+          await supabase
+            .from(
+              'payment_methods',
+            )
+            .select(`
+              id,
+              code,
+              name,
+              payment_number,
+              image_path,
+              instructions_fr,
+              instructions_ar,
+              is_active,
+              sort_order
+            `)
+            .eq(
+              'code',
+              selectedPayment.code,
+            )
+            .eq(
+              'is_active',
+              true,
+            )
+            .maybeSingle()
+
+        if (
+          authoritativePaymentError
+        ) {
+          throw authoritativePaymentError
+        }
+
+        if (
+          !authoritativePayment
+        ) {
+          await loadPaymentMethods()
+
+          throw new Error(
+            isArabic
+              ? 'وسيلة الدفع المختارة لم تعد متاحة. اختر وسيلة أخرى.'
+              : 'Ce moyen de paiement n’est plus disponible. Choisissez-en un autre.',
+          )
+        }
+
         const proofReference =
-          createOrderNumber()
+          createProofReference()
 
         const extension =
           getPaymentProofExtension(
@@ -1322,7 +1490,9 @@ function DigitalCheckoutPage() {
               },
             )
 
-        if (proofUploadError) {
+        if (
+          proofUploadError
+        ) {
           throw proofUploadError
         }
 
@@ -1355,7 +1525,8 @@ function DigitalCheckoutPage() {
             .trim()
             .length >
             0
-            ? emailValue.trim()
+            ? emailValue
+                .trim()
             : user.email ??
               ''
 
@@ -1392,7 +1563,7 @@ function DigitalCheckoutPage() {
               },
 
               p_payment_method:
-                selectedPayment.id,
+                authoritativePayment.code,
 
               p_payment_sender_number:
                 paymentSenderNumber.trim(),
@@ -1402,7 +1573,9 @@ function DigitalCheckoutPage() {
             },
           )
 
-        if (orderRpcError) {
+        if (
+          orderRpcError
+        ) {
           throw orderRpcError
         }
 
@@ -1446,7 +1619,9 @@ function DigitalCheckoutPage() {
               true,
           },
         )
-      } catch (error) {
+      } catch (
+        error
+      ) {
         console.error(
           'Digital order submission failed:',
           error,
@@ -1467,7 +1642,9 @@ function DigitalCheckoutPage() {
                 uploadedProofPath,
               ])
 
-          if (rollbackError) {
+          if (
+            rollbackError
+          ) {
             console.warn(
               'Unable to remove payment proof after order failure:',
               rollbackError,
@@ -1476,7 +1653,8 @@ function DigitalCheckoutPage() {
         }
 
         const message =
-          error instanceof Error
+          error instanceof
+          Error
             ? error.message
             : isArabic
               ? 'حدث خطأ غير معروف.'
@@ -1530,9 +1708,7 @@ function DigitalCheckoutPage() {
                         ) =>
                           handleCustomerValueChange(
                             field.id,
-                            event
-                              .target
-                              .checked,
+                            event.target.checked,
                           )
                         }
                         className="mt-0.5 h-4 w-4 shrink-0 accent-blue-600"
@@ -1604,9 +1780,7 @@ function DigitalCheckoutPage() {
                       ) =>
                         handleCustomerValueChange(
                           field.id,
-                          event
-                            .target
-                            .value,
+                          event.target.value,
                         )
                       }
                       placeholder={
@@ -1802,7 +1976,9 @@ function DigitalCheckoutPage() {
                 : 'Services numériques'}
             </Link>
 
-            <span>/</span>
+            <span>
+              /
+            </span>
 
             <Link
               to={`/services-numeriques/${service.slug}`}
@@ -1813,7 +1989,9 @@ function DigitalCheckoutPage() {
               }
             </Link>
 
-            <span>/</span>
+            <span>
+              /
+            </span>
 
             <span className="shrink-0 text-slate-700">
               {isArabic
@@ -1934,6 +2112,7 @@ function DigitalCheckoutPage() {
                         {isArabic
                           ? 'الاسم'
                           : 'Nom'}
+
                         <span className="text-red-500">
                           {' *'}
                         </span>
@@ -1969,6 +2148,7 @@ function DigitalCheckoutPage() {
                         {isArabic
                           ? 'الهاتف'
                           : 'Téléphone'}
+
                         <span className="text-red-500">
                           {' *'}
                         </span>
@@ -2061,7 +2241,7 @@ function DigitalCheckoutPage() {
                       3
                     </div>
 
-                    <div>
+                    <div className="min-w-0">
                       <h2 className="text-sm font-black text-slate-950 sm:text-base">
                         {isArabic
                           ? 'الدفع'
@@ -2070,22 +2250,39 @@ function DigitalCheckoutPage() {
 
                       <p className="mt-0.5 text-[9px] text-slate-400 sm:text-[10px]">
                         {isArabic
-                          ? 'اختر التطبيق واتبع الخطوات'
+                          ? 'اختر تطبيق الدفع واتبع الخطوات'
                           : 'Choisissez votre application et suivez les étapes'}
                       </p>
                     </div>
                   </div>
 
-                  {activePaymentMethods.length >
-                  0 ? (
-                    <div className="mt-4 grid grid-cols-3 gap-2">
-                      {activePaymentMethods.map(
+                  {paymentMethodsLoading ? (
+                    <div className="mt-5 flex min-h-[120px] items-center justify-center rounded-[18px] bg-slate-50">
+                      <div className="text-center">
+                        <div className="mx-auto h-7 w-7 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+
+                        <p className="mt-3 text-[9px] font-bold text-slate-400">
+                          {isArabic
+                            ? 'جارٍ تحميل وسائل الدفع...'
+                            : 'Chargement des moyens de paiement...'}
+                        </p>
+                      </div>
+                    </div>
+                  ) : paymentMethods.length >
+                    0 ? (
+                    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      {paymentMethods.map(
                         (
                           method,
                         ) => {
                           const isSelected =
-                            selectedPaymentId ===
-                            method.id
+                            selectedPaymentCode ===
+                            method.code
+
+                          const imageUrl =
+                            getPaymentMethodImageUrl(
+                              method.image_path,
+                            )
 
                           return (
                             <button
@@ -2094,8 +2291,8 @@ function DigitalCheckoutPage() {
                               }
                               type="button"
                               onClick={() => {
-                                setSelectedPaymentId(
-                                  method.id,
+                                setSelectedPaymentCode(
+                                  method.code,
                                 )
 
                                 setPaymentNumberCopied(
@@ -2107,32 +2304,68 @@ function DigitalCheckoutPage() {
                                 )
                               }}
                               className={[
-                                'rounded-[16px] border p-3 text-center transition',
+                                'relative min-w-0 overflow-hidden rounded-[18px] border p-3 text-center transition',
+
                                 isSelected
-                                  ? 'border-2 border-blue-600 bg-blue-50 shadow-sm'
-                                  : 'border-slate-200 bg-white hover:border-blue-200',
+                                  ? 'border-2 border-blue-600 bg-blue-50 shadow-[0_8px_24px_rgba(37,99,235,0.12)]'
+                                  : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50',
                               ].join(
                                 ' ',
                               )}
                             >
+                              {isSelected && (
+                                <span className="absolute end-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[9px] font-black text-white">
+                                  ✓
+                                </span>
+                              )}
+
                               <div
                                 className={[
-                                  'mx-auto flex h-11 w-11 items-center justify-center rounded-[14px] text-xs font-black',
+                                  'mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-[17px] border',
+
                                   isSelected
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-slate-100 text-slate-700',
+                                    ? 'border-blue-100 bg-white'
+                                    : 'border-slate-100 bg-slate-50',
                                 ].join(
                                   ' ',
                                 )}
                               >
-                                {
-                                  method.shortName
-                                }
+                                {imageUrl ? (
+                                  <img
+                                    src={
+                                      imageUrl
+                                    }
+                                    alt={
+                                      method.name
+                                    }
+                                    className="h-full w-full object-contain p-1.5"
+                                  />
+                                ) : (
+                                  <span
+                                    className={[
+                                      'text-base font-black',
+
+                                      isSelected
+                                        ? 'text-blue-600'
+                                        : 'text-slate-700',
+                                    ].join(
+                                      ' ',
+                                    )}
+                                  >
+                                    {method.name
+                                      .slice(
+                                        0,
+                                        2,
+                                      )
+                                      .toUpperCase()}
+                                  </span>
+                                )}
                               </div>
 
                               <p
                                 className={[
-                                  'mt-2 truncate text-[10px] font-black sm:text-xs',
+                                  'mt-3 truncate text-xs font-black',
+
                                   isSelected
                                     ? 'text-blue-700'
                                     : 'text-slate-800',
@@ -2146,10 +2379,10 @@ function DigitalCheckoutPage() {
                               </p>
 
                               {isSelected && (
-                                <p className="mt-1 text-[7px] font-black text-blue-500">
+                                <p className="mt-1 text-[8px] font-black text-blue-500">
                                   {isArabic
-                                    ? 'تم الاختيار ✓'
-                                    : 'Sélectionné ✓'}
+                                    ? 'تم الاختيار'
+                                    : 'Sélectionné'}
                                 </p>
                               )}
                             </button>
@@ -2158,8 +2391,8 @@ function DigitalCheckoutPage() {
                       )}
                     </div>
                   ) : (
-                    <div className="mt-4 rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-center">
-                      <p className="text-[9px] font-bold leading-5 text-amber-700">
+                    <div className="mt-4 rounded-[16px] border border-amber-200 bg-amber-50 p-4 text-center">
+                      <p className="text-[10px] font-bold leading-5 text-amber-700">
                         {isArabic
                           ? 'لا توجد وسيلة دفع متاحة حاليًا.'
                           : "Aucun moyen de paiement n'est disponible actuellement."}
@@ -2168,24 +2401,46 @@ function DigitalCheckoutPage() {
                   )}
 
                   {selectedPayment && (
-                    <div className="mt-4 space-y-4">
-                      <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-slate-950 text-white">
-                        <div className="p-4">
+                    <div className="mt-5 space-y-4">
+                      <div className="overflow-hidden rounded-[22px] bg-slate-950 text-white shadow-[0_14px_38px_rgba(15,23,42,0.18)]">
+                        <div className="p-4 sm:p-5">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] bg-white/10 text-sm font-black">
-                              {
-                                selectedPayment.shortName
-                              }
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-white">
+                              {getPaymentMethodImageUrl(
+                                selectedPayment.image_path,
+                              ) ? (
+                                <img
+                                  src={
+                                    getPaymentMethodImageUrl(
+                                      selectedPayment.image_path,
+                                    ) ??
+                                    ''
+                                  }
+                                  alt={
+                                    selectedPayment.name
+                                  }
+                                  className="h-full w-full object-contain p-1.5"
+                                />
+                              ) : (
+                                <span className="text-sm font-black text-slate-950">
+                                  {selectedPayment.name
+                                    .slice(
+                                      0,
+                                      2,
+                                    )
+                                    .toUpperCase()}
+                                </span>
+                              )}
                             </div>
 
-                            <div>
-                              <p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/40">
+                            <div className="min-w-0">
+                              <p className="text-[8px] font-black uppercase tracking-[0.14em] text-white/40">
                                 {isArabic
-                                  ? 'الدفع عبر'
+                                  ? 'طريقة الدفع'
                                   : 'Paiement via'}
                               </p>
 
-                              <p className="mt-1 font-black">
+                              <p className="mt-1 truncate text-base font-black">
                                 {
                                   selectedPayment.name
                                 }
@@ -2193,24 +2448,24 @@ function DigitalCheckoutPage() {
                             </div>
                           </div>
 
-                          <p className="mt-3 text-xs leading-5 text-white/60">
+                          <p className="mt-4 text-[10px] leading-5 text-white/60 sm:text-xs">
                             {getPaymentDescription(
                               selectedPayment,
                             )}
                           </p>
                         </div>
 
-                        <div className="grid grid-cols-2 border-t border-white/10">
-                          <div className="border-e border-white/10 p-4">
+                        <div className="grid grid-cols-1 border-t border-white/10 sm:grid-cols-2">
+                          <div className="border-b border-white/10 p-4 sm:border-b-0 sm:border-e">
                             <p className="text-[8px] font-black uppercase tracking-wide text-white/35">
                               {isArabic
-                                ? 'المبلغ'
-                                : 'Montant'}
+                                ? 'المبلغ المطلوب'
+                                : 'Montant à envoyer'}
                             </p>
 
                             <p
                               dir="ltr"
-                              className="mt-2 break-words text-left text-lg font-black"
+                              className="mt-2 break-words text-left text-xl font-black"
                             >
                               {
                                 totalLabel
@@ -2222,15 +2477,15 @@ function DigitalCheckoutPage() {
                             <p className="text-[8px] font-black uppercase tracking-wide text-white/35">
                               {isArabic
                                 ? 'رقم المستفيد'
-                                : 'Numéro'}
+                                : 'Numéro bénéficiaire'}
                             </p>
 
                             <p
                               dir="ltr"
-                              className="mt-2 text-left text-lg font-black tracking-wide"
+                              className="mt-2 break-all text-left text-xl font-black tracking-wide"
                             >
                               {
-                                selectedPayment.paymentNumber
+                                selectedPayment.payment_number
                               }
                             </p>
                           </div>
@@ -2239,14 +2494,15 @@ function DigitalCheckoutPage() {
                         <div className="border-t border-white/10 p-3">
                           <button
                             type="button"
-                            onClick={
-                              handleCopyPaymentNumber
+                            onClick={() =>
+                              void handleCopyPaymentNumber()
                             }
                             className={[
                               'flex h-11 w-full items-center justify-center rounded-[12px] text-xs font-black transition',
+
                               paymentNumberCopied
                                 ? 'bg-emerald-500 text-white'
-                                : 'bg-white text-slate-950',
+                                : 'bg-white text-slate-950 hover:bg-slate-100',
                             ].join(
                               ' ',
                             )}
@@ -2262,23 +2518,23 @@ function DigitalCheckoutPage() {
                         </div>
                       </div>
 
-                      <div className="rounded-[20px] border border-blue-100 bg-blue-50/40 p-4">
+                      <div className="rounded-[20px] border border-blue-100 bg-blue-50/50 p-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-blue-600 text-lg text-white">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-blue-600 text-sm font-black text-white">
                             ?
                           </div>
 
-                          <div>
+                          <div className="min-w-0">
                             <h3 className="text-sm font-black text-slate-950">
                               {isArabic
                                 ? 'كيف أدفع؟'
                                 : 'Comment payer ?'}
                             </h3>
 
-                            <p className="mt-0.5 text-[9px] text-slate-400">
+                            <p className="mt-0.5 truncate text-[9px] text-slate-400">
                               {isArabic
-                                ? `اتبع هذه الخطوات داخل ${selectedPayment.name}`
-                                : `Suivez ces étapes dans ${selectedPayment.name}`}
+                                ? `خطوات الدفع عبر ${selectedPayment.name}`
+                                : `Étapes de paiement avec ${selectedPayment.name}`}
                             </p>
                           </div>
                         </div>
@@ -2291,7 +2547,7 @@ function DigitalCheckoutPage() {
                             ) => (
                               <div
                                 key={
-                                  step
+                                  `${selectedPayment.code}-${index}`
                                 }
                                 className="flex items-start gap-3"
                               >
@@ -2318,8 +2574,8 @@ function DigitalCheckoutPage() {
                         <div className="mt-4 rounded-[14px] border border-amber-200 bg-amber-50 p-3">
                           <p className="text-[9px] font-bold leading-5 text-amber-800">
                             {isArabic
-                              ? 'تأكد من رقم المستفيد والمبلغ قبل تأكيد التحويل. لا ترسل مبلغًا مختلفًا.'
-                              : 'Vérifiez le numéro du bénéficiaire et le montant avant de confirmer. N’envoyez pas un montant différent.'}
+                              ? 'تأكد من رقم المستفيد والمبلغ قبل تأكيد التحويل. لا ترسل مبلغًا إلى رقم آخر.'
+                              : 'Vérifiez le numéro du bénéficiaire et le montant avant de confirmer. N’envoyez pas le paiement vers un autre numéro.'}
                           </p>
                         </div>
                       </div>
@@ -2328,8 +2584,9 @@ function DigitalCheckoutPage() {
                         <label className="block">
                           <span className="text-[10px] font-black text-slate-800">
                             {isArabic
-                              ? 'رقم الهاتف الذي دفعت منه'
+                              ? 'الرقم الذي دفعت منه'
                               : 'Numéro utilisé pour payer'}
+
                             <span className="text-red-500">
                               {' *'}
                             </span>
@@ -2370,6 +2627,7 @@ function DigitalCheckoutPage() {
                           {isArabic
                             ? 'إثبات الدفع'
                             : 'Preuve de paiement'}
+
                           <span className="text-red-500">
                             {' *'}
                           </span>
@@ -2383,7 +2641,8 @@ function DigitalCheckoutPage() {
 
                         <label
                           className={[
-                            'mt-3 flex min-h-[120px] cursor-pointer items-center justify-center rounded-[18px] border border-dashed p-4 text-center transition',
+                            'mt-3 flex min-h-[130px] cursor-pointer items-center justify-center rounded-[18px] border border-dashed p-4 text-center transition',
+
                             paymentProofFile
                               ? 'border-emerald-300 bg-emerald-50'
                               : 'border-slate-300 bg-slate-50 hover:border-blue-300 hover:bg-blue-50/40',
@@ -2404,6 +2663,7 @@ function DigitalCheckoutPage() {
                             <div
                               className={[
                                 'mx-auto flex h-11 w-11 items-center justify-center rounded-[14px] text-lg font-black shadow-sm',
+
                                 paymentProofFile
                                   ? 'bg-emerald-500 text-white'
                                   : 'bg-white text-blue-600',
@@ -2416,7 +2676,7 @@ function DigitalCheckoutPage() {
                                 : '↑'}
                             </div>
 
-                            <p className="mt-3 truncate text-[10px] font-black text-slate-700 sm:text-xs">
+                            <p className="mt-3 max-w-[280px] truncate text-[10px] font-black text-slate-700 sm:text-xs">
                               {paymentProofName ||
                                 (
                                   isArabic
@@ -2465,7 +2725,9 @@ function DigitalCheckoutPage() {
                       {
                         localizedGroupName
                       }
+
                       {' · '}
+
                       {
                         localizedPlanLabel
                       }
@@ -2502,18 +2764,48 @@ function DigitalCheckoutPage() {
                     </div>
 
                     {selectedPayment && (
-                      <div className="flex items-center justify-between gap-4 rounded-[14px] bg-emerald-50 p-3">
-                        <span className="text-[9px] font-bold text-emerald-600">
-                          {isArabic
-                            ? 'الدفع'
-                            : 'Paiement'}
-                        </span>
+                      <div className="flex items-center gap-3 rounded-[14px] bg-emerald-50 p-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[11px] bg-white">
+                          {getPaymentMethodImageUrl(
+                            selectedPayment.image_path,
+                          ) ? (
+                            <img
+                              src={
+                                getPaymentMethodImageUrl(
+                                  selectedPayment.image_path,
+                                ) ??
+                                ''
+                              }
+                              alt={
+                                selectedPayment.name
+                              }
+                              className="h-full w-full object-contain p-1"
+                            />
+                          ) : (
+                            <span className="text-[9px] font-black text-emerald-700">
+                              {selectedPayment.name
+                                .slice(
+                                  0,
+                                  2,
+                                )
+                                .toUpperCase()}
+                            </span>
+                          )}
+                        </div>
 
-                        <span className="text-right text-[9px] font-black text-emerald-800">
-                          {
-                            selectedPayment.name
-                          }
-                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[8px] font-bold text-emerald-600">
+                            {isArabic
+                              ? 'طريقة الدفع'
+                              : 'Paiement'}
+                          </p>
+
+                          <p className="mt-0.5 truncate text-[10px] font-black text-emerald-800">
+                            {
+                              selectedPayment.name
+                            }
+                          </p>
+                        </div>
                       </div>
                     )}
 
@@ -2536,8 +2828,8 @@ function DigitalCheckoutPage() {
 
                     <button
                       type="button"
-                      onClick={
-                        handleSubmitOrder
+                      onClick={() =>
+                        void handleSubmitOrder()
                       }
                       disabled={
                         !canConfirmPayment
@@ -2558,7 +2850,7 @@ function DigitalCheckoutPage() {
                         <p className="text-center text-[8px] leading-4 text-slate-400">
                           {isArabic
                             ? 'أكمل المعلومات واختر طريقة الدفع وارفع الإثبات لتفعيل الزر.'
-                            : 'Complétez les informations, le paiement et la preuve pour activer le bouton.'}
+                            : 'Complétez les informations, choisissez un moyen de paiement et ajoutez la preuve.'}
                         </p>
                       )}
 
