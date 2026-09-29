@@ -1,14 +1,5 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
-
-import {
-  Link,
-  useNavigate,
-} from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
@@ -98,6 +89,15 @@ type WhatsappSupportSetting = {
   number: string
   messageFr: string
   messageAr: string
+}
+
+type LoyaltySummary = {
+  points_balance: number
+  usable_points: number
+  usable_value_mru: number
+  progress_points: number
+  points_to_next_reward: number
+  lifetime_earned_points: number
 }
 
 type ProfileSection =
@@ -329,6 +329,14 @@ function ProfilePage() {
     setWhatsappSupport,
   ] =
     useState<WhatsappSupportSetting | null>(
+      null,
+    )
+
+  const [
+    loyaltySummary,
+    setLoyaltySummary,
+  ] =
+    useState<LoyaltySummary | null>(
       null,
     )
 
@@ -654,6 +662,144 @@ function ProfilePage() {
       [],
     )
 
+  const loadLoyaltySummary =
+    useCallback(
+      async () => {
+        const {
+          data,
+          error,
+        } =
+          await supabase
+            .rpc(
+              'customer_get_loyalty_summary',
+            )
+
+        if (error) {
+          console.error(
+            'Unable to load loyalty summary:',
+            error,
+          )
+
+          throw error
+        }
+
+        const row =
+          Array.isArray(
+            data,
+          )
+            ? data[0]
+            : data
+
+        if (
+          !row ||
+          typeof row !==
+            'object'
+        ) {
+          setLoyaltySummary({
+            points_balance: 0,
+            usable_points: 0,
+            usable_value_mru: 0,
+            progress_points: 0,
+            points_to_next_reward: 100,
+            lifetime_earned_points: 0,
+          })
+
+          return
+        }
+
+        const value =
+          row as Record<
+            string,
+            unknown
+          >
+
+        const toNumber =
+          (
+            input: unknown,
+            fallback = 0,
+          ) => {
+            const parsed =
+              Number(
+                input,
+              )
+
+            return Number.isFinite(
+              parsed,
+            )
+              ? parsed
+              : fallback
+          }
+
+        setLoyaltySummary({
+          points_balance:
+            Math.max(
+              0,
+              Math.floor(
+                toNumber(
+                  value.points_balance,
+                ),
+              ),
+            ),
+
+          usable_points:
+            Math.max(
+              0,
+              Math.floor(
+                toNumber(
+                  value.usable_points,
+                ),
+              ),
+            ),
+
+          usable_value_mru:
+            Math.max(
+              0,
+              toNumber(
+                value.usable_value_mru,
+              ),
+            ),
+
+          progress_points:
+            Math.min(
+              99,
+              Math.max(
+                0,
+                Math.floor(
+                  toNumber(
+                    value.progress_points,
+                  ),
+                ),
+              ),
+            ),
+
+          points_to_next_reward:
+            Math.min(
+              100,
+              Math.max(
+                1,
+                Math.floor(
+                  toNumber(
+                    value.points_to_next_reward,
+                    100,
+                  ),
+                ),
+              ),
+            ),
+
+          lifetime_earned_points:
+            Math.max(
+              0,
+              Math.floor(
+                toNumber(
+                  value.lifetime_earned_points,
+                ),
+              ),
+            ),
+        })
+      },
+      [],
+    )
+
   const loadSupportWhatsapp =
     useCallback(
       async () => {
@@ -791,6 +937,8 @@ function ProfilePage() {
               userId,
             ),
 
+            loadLoyaltySummary(),
+
             loadSupportWhatsapp(),
           ])
 
@@ -816,6 +964,7 @@ function ProfilePage() {
       [
         isArabic,
         loadNotifications,
+        loadLoyaltySummary,
         loadOrders,
         loadReviews,
         loadStoreReviews,
@@ -1010,9 +1159,13 @@ function ProfilePage() {
                 affectedUserId ===
                 currentUserId
               ) {
-                void loadOrders(
-                  currentUserId,
-                )
+                void Promise.all([
+                  loadOrders(
+                    currentUserId,
+                  ),
+
+                  loadLoyaltySummary(),
+                ])
               }
             },
           )
@@ -1253,6 +1406,7 @@ function ProfilePage() {
     [
       isArabic,
       loadAllCustomerData,
+      loadLoyaltySummary,
       loadNotifications,
       loadOrders,
       loadReviews,
@@ -2434,6 +2588,44 @@ function ProfilePage() {
     ] ??
     null
 
+  const loyaltyPoints =
+    loyaltySummary
+      ?.points_balance ??
+    0
+
+  const loyaltyUsablePoints =
+    loyaltySummary
+      ?.usable_points ??
+    0
+
+  const loyaltyUsableValue =
+    loyaltySummary
+      ?.usable_value_mru ??
+    0
+
+  const loyaltyProgressPoints =
+    loyaltySummary
+      ?.progress_points ??
+    0
+
+  const loyaltyPointsToNextReward =
+    loyaltySummary
+      ?.points_to_next_reward ??
+    100
+
+  const loyaltyProgressPercent =
+    Math.min(
+      100,
+      Math.max(
+        0,
+        loyaltyProgressPoints,
+      ),
+    )
+
+  const loyaltyUnlocked =
+    loyaltyUsablePoints >=
+    100
+
   const sectionTitle =
     activeSection ===
     'home'
@@ -2683,6 +2875,134 @@ function ProfilePage() {
                         : 'Terminées'}
                     </p>
                   </button>
+                </div>
+              </section>
+
+              <section className="overflow-hidden rounded-[24px] border border-blue-100 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+                <div className="bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-700 p-5 text-white sm:p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-white/15">
+                          <Icon
+                            name="star"
+                            className="h-5 w-5"
+                          />
+                        </span>
+
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-100">
+                            {isArabic
+                              ? 'برنامج الولاء'
+                              : 'Programme fidélité'}
+                          </p>
+
+                          <h2 className="mt-0.5 text-lg font-black sm:text-xl">
+                            {isArabic
+                              ? 'نقاطي'
+                              : 'Mes points'}
+                          </h2>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      dir="ltr"
+                      className="shrink-0 text-right"
+                    >
+                      <p className="text-3xl font-black tracking-[-0.04em] sm:text-4xl">
+                        {loyaltyPoints}
+                      </p>
+
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] text-blue-100">
+                        points
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-[18px] bg-white/10 p-4 ring-1 ring-white/10">
+                    <div className="flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-blue-100">
+                          {isArabic
+                            ? 'القيمة المتاحة'
+                            : 'Valeur disponible'}
+                        </p>
+
+                        <p
+                          dir="ltr"
+                          className="mt-1 text-2xl font-black text-white"
+                        >
+                          {formatAmount(
+                            loyaltyUsableValue,
+                            'MRU',
+                          )}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`rounded-full px-3 py-1.5 text-[10px] font-black ${
+                          loyaltyUnlocked
+                            ? 'bg-emerald-400 text-emerald-950'
+                            : 'bg-white/15 text-white'
+                        }`}
+                      >
+                        {loyaltyUnlocked
+                          ? isArabic
+                            ? 'متاحة للاستعمال'
+                            : 'Utilisable'
+                          : isArabic
+                            ? 'تحتاج 100 نقطة'
+                            : '100 points requis'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-5 sm:p-6">
+                  <div className="flex items-center justify-between gap-3 text-xs font-black">
+                    <span className="text-slate-700">
+                      {isArabic
+                        ? 'نحو المكافأة التالية'
+                        : 'Vers la prochaine récompense'}
+                    </span>
+
+                    <span
+                      dir="ltr"
+                      className="text-blue-600"
+                    >
+                      {loyaltyProgressPoints}/100
+                    </span>
+                  </div>
+
+                  <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-blue-600 transition-[width] duration-500"
+                      style={{
+                        width: `${loyaltyProgressPercent}%`,
+                      }}
+                    />
+                  </div>
+
+                  <p className="mt-3 text-xs leading-5 text-slate-500">
+                    {isArabic
+                      ? `باقي ${loyaltyPointsToNextReward} نقطة لفتح 500 MRU إضافية.`
+                      : `Encore ${loyaltyPointsToNextReward} points pour débloquer 500 MRU supplémentaires.`}
+                  </p>
+
+                  <div className="mt-4 grid gap-2 rounded-[16px] border border-slate-100 bg-slate-50 p-3 text-[11px] font-bold leading-5 text-slate-500 sm:grid-cols-2">
+                    <p>
+                      {isArabic
+                        ? 'كل 100 MRU من الطلبات المكتملة = نقطة واحدة.'
+                        : 'Chaque 100 MRU de commandes terminées = 1 point.'}
+                    </p>
+
+                    <p>
+                      {isArabic
+                        ? 'كل 100 نقطة = 500 MRU قابلة للاستعمال.'
+                        : 'Chaque 100 points = 500 MRU utilisables.'}
+                    </p>
+                  </div>
                 </div>
               </section>
 
@@ -4007,7 +4327,9 @@ function ProfilePage() {
             </div>
 
             <textarea
-              rows={4}
+              rows={
+                4
+              }
               value={
                 reviewComment
               }
@@ -4180,7 +4502,9 @@ function ProfilePage() {
                 </span>
 
                 <textarea
-                  rows={4}
+                  rows={
+                    4
+                  }
                   value={
                     storeReviewComment
                   }
