@@ -1,5 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
+
+import {
+  Link,
+  useNavigate,
+} from 'react-router-dom'
 
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
@@ -274,12 +283,14 @@ function normalizeDigitalStatus(
 }
 
 function ProfilePage() {
-  const navigate = useNavigate()
+  const navigate =
+    useNavigate()
 
   const {
     language,
     formatCurrencyText,
-  } = useLanguage()
+  } =
+    useLanguage()
 
   const isArabic =
     language === 'ar'
@@ -2626,6 +2637,39 @@ function ProfilePage() {
     loyaltyUsablePoints >=
     100
 
+  const formatLoyaltyValue =
+    (
+      amount:
+        number,
+    ) => {
+      if (
+        isArabic
+      ) {
+        const normalized =
+          new Intl.NumberFormat(
+            'ar-MR-u-nu-latn',
+            {
+              numberingSystem:
+                'latn',
+
+              maximumFractionDigits:
+                2,
+            },
+          ).format(
+            Number(
+              amount,
+            ),
+          )
+
+        return `${normalized} أوقية جديدة`
+      }
+
+      return formatAmount(
+        amount,
+        'MRU',
+      )
+    }
+
   const sectionTitle =
     activeSection ===
     'home'
@@ -2653,7 +2697,7 @@ function ProfilePage() {
                 ? 'معلومات حسابي'
                 : 'Mes informations'
               : isArabic
-                ? 'خدمة الزبائن'
+                ? 'خدمة العملاء'
                 : 'Service client'
 
   const rowArrow =
@@ -2911,7 +2955,9 @@ function ProfilePage() {
                       className="shrink-0 text-right"
                     >
                       <p className="text-3xl font-black tracking-[-0.04em] sm:text-4xl">
-                        {loyaltyPoints}
+                        {
+                          loyaltyPoints
+                        }
                       </p>
 
                       <p className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] text-blue-100">
@@ -2930,12 +2976,19 @@ function ProfilePage() {
                         </p>
 
                         <p
-                          dir="ltr"
-                          className="mt-1 text-2xl font-black text-white"
+                          dir={
+                            isArabic
+                              ? 'rtl'
+                              : 'ltr'
+                          }
+                          className={
+                            isArabic
+                              ? 'mt-1 text-right text-2xl font-black text-white'
+                              : 'mt-1 text-left text-2xl font-black text-white'
+                          }
                         >
-                          {formatAmount(
+                          {formatLoyaltyValue(
                             loyaltyUsableValue,
-                            'MRU',
                           )}
                         </p>
                       </div>
@@ -2971,7 +3024,10 @@ function ProfilePage() {
                       dir="ltr"
                       className="text-blue-600"
                     >
-                      {loyaltyProgressPoints}/100
+                      {
+                        loyaltyProgressPoints
+                      }
+                      /100
                     </span>
                   </div>
 
@@ -2979,27 +3035,28 @@ function ProfilePage() {
                     <div
                       className="h-full rounded-full bg-blue-600 transition-[width] duration-500"
                       style={{
-                        width: `${loyaltyProgressPercent}%`,
+                        width:
+                          `${loyaltyProgressPercent}%`,
                       }}
                     />
                   </div>
 
                   <p className="mt-3 text-xs leading-5 text-slate-500">
                     {isArabic
-                      ? `باقي ${loyaltyPointsToNextReward} نقطة لفتح 500 MRU إضافية.`
+                      ? `باقي ${loyaltyPointsToNextReward} نقطة لفتح 500 أوقية جديدة إضافية.`
                       : `Encore ${loyaltyPointsToNextReward} points pour débloquer 500 MRU supplémentaires.`}
                   </p>
 
                   <div className="mt-4 grid gap-2 rounded-[16px] border border-slate-100 bg-slate-50 p-3 text-[11px] font-bold leading-5 text-slate-500 sm:grid-cols-2">
                     <p>
                       {isArabic
-                        ? 'كل 100 MRU من الطلبات المكتملة = نقطة واحدة.'
+                        ? 'كل 100 أوقية جديدة من الطلبات المكتملة = نقطة واحدة.'
                         : 'Chaque 100 MRU de commandes terminées = 1 point.'}
                     </p>
 
                     <p>
                       {isArabic
-                        ? 'كل 100 نقطة = 500 MRU قابلة للاستعمال.'
+                        ? 'كل 100 نقطة = 500 أوقية جديدة قابلة للاستعمال.'
                         : 'Chaque 100 points = 500 MRU utilisables.'}
                     </p>
                   </div>
@@ -3229,7 +3286,7 @@ function ProfilePage() {
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-black text-slate-950 sm:text-base">
                       {isArabic
-                        ? 'خدمة الزبائن'
+                        ? 'خدمة العملاء'
                         : 'Service client'}
                     </span>
 
@@ -4107,13 +4164,13 @@ function ProfilePage() {
                   <div>
                     <p className="font-black text-slate-950">
                       {isArabic
-                        ? 'كيف نساعدك؟'
+                        ? 'كيف يمكننا مساعدتك؟'
                         : 'Comment pouvons-nous vous aider ?'}
                     </p>
 
                     <p className="mt-1 text-xs leading-5 text-slate-500">
                       {isArabic
-                        ? 'يمكنك متابعة أي مشكلة مرتبطة بطلبك داخل الموقع، أو التواصل سريعًا مع خدمة الزبائن عبر WhatsApp.'
+                        ? 'تابع أي مشكلة مرتبطة بطلبك مباشرة داخل TEO STORE، أو تواصل مع خدمة العملاء عبر WhatsApp عندما يكون متاحًا.'
                         : 'Suivez tout problème lié à une commande sur le site, ou contactez rapidement le service client via WhatsApp.'}
                     </p>
                   </div>
@@ -4140,13 +4197,13 @@ function ProfilePage() {
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-black text-slate-950">
                         {isArabic
-                          ? 'الدعم المرتبط بطلب'
+                          ? 'المساعدة المتعلقة بطلب'
                           : 'Assistance liée à une commande'}
                       </span>
 
                       <span className="mt-1 block text-xs leading-5 text-slate-400">
                         {isArabic
-                          ? `افتح آخر طلب ${latestOrder.order_number} لمتابعة حالته أو النزاع.`
+                          ? `افتح آخر طلب ${latestOrder.order_number} لمتابعة حالته أو فتح نزاع عند الحاجة.`
                           : `Ouvrez votre dernière commande ${latestOrder.order_number} pour son suivi ou un litige.`}
                       </span>
                     </span>
@@ -4178,7 +4235,7 @@ function ProfilePage() {
 
                       <span className="mt-1 block text-xs leading-5 text-slate-400">
                         {isArabic
-                          ? 'تواصل مباشرة مع خدمة الزبائن.'
+                          ? 'تواصل مباشرة مع خدمة العملاء عبر WhatsApp.'
                           : 'Contactez directement le service client.'}
                       </span>
                     </span>
@@ -4200,10 +4257,10 @@ function ProfilePage() {
                         WhatsApp
                       </p>
 
-                      <p className="mt-1 text-xs text-slate-400">
+                      <p className="mt-1 text-xs leading-5 text-slate-400">
                         {isArabic
-                          ? 'غير متاح حاليًا.'
-                          : 'Indisponible actuellement.'}
+                          ? 'خدمة WhatsApp غير مفعلة حاليًا. يمكنك متابعة طلبك من داخل TEO STORE.'
+                          : 'WhatsApp n’est pas activé actuellement. Vous pouvez suivre votre commande directement dans TEO STORE.'}
                       </p>
                     </div>
                   </div>
@@ -4213,13 +4270,13 @@ function ProfilePage() {
               <div className="rounded-[20px] border border-blue-100 bg-blue-50 p-4">
                 <p className="text-xs font-black text-blue-900">
                   {isArabic
-                    ? 'للمشاكل المتعلقة بطلب موجود'
+                    ? 'إذا كانت المشكلة مرتبطة بطلب'
                     : 'Pour un problème lié à une commande'}
                 </p>
 
                 <p className="mt-1 text-xs leading-5 text-blue-700">
                   {isArabic
-                    ? 'يفضل فتح الطلب داخل TEO STORE أولًا، لأن رقم الطلب وحالته وتفاصيل الدفع تكون موجودة هناك.'
+                    ? 'افتح الطلب داخل TEO STORE أولًا، لأن رقم الطلب وحالته ومعلومات الدفع والتسليم موجودة هناك.'
                     : 'Ouvrez d’abord la commande dans TEO STORE : son numéro, son statut et les informations de paiement y sont déjà disponibles.'}
                 </p>
               </div>
