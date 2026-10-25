@@ -1,208 +1,448 @@
 import { useState } from 'react'
+import {
+  Search,
+  Heart,
+  ShoppingBag,
+  Shirt,
+  Baby,
+  House,
+  Watch,
+  Sparkles,
+  Gem,
+  ArrowLeft,
+  ArrowRight,
+  Truck,
+  PackageCheck,
+  ShieldCheck,
+  LayoutGrid,
+} from 'lucide-react'
+
+import { useLanguage } from '../../../i18n/LanguageContext'
+import ProductCard from '../components/ProductCard'
 
 const categories = [
-  { name: 'Femme', icon: '✦', color: 'bg-rose-50' },
-  { name: 'Homme', icon: '◈', color: 'bg-slate-100' },
-  { name: 'Enfants', icon: '★', color: 'bg-amber-50' },
-  { name: 'Maison', icon: '⌂', color: 'bg-emerald-50' },
-  { name: 'Accessoires', icon: '◇', color: 'bg-violet-50' },
-  { name: 'Beauté', icon: '✿', color: 'bg-pink-50' },
+  { id: 'femme', fr: 'Femme', ar: 'نساء', Icon: ShoppingBag },
+  { id: 'homme', fr: 'Homme', ar: 'رجال', Icon: Shirt },
+  { id: 'enfants', fr: 'Enfants', ar: 'أطفال', Icon: Baby },
+  { id: 'maison', fr: 'Maison', ar: 'المنزل', Icon: House },
+  { id: 'accessoires', fr: 'Accessoires', ar: 'إكسسوارات', Icon: Watch },
+  { id: 'beaute', fr: 'Beauté', ar: 'الجمال', Icon: Sparkles },
+]
+
+const products = [
+  {
+    id: '1',
+    category: 'femme',
+    name: 'Sac élégant pour femme',
+    nameAr: 'حقيبة نسائية أنيقة',
+    price: 450,
+    oldPrice: 600,
+    image: 'https://placehold.co/600x750/f1e8e1/333333?text=Sac',
+    type: 'stock' as const,
+  },
+  {
+    id: '2',
+    category: 'homme',
+    name: 'Montre homme classique',
+    nameAr: 'ساعة رجالية كلاسيكية',
+    price: 850,
+    oldPrice: 1100,
+    image: 'https://placehold.co/600x750/e2e8f0/333333?text=Montre',
+    type: 'preorder' as const,
+  },
+  {
+    id: '3',
+    category: 'maison',
+    name: 'Accessoire maison moderne',
+    nameAr: 'مستلزمات منزلية عصرية',
+    price: 350,
+    image: 'https://placehold.co/600x750/e5e7eb/333333?text=Maison',
+    type: 'stock' as const,
+  },
+  {
+    id: '4',
+    category: 'enfants',
+    name: 'Ensemble vêtements enfant',
+    nameAr: 'طقم ملابس أطفال',
+    price: 700,
+    oldPrice: 900,
+    image: 'https://placehold.co/600x750/fef3c7/333333?text=Enfants',
+    type: 'preorder' as const,
+  },
 ]
 
 export default function BoutiqueHomePage() {
+  const { language } = useLanguage()
   const [search, setSearch] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
+
+  const ar = language === 'ar'
+  const tr = (fr: string, arabic: string) => ar ? arabic : fr
+  const Arrow = ar ? ArrowLeft : ArrowRight
+
+  const filteredProducts = products.filter((product) => {
+    const matchesCategory =
+      selectedCategory === 'all' ||
+      product.category === selectedCategory
+
+    const matchesSearch =
+      `${product.name} ${product.nameAr}`
+        .toLowerCase()
+        .includes(search.trim().toLowerCase())
+
+    return matchesCategory && matchesSearch
+  })
+
+  const selectCategory = (id: string) => {
+    setSelectedCategory(id)
+    document.getElementById('produits')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    })
+  }
 
   return (
-    <main className="min-h-screen bg-[#fafaf9] text-slate-900">
-
-      {/* Bande promotionnelle */}
-      <div className="bg-slate-950 px-4 py-3 text-center text-xs font-medium tracking-wide text-white sm:text-sm">
-        BOUTIQUE TEO — Votre shopping en Mauritanie
+    <main
+      dir={ar ? 'rtl' : 'ltr'}
+      lang={language}
+      className="min-h-screen bg-[#fafaf9] text-slate-900"
+    >
+      {/* Promotional bar */}
+      <div className="bg-slate-950 px-4 py-3 text-center text-xs font-medium text-white sm:text-sm">
+        {tr(
+          'BOUTIQUE TEO — Votre shopping en Mauritanie',
+          'متجر تيو — وجهتك للتسوق في موريتانيا'
+        )}
       </div>
 
-      {/* En-tête boutique */}
-      <section className="border-b border-slate-100 bg-white">
+      {/* Boutique header */}
+      <header className="border-b border-slate-100 bg-white">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-6">
-
           <div>
-            <span className="text-xs font-semibold tracking-[0.3em] text-slate-400">
+            <p className="text-xs font-semibold tracking-widest text-slate-400">
               TEO STORE
-            </span>
-            <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
-              BOUTIQUE <span className="text-amber-600">TEO.</span>
+            </p>
+            <h1 className="text-2xl font-black sm:text-3xl">
+              {tr('BOUTIQUE TEO', 'متجر تيو')}
             </h1>
           </div>
 
-          <div className="w-full max-w-md sm:w-auto sm:flex-1">
+          <div className="relative w-full sm:max-w-md sm:flex-1">
+            <Search
+              size={19}
+              className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400"
+            />
             <input
               type="search"
-              placeholder="Rechercher un produit..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              aria-label="Rechercher un produit"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+              placeholder={tr('Rechercher un produit...', 'ابحث عن منتج...')}
+              aria-label={tr('Rechercher', 'بحث')}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pe-4 ps-12 text-sm outline-none focus:border-amber-500"
             />
           </div>
 
-          <div className="flex items-center gap-4 text-sm font-semibold">
-            <span>♡ Favoris</span>
-            <span>♧ Panier</span>
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Heart size={21} strokeWidth={1.7} />
+              <span className="hidden sm:inline">
+                {tr('Favoris', 'المفضلة')}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <ShoppingBag size={21} strokeWidth={1.7} />
+              <span className="hidden sm:inline">
+                {tr('Panier', 'السلة')}
+              </span>
+            </div>
           </div>
-
         </div>
-      </section>
+      </header>
 
       {/* Navigation */}
       <nav className="border-b border-slate-100 bg-white">
         <div className="mx-auto flex max-w-7xl gap-7 overflow-x-auto whitespace-nowrap px-5 py-4 text-sm font-medium">
-          <a href="#categories" className="hover:text-amber-600">Catégories</a>
-          <a href="#collections" className="hover:text-amber-600">Collections</a>
-          <a href="#commande" className="hover:text-amber-600">Sur commande</a>
-          <a href="#avantages" className="hover:text-amber-600">Nos avantages</a>
+          <a href="#categories">{tr('Catégories', 'الفئات')}</a>
+          <a href="#produits">{tr('Produits', 'المنتجات')}</a>
+          <a href="#collections">{tr('Collections', 'التشكيلات')}</a>
+          <a href="#commande">{tr('Sur commande', 'حسب الطلب')}</a>
         </div>
       </nav>
 
       {/* Hero */}
       <section className="mx-auto max-w-7xl px-5 py-8">
         <div className="relative overflow-hidden rounded-3xl bg-slate-950 px-7 py-16 text-white sm:px-16 sm:py-24">
-
-          <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-amber-500/20 blur-3xl" />
-          <div className="absolute bottom-0 right-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute end-0 top-0 h-64 w-64 rounded-full bg-amber-500/20 blur-3xl" />
 
           <div className="relative z-10 max-w-2xl">
-            <p className="mb-5 text-xs font-bold uppercase tracking-[0.3em] text-amber-400">
-              La nouvelle expérience shopping
+            <p className="mb-5 text-xs font-bold uppercase tracking-widest text-amber-400">
+              {tr('La nouvelle expérience shopping', 'تجربة تسوق جديدة ومميزة')}
             </p>
-
             <h2 className="text-4xl font-black leading-tight sm:text-6xl">
-              Votre style.
+              {tr('Votre style.', 'أناقتك.')}
               <br />
-              Votre univers.
+              {tr('Votre univers.', 'عالمك.')}
               <br />
-              <span className="text-amber-400">Votre boutique.</span>
+              <span className="text-amber-400">
+                {tr('Votre boutique.', 'متجرك.')}
+              </span>
             </h2>
-
-            <p className="mt-6 max-w-lg text-sm leading-7 text-slate-300 sm:text-base">
-              Découvrez une sélection de mode, accessoires,
-              articles pour enfants et maison.
-              Disponible en Mauritanie.
+            <p className="mt-6 max-w-lg text-sm leading-8 text-slate-300 sm:text-base">
+              {tr(
+                'Découvrez la mode, les accessoires, les articles pour enfants et la maison en Mauritanie.',
+                'اكتشف الملابس والإكسسوارات ومستلزمات الأطفال والمنزل في موريتانيا.'
+              )}
             </p>
-
             <a
               href="#categories"
-              className="mt-8 inline-flex rounded-xl bg-amber-400 px-7 py-4 text-sm font-bold text-slate-950 transition hover:bg-amber-300"
+              className="mt-8 inline-flex items-center gap-3 rounded-xl bg-amber-400 px-7 py-4 text-sm font-bold text-slate-950 hover:bg-amber-300"
             >
-              Explorer la boutique →
+              {tr('Explorer la boutique', 'تصفح المتجر')}
+              <Arrow size={18} />
             </a>
           </div>
         </div>
       </section>
 
-      {/* Avantages */}
-      <section id="avantages" className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-5 py-6 sm:grid-cols-3">
+      {/* Benefits */}
+      <section className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-5 py-6 sm:grid-cols-3">
         {[
-          ['✦', 'Shopping facile', 'Une expérience simple et moderne'],
-          ['◇', 'Sur commande', 'Commandez vos articles préférés'],
-          ['⌂', 'En Mauritanie', 'Un service adapté à vos besoins'],
-        ].map(([icon, title, desc]) => (
-          <div key={title} className="rounded-2xl border border-slate-100 bg-white p-6">
-            <span className="text-2xl text-amber-600">{icon}</span>
-            <h3 className="mt-3 font-bold">{title}</h3>
-            <p className="mt-1 text-sm text-slate-500">{desc}</p>
+          {
+            Icon: ShieldCheck,
+            fr: 'Shopping facile',
+            ar: 'تسوق بسهولة',
+            descFr: 'Une expérience simple et moderne',
+            descAr: 'تجربة تسوق سهلة وعصرية',
+          },
+          {
+            Icon: PackageCheck,
+            fr: 'Sur commande',
+            ar: 'منتجات حسب الطلب',
+            descFr: 'Commandez vos articles préférés',
+            descAr: 'اطلب المنتجات التي تناسبك',
+          },
+          {
+            Icon: Truck,
+            fr: 'En Mauritanie',
+            ar: 'داخل موريتانيا',
+            descFr: 'Un service adapté à vos besoins',
+            descAr: 'خدمات تناسب احتياجاتك',
+          },
+        ].map((item) => (
+          <div
+            key={item.fr}
+            className="flex items-start gap-4 rounded-2xl border border-slate-100 bg-white p-6"
+          >
+            <div className="rounded-xl bg-amber-50 p-3 text-amber-700">
+              <item.Icon size={25} strokeWidth={1.6} />
+            </div>
+            <div>
+              <h3 className="font-bold">{tr(item.fr, item.ar)}</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                {tr(item.descFr, item.descAr)}
+              </p>
+            </div>
           </div>
         ))}
       </section>
 
-      {/* Catégories */}
+      {/* Categories */}
       <section id="categories" className="mx-auto max-w-7xl px-5 py-14">
-        <div className="mb-8 flex items-end justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
-              Nos univers
-            </p>
-            <h2 className="mt-2 text-3xl font-black">
-              Explorez nos catégories
-            </h2>
-          </div>
-        </div>
+        <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
+          {tr('Nos univers', 'أقسام المتجر')}
+        </p>
+        <h2 className="mb-8 mt-2 text-3xl font-black">
+          {tr('Explorez nos catégories', 'تصفح الفئات')}
+        </h2>
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          {categories.map((category) => {
+            const active = selectedCategory === category.id
+            return (
+              <button
+                type="button"
+                key={category.id}
+                onClick={() => selectCategory(category.id)}
+                aria-pressed={active}
+                className={`group flex min-h-40 flex-col items-center justify-center rounded-2xl border p-6 text-center transition duration-300 hover:-translate-y-1 hover:shadow-lg ${
+                  active
+                    ? 'border-amber-500 bg-amber-50 shadow-md'
+                    : 'border-slate-100 bg-white hover:border-amber-300'
+                }`}
+              >
+                <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${
+                  active
+                    ? 'bg-amber-200 text-amber-900'
+                    : 'bg-[#f8f5ef] text-slate-800 group-hover:bg-amber-100'
+                }`}>
+                  <category.Icon size={31} strokeWidth={1.5} />
+                </div>
+                <h3 className="text-sm font-bold">
+                  {tr(category.fr, category.ar)}
+                </h3>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* Products */}
+      <section id="produits" className="mx-auto max-w-7xl scroll-mt-8 px-5 py-14">
+        <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
+          {tr('Notre sélection', 'مختاراتنا')}
+        </p>
+        <h2 className="mb-6 mt-2 text-3xl font-black">
+          {tr('Nos produits', 'منتجاتنا')}
+        </h2>
+
+        <div className="mb-8 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('all')}
+            className={`inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition ${
+              selectedCategory === 'all'
+                ? 'bg-slate-950 text-white'
+                : 'border border-slate-200 bg-white text-slate-700 hover:border-amber-400'
+            }`}
+          >
+            <LayoutGrid size={16} />
+            {tr('Tous les produits', 'جميع المنتجات')}
+          </button>
+
           {categories.map((category) => (
-            <div
-              key={category.name}
-              className={`${category.color} rounded-2xl p-6 text-center transition hover:-translate-y-1 hover:shadow-md`}
+            <button
+              type="button"
+              key={category.id}
+              onClick={() => setSelectedCategory(category.id)}
+              className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
+                selectedCategory === category.id
+                  ? 'bg-slate-950 text-white'
+                  : 'border border-slate-200 bg-white text-slate-700 hover:border-amber-400'
+              }`}
             >
-              <div className="mb-4 text-4xl">{category.icon}</div>
-              <h3 className="text-sm font-bold">{category.name}</h3>
-            </div>
+              {tr(category.fr, category.ar)}
+            </button>
           ))}
         </div>
+
+        <p className="mb-5 text-sm text-slate-500">
+          {tr('Produits trouvés :', 'عدد المنتجات:')}{' '}
+          <bdi>{filteredProducts.length}</bdi>
+        </p>
+
+        {filteredProducts.length > 0 ? (
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+            {filteredProducts.map((product) => (
+              <ProductCard key={product.id} {...product} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center">
+            <ShoppingBag
+              size={36}
+              strokeWidth={1.5}
+              className="mx-auto mb-4 text-slate-400"
+            />
+            <p className="font-semibold text-slate-700">
+              {tr(
+                'Aucun produit dans cette catégorie pour le moment.',
+                'لا توجد منتجات في هذه الفئة حاليًا.'
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCategory('all')
+                setSearch('')
+              }}
+              className="mt-5 rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white"
+            >
+              {tr('Voir tous les produits', 'عرض جميع المنتجات')}
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Collections */}
       <section id="collections" className="mx-auto max-w-7xl px-5 py-12">
-        <div className="mb-8">
-          <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
-            Boutique TEO
-          </p>
-          <h2 className="mt-2 text-3xl font-black">
-            Découvrez nos collections
-          </h2>
-        </div>
-
+        <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
+          {tr('BOUTIQUE TEO', 'متجر تيو')}
+        </p>
+        <h2 className="mb-8 mt-2 text-3xl font-black">
+          {tr('Découvrez nos collections', 'اكتشف تشكيلاتنا')}
+        </h2>
         <div className="grid gap-5 md:grid-cols-2">
           <div className="flex min-h-64 flex-col justify-end rounded-3xl bg-[#eae6df] p-9">
-            <p className="mb-2 text-sm font-semibold">COLLECTION</p>
-            <h3 className="text-3xl font-black">Mode & Style</h3>
+            <Gem size={30} strokeWidth={1.5} className="mb-5" />
+            <h3 className="text-3xl font-black">
+              {tr('Mode & Style', 'الموضة والأناقة')}
+            </h3>
             <p className="mt-2 text-sm text-slate-600">
-              Découvrez votre prochain look.
+              {tr('Découvrez votre prochain look.', 'اكتشف إطلالتك القادمة.')}
             </p>
           </div>
-
           <div className="flex min-h-64 flex-col justify-end rounded-3xl bg-[#e4e9e5] p-9">
-            <p className="mb-2 text-sm font-semibold">COLLECTION</p>
-            <h3 className="text-3xl font-black">Maison & Lifestyle</h3>
+            <House size={30} strokeWidth={1.5} className="mb-5" />
+            <h3 className="text-3xl font-black">
+              {tr('Maison & Lifestyle', 'المنزل والحياة اليومية')}
+            </h3>
             <p className="mt-2 text-sm text-slate-600">
-              Des essentiels pour votre quotidien.
+              {tr(
+                'Des essentiels pour votre quotidien.',
+                'كل ما تحتاجه لحياتك اليومية.'
+              )}
             </p>
           </div>
         </div>
       </section>
 
-      {/* Sur commande */}
+      {/* Preorders */}
       <section id="commande" className="mx-auto max-w-7xl px-5 py-12">
         <div className="rounded-3xl border border-amber-100 bg-amber-50 p-8 sm:p-12">
-          <span className="text-xs font-bold uppercase tracking-widest text-amber-700">
-            Service sur commande
-          </span>
-
-          <h2 className="mt-3 text-3xl font-black">
-            Vous cherchez un produit particulier ?
-          </h2>
-
-          <p className="mt-4 max-w-2xl leading-7 text-slate-600">
-            Commandez vos articles depuis SHEIN, Amazon,
-            Noon ou Temu. Payez 50 % à la commande
-            et le reste à la réception.
+          <PackageCheck
+            size={34}
+            strokeWidth={1.5}
+            className="mb-5 text-amber-700"
+          />
+          <p className="text-xs font-bold uppercase tracking-widest text-amber-700">
+            {tr('Service sur commande', 'خدمة الطلب المسبق')}
           </p>
-
+          <h2 className="mt-3 text-3xl font-black">
+            {tr(
+              'Vous cherchez un produit particulier ?',
+              'هل تبحث عن منتج معين؟'
+            )}
+          </h2>
+          <p className="mt-4 max-w-2xl leading-8 text-slate-600">
+            {tr(
+              'Commandez depuis SHEIN, Amazon, Noon ou Temu. Payez 50% à la commande et le reste à la réception.',
+              'اطلب منتجاتك من SHEIN أو Amazon أو Noon أو Temu. ادفع 50% مقدمًا والباقي عند استلام الطلب.'
+            )}
+          </p>
           <p className="mt-5 text-sm font-semibold text-amber-800">
-            Les délais de livraison sont précisés pour chaque produit.
+            {tr(
+              'Les délais de livraison sont précisés pour chaque produit.',
+              'يتم تحديد مدة التوصيل لكل منتج.'
+            )}
           </p>
         </div>
       </section>
 
-      {/* Footer boutique */}
-      <section className="mt-12 bg-slate-950 px-5 py-12 text-center text-white">
-        <h2 className="text-2xl font-black">BOUTIQUE TEO.</h2>
+      {/* Footer */}
+      <footer className="mt-12 bg-slate-950 px-5 py-12 text-center text-white">
+        <h2 className="text-2xl font-black">
+          {tr('BOUTIQUE TEO', 'متجر تيو')}
+        </h2>
         <p className="mt-3 text-sm text-slate-400">
-          Mode · Accessoires · Maison · Lifestyle
+          {tr(
+            'Mode · Accessoires · Maison · Lifestyle',
+            'ملابس · إكسسوارات · مستلزمات منزلية · تسوق'
+          )}
         </p>
         <p className="mt-5 text-xs text-slate-500">
           © 2026 TEO STORE — Mauritanie
         </p>
-      </section>
-
+      </footer>
     </main>
   )
 }
