@@ -27,6 +27,7 @@ type StoreSettings = {
 type SupportSettings = {
   phone: string
   whatsapp: string
+  whatsappActive: boolean
   email: string
   supportMessageFr: string
   supportMessageAr: string
@@ -37,7 +38,6 @@ type PaymentSettings = {
     | 'bankily'
     | 'masrvi'
     | 'sedad'
-
   name: string
   number: string
   active: boolean
@@ -85,7 +85,6 @@ type ToastState = {
     | 'success'
     | 'error'
     | 'info'
-
   title: string
   message?: string
 }
@@ -111,14 +110,15 @@ const defaultStoreSettings:
 const defaultSupportSettings:
   SupportSettings = {
     phone: '',
-    whatsapp: '',
+    whatsapp: '34342869',
+    whatsappActive: true,
     email: '',
 
     supportMessageFr:
-      "Besoin d'aide ? Contactez TEO STORE.",
+      'Bonjour TEO STORE, j’ai besoin d’aide.',
 
     supportMessageAr:
-      'تحتاج مساعدة؟ تواصل مع TEO STORE.',
+      'مرحبًا TEO STORE، أحتاج إلى المساعدة.',
   }
 
 const defaultPayments:
@@ -238,6 +238,60 @@ const defaultMaintenanceSettings:
     messageAr:
       'TEO STORE قيد الصيانة مؤقتا.',
   }
+
+function normalizeMauritaniaWhatsappNumber(
+  value: string,
+) {
+  const digits =
+    value.replace(
+      /\D/g,
+      '',
+    )
+
+  if (!digits) {
+    return ''
+  }
+
+  if (
+    digits.length ===
+    8
+  ) {
+    return `222${digits}`
+  }
+
+  return digits
+}
+
+function formatWhatsappNumberForEditor(
+  value: unknown,
+) {
+  if (
+    typeof value !==
+    'string'
+  ) {
+    return ''
+  }
+
+  const digits =
+    value.replace(
+      /\D/g,
+      '',
+    )
+
+  if (
+    digits.startsWith(
+      '222',
+    ) &&
+    digits.length ===
+      11
+  ) {
+    return digits.slice(
+      3,
+    )
+  }
+
+  return digits
+}
 
 function AdminSettingsPage() {
   const [
@@ -441,14 +495,58 @@ function AdminSettingsPage() {
             'support',
           )
 
-        if (support) {
-          setSupportSettings(
-            {
-              ...defaultSupportSettings,
-              ...support,
-            } as SupportSettings,
+        const supportWhatsapp =
+          findValue(
+            'support_whatsapp',
           )
-        }
+
+        setSupportSettings(
+          () => {
+            const base =
+              support
+                ? {
+                    ...defaultSupportSettings,
+                    ...support,
+                  } as SupportSettings
+                : {
+                    ...defaultSupportSettings,
+                  }
+
+            if (
+              !supportWhatsapp
+            ) {
+              return base
+            }
+
+            return {
+              ...base,
+
+              whatsappActive:
+                typeof supportWhatsapp.active ===
+                  'boolean'
+                  ? supportWhatsapp.active
+                  : true,
+
+              whatsapp:
+                formatWhatsappNumberForEditor(
+                  supportWhatsapp.number,
+                ) ||
+                base.whatsapp,
+
+              supportMessageFr:
+                typeof supportWhatsapp.messageFr ===
+                  'string'
+                  ? supportWhatsapp.messageFr
+                  : base.supportMessageFr,
+
+              supportMessageAr:
+                typeof supportWhatsapp.messageAr ===
+                  'string'
+                  ? supportWhatsapp.messageAr
+                  : base.supportMessageAr,
+            }
+          },
+        )
 
         setPayments(
           defaultPayments.map(
@@ -642,6 +740,20 @@ function AdminSettingsPage() {
       )
 
       try {
+        const normalizedWhatsappNumber =
+          normalizeMauritaniaWhatsappNumber(
+            supportSettings.whatsapp,
+          )
+
+        if (
+          supportSettings.whatsappActive &&
+          !normalizedWhatsappNumber
+        ) {
+          throw new Error(
+            'Ajoutez un numéro WhatsApp valide avant d’activer le support WhatsApp.',
+          )
+        }
+
         await Promise.all([
           saveSetting(
             'store',
@@ -653,7 +765,37 @@ function AdminSettingsPage() {
           saveSetting(
             'support',
             {
-              ...supportSettings,
+              phone:
+                supportSettings.phone,
+
+              whatsapp:
+                supportSettings.whatsapp,
+
+              email:
+                supportSettings.email,
+
+              supportMessageFr:
+                supportSettings.supportMessageFr,
+
+              supportMessageAr:
+                supportSettings.supportMessageAr,
+            },
+          ),
+
+          saveSetting(
+            'support_whatsapp',
+            {
+              active:
+                supportSettings.whatsappActive,
+
+              number:
+                normalizedWhatsappNumber,
+
+              messageFr:
+                supportSettings.supportMessageFr,
+
+              messageAr:
+                supportSettings.supportMessageAr,
             },
           ),
 
@@ -1197,6 +1339,32 @@ function AdminSettingsPage() {
               <SettingsCard
                 title="Support client"
                 description="Coordonnées utilisées pour aider les clients."
+                action={
+                  <Toggle
+                    checked={
+                      supportSettings.whatsappActive
+                    }
+                    label={
+                      supportSettings.whatsappActive
+                        ? 'WhatsApp actif'
+                        : 'WhatsApp inactif'
+                    }
+                    onChange={(
+                      checked,
+                    ) =>
+                      setSupportSettings(
+                        (
+                          current,
+                        ) => ({
+                          ...current,
+
+                          whatsappActive:
+                            checked,
+                        }),
+                      )
+                    }
+                  />
+                }
               >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <TextField
@@ -1221,27 +1389,33 @@ function AdminSettingsPage() {
                     }
                   />
 
-                  <TextField
-                    label="WhatsApp"
-                    value={
-                      supportSettings.whatsapp
-                    }
-                    dir="ltr"
-                    onChange={(
-                      value,
-                    ) =>
-                      setSupportSettings(
-                        (
-                          current,
-                        ) => ({
-                          ...current,
+                  <div>
+                    <TextField
+                      label="WhatsApp"
+                      value={
+                        supportSettings.whatsapp
+                      }
+                      dir="ltr"
+                      onChange={(
+                        value,
+                      ) =>
+                        setSupportSettings(
+                          (
+                            current,
+                          ) => ({
+                            ...current,
 
-                          whatsapp:
-                            value,
-                        }),
-                      )
-                    }
-                  />
+                            whatsapp:
+                              value,
+                          }),
+                        )
+                      }
+                    />
+
+                    <p className="mt-2 text-xs leading-5 text-slate-400">
+                      Vous pouvez saisir le numéro local, par exemple 34342869. TEO STORE ajoute automatiquement l’indicatif 222 lors de l’enregistrement.
+                    </p>
+                  </div>
 
                   <TextField
                     label="E-mail"
@@ -1269,7 +1443,7 @@ function AdminSettingsPage() {
                   <div />
 
                   <TextAreaField
-                    label="Message support français"
+                    label="Message WhatsApp français"
                     value={
                       supportSettings.supportMessageFr
                     }
@@ -1290,7 +1464,7 @@ function AdminSettingsPage() {
                   />
 
                   <TextAreaField
-                    label="Message support arabe"
+                    label="Message WhatsApp arabe"
                     value={
                       supportSettings.supportMessageAr
                     }
