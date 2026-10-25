@@ -31,6 +31,7 @@ import EsimCheckoutPage from './features/digital-commerce/pages/EsimCheckoutPage
 import EsimCountryPage from './features/digital-commerce/pages/EsimCountryPage'
 
 import HomePage from './features/home/pages/HomePage'
+import BoutiqueHomePage from './features/boutique/pages/BoutiqueHomePage'
 
 function App() {
   return (
@@ -105,6 +106,10 @@ function App() {
                 <Route
                   path="/"
                   element={<HomePage />}
+                />
+                <Route
+                  path="/boutique"
+                  element={<BoutiqueHomePage />}
                 />
 
                 <Route
