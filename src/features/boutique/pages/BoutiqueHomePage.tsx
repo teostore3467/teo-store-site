@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Search,
   Heart,
@@ -19,6 +20,8 @@ import {
 
 import { useLanguage } from '../../../i18n/LanguageContext'
 import ProductCard from '../components/ProductCard'
+import { boutiqueProducts } from '../data/products'
+import { useBoutiqueCart } from '../context/BoutiqueCartContext'
 
 const categories = [
   { id: 'femme', fr: 'Femme', ar: 'نساء', Icon: ShoppingBag },
@@ -29,50 +32,10 @@ const categories = [
   { id: 'beaute', fr: 'Beauté', ar: 'الجمال', Icon: Sparkles },
 ]
 
-const products = [
-  {
-    id: '1',
-    category: 'femme',
-    name: 'Sac élégant pour femme',
-    nameAr: 'حقيبة نسائية أنيقة',
-    price: 450,
-    oldPrice: 600,
-    image: 'https://placehold.co/600x750/f1e8e1/333333?text=Sac',
-    type: 'stock' as const,
-  },
-  {
-    id: '2',
-    category: 'homme',
-    name: 'Montre homme classique',
-    nameAr: 'ساعة رجالية كلاسيكية',
-    price: 850,
-    oldPrice: 1100,
-    image: 'https://placehold.co/600x750/e2e8f0/333333?text=Montre',
-    type: 'preorder' as const,
-  },
-  {
-    id: '3',
-    category: 'maison',
-    name: 'Accessoire maison moderne',
-    nameAr: 'مستلزمات منزلية عصرية',
-    price: 350,
-    image: 'https://placehold.co/600x750/e5e7eb/333333?text=Maison',
-    type: 'stock' as const,
-  },
-  {
-    id: '4',
-    category: 'enfants',
-    name: 'Ensemble vêtements enfant',
-    nameAr: 'طقم ملابس أطفال',
-    price: 700,
-    oldPrice: 900,
-    image: 'https://placehold.co/600x750/fef3c7/333333?text=Enfants',
-    type: 'preorder' as const,
-  },
-]
-
 export default function BoutiqueHomePage() {
   const { language } = useLanguage()
+  const { itemCount } = useBoutiqueCart()
+
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
 
@@ -80,7 +43,7 @@ export default function BoutiqueHomePage() {
   const tr = (fr: string, arabic: string) => ar ? arabic : fr
   const Arrow = ar ? ArrowLeft : ArrowRight
 
-  const filteredProducts = products.filter((product) => {
+  const filteredProducts = boutiqueProducts.filter((product) => {
     const matchesCategory =
       selectedCategory === 'all' ||
       product.category === selectedCategory
@@ -122,39 +85,65 @@ export default function BoutiqueHomePage() {
             <p className="text-xs font-semibold tracking-widest text-slate-400">
               TEO STORE
             </p>
+
             <h1 className="text-2xl font-black sm:text-3xl">
               {tr('BOUTIQUE TEO', 'متجر تيو')}
             </h1>
           </div>
 
+          {/* Search */}
           <div className="relative w-full sm:max-w-md sm:flex-1">
             <Search
               size={19}
               className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400"
             />
+
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={tr('Rechercher un produit...', 'ابحث عن منتج...')}
+              placeholder={tr(
+                'Rechercher un produit...',
+                'ابحث عن منتج...'
+              )}
               aria-label={tr('Rechercher', 'بحث')}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pe-4 ps-12 text-sm outline-none focus:border-amber-500"
             />
           </div>
 
+          {/* Header actions */}
           <div className="flex items-center gap-5">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Heart size={21} strokeWidth={1.7} />
+
               <span className="hidden sm:inline">
                 {tr('Favoris', 'المفضلة')}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <ShoppingBag size={21} strokeWidth={1.7} />
-              <span className="hidden sm:inline">
+
+            {/* Shopping cart */}
+            <Link
+              to="/boutique/panier"
+              aria-label={tr(
+                `Panier, ${itemCount} articles`,
+                `سلة التسوق، ${itemCount} قطعة`
+              )}
+              className="group flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-medium transition hover:bg-amber-50 hover:text-amber-700"
+            >
+              <span className="relative inline-flex">
+                <ShoppingBag size={23} strokeWidth={1.7} />
+
+                {itemCount > 0 && (
+                  <span className="absolute -end-3 -top-3 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-black text-slate-950 ring-2 ring-white">
+                    {itemCount > 99 ? '99+' : itemCount}
+                  </span>
+                )}
+              </span>
+
+              <span className="hidden ps-2 sm:inline">
                 {tr('Panier', 'السلة')}
               </span>
-            </div>
+            </Link>
           </div>
         </div>
       </header>
@@ -162,10 +151,21 @@ export default function BoutiqueHomePage() {
       {/* Navigation */}
       <nav className="border-b border-slate-100 bg-white">
         <div className="mx-auto flex max-w-7xl gap-7 overflow-x-auto whitespace-nowrap px-5 py-4 text-sm font-medium">
-          <a href="#categories">{tr('Catégories', 'الفئات')}</a>
-          <a href="#produits">{tr('Produits', 'المنتجات')}</a>
-          <a href="#collections">{tr('Collections', 'التشكيلات')}</a>
-          <a href="#commande">{tr('Sur commande', 'حسب الطلب')}</a>
+          <a href="#categories">
+            {tr('Catégories', 'الفئات')}
+          </a>
+
+          <a href="#produits">
+            {tr('Produits', 'المنتجات')}
+          </a>
+
+          <a href="#collections">
+            {tr('Collections', 'التشكيلات')}
+          </a>
+
+          <a href="#commande">
+            {tr('Sur commande', 'حسب الطلب')}
+          </a>
         </div>
       </nav>
 
@@ -176,8 +176,12 @@ export default function BoutiqueHomePage() {
 
           <div className="relative z-10 max-w-2xl">
             <p className="mb-5 text-xs font-bold uppercase tracking-widest text-amber-400">
-              {tr('La nouvelle expérience shopping', 'تجربة تسوق جديدة ومميزة')}
+              {tr(
+                'La nouvelle expérience shopping',
+                'تجربة تسوق جديدة ومميزة'
+              )}
             </p>
+
             <h2 className="text-4xl font-black leading-tight sm:text-6xl">
               {tr('Votre style.', 'أناقتك.')}
               <br />
@@ -187,12 +191,14 @@ export default function BoutiqueHomePage() {
                 {tr('Votre boutique.', 'متجرك.')}
               </span>
             </h2>
+
             <p className="mt-6 max-w-lg text-sm leading-8 text-slate-300 sm:text-base">
               {tr(
                 'Découvrez la mode, les accessoires, les articles pour enfants et la maison en Mauritanie.',
                 'اكتشف الملابس والإكسسوارات ومستلزمات الأطفال والمنزل في موريتانيا.'
               )}
             </p>
+
             <a
               href="#categories"
               className="mt-8 inline-flex items-center gap-3 rounded-xl bg-amber-400 px-7 py-4 text-sm font-bold text-slate-950 hover:bg-amber-300"
@@ -236,8 +242,12 @@ export default function BoutiqueHomePage() {
             <div className="rounded-xl bg-amber-50 p-3 text-amber-700">
               <item.Icon size={25} strokeWidth={1.6} />
             </div>
+
             <div>
-              <h3 className="font-bold">{tr(item.fr, item.ar)}</h3>
+              <h3 className="font-bold">
+                {tr(item.fr, item.ar)}
+              </h3>
+
               <p className="mt-1 text-sm text-slate-500">
                 {tr(item.descFr, item.descAr)}
               </p>
@@ -247,10 +257,14 @@ export default function BoutiqueHomePage() {
       </section>
 
       {/* Categories */}
-      <section id="categories" className="mx-auto max-w-7xl px-5 py-14">
+      <section
+        id="categories"
+        className="mx-auto max-w-7xl px-5 py-14"
+      >
         <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
           {tr('Nos univers', 'أقسام المتجر')}
         </p>
+
         <h2 className="mb-8 mt-2 text-3xl font-black">
           {tr('Explorez nos catégories', 'تصفح الفئات')}
         </h2>
@@ -258,6 +272,7 @@ export default function BoutiqueHomePage() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           {categories.map((category) => {
             const active = selectedCategory === category.id
+
             return (
               <button
                 type="button"
@@ -270,13 +285,19 @@ export default function BoutiqueHomePage() {
                     : 'border-slate-100 bg-white hover:border-amber-300'
                 }`}
               >
-                <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${
-                  active
-                    ? 'bg-amber-200 text-amber-900'
-                    : 'bg-[#f8f5ef] text-slate-800 group-hover:bg-amber-100'
-                }`}>
-                  <category.Icon size={31} strokeWidth={1.5} />
+                <div
+                  className={`mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${
+                    active
+                      ? 'bg-amber-200 text-amber-900'
+                      : 'bg-[#f8f5ef] text-slate-800 group-hover:bg-amber-100'
+                  }`}
+                >
+                  <category.Icon
+                    size={31}
+                    strokeWidth={1.5}
+                  />
                 </div>
+
                 <h3 className="text-sm font-bold">
                   {tr(category.fr, category.ar)}
                 </h3>
@@ -287,10 +308,14 @@ export default function BoutiqueHomePage() {
       </section>
 
       {/* Products */}
-      <section id="produits" className="mx-auto max-w-7xl scroll-mt-8 px-5 py-14">
+      <section
+        id="produits"
+        className="mx-auto max-w-7xl scroll-mt-8 px-5 py-14"
+      >
         <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
           {tr('Notre sélection', 'مختاراتنا')}
         </p>
+
         <h2 className="mb-6 mt-2 text-3xl font-black">
           {tr('Nos produits', 'منتجاتنا')}
         </h2>
@@ -333,7 +358,10 @@ export default function BoutiqueHomePage() {
         {filteredProducts.length > 0 ? (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {filteredProducts.map((product) => (
-              <ProductCard key={product.id} {...product} />
+              <ProductCard
+                key={product.id}
+                {...product}
+              />
             ))}
           </div>
         ) : (
@@ -343,12 +371,14 @@ export default function BoutiqueHomePage() {
               strokeWidth={1.5}
               className="mx-auto mb-4 text-slate-400"
             />
+
             <p className="font-semibold text-slate-700">
               {tr(
                 'Aucun produit dans cette catégorie pour le moment.',
                 'لا توجد منتجات في هذه الفئة حاليًا.'
               )}
             </p>
+
             <button
               type="button"
               onClick={() => {
@@ -357,35 +387,65 @@ export default function BoutiqueHomePage() {
               }}
               className="mt-5 rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white"
             >
-              {tr('Voir tous les produits', 'عرض جميع المنتجات')}
+              {tr(
+                'Voir tous les produits',
+                'عرض جميع المنتجات'
+              )}
             </button>
           </div>
         )}
       </section>
 
       {/* Collections */}
-      <section id="collections" className="mx-auto max-w-7xl px-5 py-12">
+      <section
+        id="collections"
+        className="mx-auto max-w-7xl px-5 py-12"
+      >
         <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
           {tr('BOUTIQUE TEO', 'متجر تيو')}
         </p>
+
         <h2 className="mb-8 mt-2 text-3xl font-black">
-          {tr('Découvrez nos collections', 'اكتشف تشكيلاتنا')}
+          {tr(
+            'Découvrez nos collections',
+            'اكتشف تشكيلاتنا'
+          )}
         </h2>
+
         <div className="grid gap-5 md:grid-cols-2">
           <div className="flex min-h-64 flex-col justify-end rounded-3xl bg-[#eae6df] p-9">
-            <Gem size={30} strokeWidth={1.5} className="mb-5" />
+            <Gem
+              size={30}
+              strokeWidth={1.5}
+              className="mb-5"
+            />
+
             <h3 className="text-3xl font-black">
               {tr('Mode & Style', 'الموضة والأناقة')}
             </h3>
+
             <p className="mt-2 text-sm text-slate-600">
-              {tr('Découvrez votre prochain look.', 'اكتشف إطلالتك القادمة.')}
+              {tr(
+                'Découvrez votre prochain look.',
+                'اكتشف إطلالتك القادمة.'
+              )}
             </p>
           </div>
+
           <div className="flex min-h-64 flex-col justify-end rounded-3xl bg-[#e4e9e5] p-9">
-            <House size={30} strokeWidth={1.5} className="mb-5" />
+            <House
+              size={30}
+              strokeWidth={1.5}
+              className="mb-5"
+            />
+
             <h3 className="text-3xl font-black">
-              {tr('Maison & Lifestyle', 'المنزل والحياة اليومية')}
+              {tr(
+                'Maison & Lifestyle',
+                'المنزل والحياة اليومية'
+              )}
             </h3>
+
             <p className="mt-2 text-sm text-slate-600">
               {tr(
                 'Des essentiels pour votre quotidien.',
@@ -397,28 +457,38 @@ export default function BoutiqueHomePage() {
       </section>
 
       {/* Preorders */}
-      <section id="commande" className="mx-auto max-w-7xl px-5 py-12">
+      <section
+        id="commande"
+        className="mx-auto max-w-7xl px-5 py-12"
+      >
         <div className="rounded-3xl border border-amber-100 bg-amber-50 p-8 sm:p-12">
           <PackageCheck
             size={34}
             strokeWidth={1.5}
             className="mb-5 text-amber-700"
           />
+
           <p className="text-xs font-bold uppercase tracking-widest text-amber-700">
-            {tr('Service sur commande', 'خدمة الطلب المسبق')}
+            {tr(
+              'Service sur commande',
+              'خدمة الطلب المسبق'
+            )}
           </p>
+
           <h2 className="mt-3 text-3xl font-black">
             {tr(
               'Vous cherchez un produit particulier ?',
               'هل تبحث عن منتج معين؟'
             )}
           </h2>
+
           <p className="mt-4 max-w-2xl leading-8 text-slate-600">
             {tr(
               'Commandez depuis SHEIN, Amazon, Noon ou Temu. Payez 50% à la commande et le reste à la réception.',
               'اطلب منتجاتك من SHEIN أو Amazon أو Noon أو Temu. ادفع 50% مقدمًا والباقي عند استلام الطلب.'
             )}
           </p>
+
           <p className="mt-5 text-sm font-semibold text-amber-800">
             {tr(
               'Les délais de livraison sont précisés pour chaque produit.',
@@ -433,12 +503,14 @@ export default function BoutiqueHomePage() {
         <h2 className="text-2xl font-black">
           {tr('BOUTIQUE TEO', 'متجر تيو')}
         </h2>
+
         <p className="mt-3 text-sm text-slate-400">
           {tr(
             'Mode · Accessoires · Maison · Lifestyle',
             'ملابس · إكسسوارات · مستلزمات منزلية · تسوق'
           )}
         </p>
+
         <p className="mt-5 text-xs text-slate-500">
           © 2026 TEO STORE — Mauritanie
         </p>

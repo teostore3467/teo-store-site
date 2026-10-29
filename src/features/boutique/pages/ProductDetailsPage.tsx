@@ -3,110 +3,53 @@ import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   ArrowRight,
-  Heart,
+  CheckCircle2,
   PackageCheck,
   Truck,
   ShieldCheck,
   ShoppingBag,
 } from 'lucide-react'
-import { useLanguage } from '../../../i18n/LanguageContext'
 
-const products = [
-  {
-    id: '1',
-    name: 'Sac élégant pour femme',
-    nameAr: 'حقيبة نسائية أنيقة',
-    description: 'Un sac élégant pour vos sorties et votre quotidien.',
-    descriptionAr: 'حقيبة نسائية أنيقة مناسبة للخروج والاستخدام اليومي.',
-    price: 450,
-    oldPrice: 600,
-    type: 'stock',
-    stock: 8,
-    delivery: 'Selon votre zone',
-    deliveryAr: 'حسب منطقة التوصيل',
-    colors: ['Noir', 'Marron'],
-    colorsAr: ['أسود', 'بني'],
-    sizes: ['Unique'],
-    image: 'https://placehold.co/800x1000/f1e8e1/333333?text=Sac',
-  },
-  {
-    id: '2',
-    name: 'Montre homme classique',
-    nameAr: 'ساعة رجالية كلاسيكية',
-    description: 'Une montre classique au design élégant.',
-    descriptionAr: 'ساعة رجالية كلاسيكية بتصميم أنيق.',
-    price: 850,
-    oldPrice: 1100,
-    type: 'preorder',
-    stock: null,
-    delivery: 'Délai à confirmer',
-    deliveryAr: 'مدة التوصيل تُحدد عند الطلب',
-    colors: ['Noir', 'Argent'],
-    colorsAr: ['أسود', 'فضي'],
-    sizes: ['Unique'],
-    image: 'https://placehold.co/800x1000/e2e8f0/333333?text=Montre',
-  },
-  {
-    id: '3',
-    name: 'Accessoire maison moderne',
-    nameAr: 'مستلزمات منزلية عصرية',
-    description: 'Un accessoire pratique pour la maison.',
-    descriptionAr: 'منتج عملي ومفيد للاستخدام المنزلي.',
-    price: 350,
-    type: 'stock',
-    stock: 12,
-    delivery: 'Selon votre zone',
-    deliveryAr: 'حسب منطقة التوصيل',
-    colors: ['Gris'],
-    colorsAr: ['رمادي'],
-    sizes: ['Unique'],
-    image: 'https://placehold.co/800x1000/e5e7eb/333333?text=Maison',
-  },
-  {
-    id: '4',
-    name: 'Ensemble vêtements enfant',
-    nameAr: 'طقم ملابس أطفال',
-    description: 'Un ensemble confortable pour enfants.',
-    descriptionAr: 'طقم ملابس مريح للأطفال.',
-    price: 700,
-    oldPrice: 900,
-    type: 'preorder',
-    stock: null,
-    delivery: 'Délai à confirmer',
-    deliveryAr: 'مدة التوصيل تُحدد عند الطلب',
-    colors: ['Bleu', 'Gris'],
-    colorsAr: ['أزرق', 'رمادي'],
-    sizes: ['2 ans', '4 ans', '6 ans'],
-    image: 'https://placehold.co/800x1000/fef3c7/333333?text=Enfants',
-  },
-]
+import { useLanguage } from '../../../i18n/LanguageContext'
+import { getBoutiqueProductById } from '../data/products'
+import { useBoutiqueCart } from '../context/BoutiqueCartContext'
 
 export default function ProductDetailsPage() {
   const { id } = useParams<{ id: string }>()
   const { language, currencyLabel } = useLanguage()
+  const { addItem, itemCount } = useBoutiqueCart()
+
   const ar = language === 'ar'
   const tr = (fr: string, arabic: string) => ar ? arabic : fr
+  const BackArrow = ar ? ArrowRight : ArrowLeft
+  const ForwardArrow = ar ? ArrowLeft : ArrowRight
 
-  const product = products.find((item) => item.id === id)
+  const product = getBoutiqueProductById(id)
 
   const [selectedColor, setSelectedColor] = useState(0)
   const [selectedSize, setSelectedSize] = useState(0)
   const [quantity, setQuantity] = useState(1)
+  const [added, setAdded] = useState(false)
 
   const formatPrice = (value: number) =>
     new Intl.NumberFormat('en-US', {
       maximumFractionDigits: 2,
     }).format(value)
 
-  const Arrow = ar ? ArrowRight : ArrowLeft
-
   if (!product) {
     return (
-      <main className="min-h-screen bg-[#fafaf9] px-5 py-20 text-center">
+      <main
+        dir={ar ? 'rtl' : 'ltr'}
+        className="min-h-screen bg-[#fafaf9] px-5 py-20 text-center"
+      >
         <h1 className="text-2xl font-bold">
           {tr('Produit introuvable', 'المنتج غير موجود')}
         </h1>
-        <Link to="/boutique" className="mt-6 inline-block text-amber-700 underline">
+
+        <Link
+          to="/boutique"
+          className="mt-6 inline-block text-amber-700 underline"
+        >
           {tr('Retour à la boutique', 'العودة إلى المتجر')}
         </Link>
       </main>
@@ -114,9 +57,23 @@ export default function ProductDetailsPage() {
   }
 
   const preorder = product.type === 'preorder'
-  const maxQuantity = product.stock ?? 10
-  const total = product.price * quantity
+  const maxQuantity = preorder ? 10 : product.stock ?? 0
+  const available = maxQuantity > 0
+  const safeQuantity = Math.min(quantity, Math.max(1, maxQuantity))
+  const total = product.price * safeQuantity
   const deposit = preorder ? total / 2 : total
+
+  const handleAddToCart = () => {
+    if (!available) return
+
+    const color = product.colors[selectedColor]
+    const size = product.sizes[selectedSize]
+
+    if (!color || !size) return
+
+    addItem(product, color, size, safeQuantity)
+    setAdded(true)
+  }
 
   return (
     <main
@@ -129,7 +86,7 @@ export default function ProductDetailsPage() {
           to="/boutique"
           className="mb-8 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-amber-700"
         >
-          <Arrow size={18} />
+          <BackArrow size={18} />
           {tr('Retour à la boutique', 'العودة إلى المتجر')}
         </Link>
 
@@ -145,11 +102,13 @@ export default function ProductDetailsPage() {
 
           {/* Product information */}
           <div>
-            <span className={`inline-block rounded-full px-4 py-2 text-xs font-bold ${
-              preorder
-                ? 'bg-amber-100 text-amber-800'
-                : 'bg-emerald-100 text-emerald-800'
-            }`}>
+            <span
+              className={`inline-block rounded-full px-4 py-2 text-xs font-bold ${
+                preorder
+                  ? 'bg-amber-100 text-amber-800'
+                  : 'bg-emerald-100 text-emerald-800'
+              }`}
+            >
               {preorder
                 ? tr('Sur commande', 'حسب الطلب')
                 : tr('En stock', 'متوفر الآن')}
@@ -163,28 +122,36 @@ export default function ProductDetailsPage() {
               {tr(product.description, product.descriptionAr)}
             </p>
 
+            {/* Prices */}
             <div className="mt-7 flex flex-wrap items-center gap-4">
               <span className="text-3xl font-black">
                 <bdi>{formatPrice(product.price)}</bdi> {currencyLabel}
               </span>
 
-              {product.oldPrice && product.oldPrice > product.price && (
-                <span className="text-lg text-slate-400 line-through">
-                  <bdi>{formatPrice(product.oldPrice)}</bdi> {currencyLabel}
-                </span>
-              )}
+              {product.oldPrice !== undefined &&
+                product.oldPrice > product.price && (
+                  <span className="text-lg text-slate-400 line-through">
+                    <bdi>{formatPrice(product.oldPrice)}</bdi> {currencyLabel}
+                  </span>
+                )}
             </div>
 
+            {/* Colors */}
             <div className="mt-8 border-t border-slate-200 pt-7">
               <h2 className="mb-3 text-sm font-bold">
                 {tr('Couleur', 'اللون')}
               </h2>
+
               <div className="flex flex-wrap gap-2">
                 {product.colors.map((color, index) => (
                   <button
                     key={color}
                     type="button"
-                    onClick={() => setSelectedColor(index)}
+                    onClick={() => {
+                      setSelectedColor(index)
+                      setAdded(false)
+                    }}
+                    aria-pressed={selectedColor === index}
                     className={`rounded-xl border px-5 py-3 text-sm ${
                       selectedColor === index
                         ? 'border-slate-950 bg-slate-950 text-white'
@@ -197,16 +164,22 @@ export default function ProductDetailsPage() {
               </div>
             </div>
 
+            {/* Sizes */}
             <div className="mt-7">
               <h2 className="mb-3 text-sm font-bold">
                 {tr('Taille', 'المقاس')}
               </h2>
+
               <div className="flex flex-wrap gap-2">
                 {product.sizes.map((size, index) => (
                   <button
                     key={size}
                     type="button"
-                    onClick={() => setSelectedSize(index)}
+                    onClick={() => {
+                      setSelectedSize(index)
+                      setAdded(false)
+                    }}
+                    aria-pressed={selectedSize === index}
                     className={`rounded-xl border px-5 py-3 text-sm ${
                       selectedSize === index
                         ? 'border-slate-950 bg-slate-950 text-white'
@@ -221,38 +194,52 @@ export default function ProductDetailsPage() {
               </div>
             </div>
 
+            {/* Quantity */}
             <div className="mt-7">
               <h2 className="mb-3 text-sm font-bold">
                 {tr('Quantité', 'الكمية')}
               </h2>
+
               <div className="inline-flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white">
                 <button
                   type="button"
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  disabled={quantity <= 1}
+                  onClick={() => {
+                    setQuantity((q) => Math.max(1, q - 1))
+                    setAdded(false)
+                  }}
+                  disabled={!available || safeQuantity <= 1}
                   className="px-5 py-3 disabled:opacity-30"
+                  aria-label={tr('Diminuer la quantité', 'تقليل الكمية')}
                 >
                   −
                 </button>
+
                 <span className="min-w-12 text-center font-bold">
-                  {quantity}
+                  {available ? safeQuantity : 0}
                 </span>
+
                 <button
                   type="button"
-                  onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
-                  disabled={quantity >= maxQuantity}
+                  onClick={() => {
+                    setQuantity((q) => Math.min(maxQuantity, q + 1))
+                    setAdded(false)
+                  }}
+                  disabled={!available || safeQuantity >= maxQuantity}
                   className="px-5 py-3 disabled:opacity-30"
+                  aria-label={tr('Augmenter la quantité', 'زيادة الكمية')}
                 >
                   +
                 </button>
               </div>
             </div>
 
+            {/* Payment summary */}
             <div className="mt-8 rounded-2xl bg-amber-50 p-6">
               <div className="flex justify-between gap-3 text-sm">
                 <span>{tr('Total', 'المجموع')}</span>
                 <strong>
-                  <bdi>{formatPrice(total)}</bdi> {currencyLabel}
+                  <bdi>{formatPrice(available ? total : 0)}</bdi>{' '}
+                  {currencyLabel}
                 </strong>
               </div>
 
@@ -262,8 +249,10 @@ export default function ProductDetailsPage() {
                     ? tr('Acompte 50%', 'الدفعة المقدمة 50%')
                     : tr('Paiement intégral', 'الدفع الكامل')}
                 </span>
+
                 <strong className="text-amber-800">
-                  <bdi>{formatPrice(deposit)}</bdi> {currencyLabel}
+                  <bdi>{formatPrice(available ? deposit : 0)}</bdi>{' '}
+                  {currencyLabel}
                 </strong>
               </div>
 
@@ -277,15 +266,50 @@ export default function ProductDetailsPage() {
               )}
             </div>
 
+            {/* Add to cart */}
             <button
               type="button"
-              disabled
-              className="mt-6 flex w-full cursor-not-allowed items-center justify-center gap-3 rounded-xl bg-slate-950 px-6 py-4 font-bold text-white opacity-60"
+              onClick={handleAddToCart}
+              disabled={!available}
+              className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-slate-950 px-6 py-4 font-bold text-white transition hover:bg-amber-500 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ShoppingBag size={20} />
-              {tr('Commande bientôt disponible', 'الطلب سيتوفر قريبًا')}
+              {available
+                ? tr('Ajouter au panier', 'إضافة إلى السلة')
+                : tr('Rupture de stock', 'نفدت الكمية')}
             </button>
 
+            {/* Success message and cart link */}
+            {added && (
+              <div
+                role="status"
+                className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4"
+              >
+                <div className="flex items-center gap-2 font-bold text-emerald-800">
+                  <CheckCircle2 size={20} />
+                  {tr(
+                    'Produit ajouté au panier !',
+                    'تمت إضافة المنتج إلى السلة!'
+                  )}
+                </div>
+
+                <p className="mt-2 text-sm text-emerald-700">
+                  {tr('Articles dans le panier :', 'عدد القطع في السلة:')}{' '}
+                  <bdi>{itemCount}</bdi>
+                </p>
+
+                <Link
+                  to="/boutique/panier"
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-800"
+                >
+                  <ShoppingBag size={18} />
+                  {tr('Voir mon panier', 'عرض السلة')}
+                  <ForwardArrow size={17} />
+                </Link>
+              </div>
+            )}
+
+            {/* Delivery and payment information */}
             <div className="mt-7 grid gap-3 text-sm text-slate-600">
               <div className="flex items-center gap-3">
                 <Truck size={19} />

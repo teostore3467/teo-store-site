@@ -31,7 +31,12 @@ import EsimCheckoutPage from './features/digital-commerce/pages/EsimCheckoutPage
 import EsimCountryPage from './features/digital-commerce/pages/EsimCountryPage'
 
 import HomePage from './features/home/pages/HomePage'
+
 import BoutiqueHomePage from './features/boutique/pages/BoutiqueHomePage'
+import ProductDetailsPage from './features/boutique/pages/ProductDetailsPage'
+import BoutiqueCartPage from './features/boutique/pages/BoutiqueCartPage'
+import BoutiqueCheckoutPage from './features/boutique/pages/BoutiqueCheckoutPage'
+import { BoutiqueCartProvider } from './features/boutique/context/BoutiqueCartContext'
 
 function App() {
   return (
@@ -39,16 +44,15 @@ function App() {
       <ScrollToTop />
 
       <Routes>
+        {/* Admin login */}
         <Route
           path="/admin/login"
           element={<AdminLoginPage />}
         />
 
+        {/* Admin dashboard */}
         <Route element={<AdminProtectedRoute />}>
-          <Route
-            path="/admin"
-            element={<AdminLayout />}
-          >
+          <Route path="/admin" element={<AdminLayout />}>
             <Route
               index
               element={<AdminDashboardPage />}
@@ -96,10 +100,11 @@ function App() {
           </Route>
         </Route>
 
+        {/* Public website */}
         <Route
           path="*"
           element={
-            <>
+            <BoutiqueCartProvider>
               <PublicHeader />
 
               <Routes>
@@ -107,9 +112,25 @@ function App() {
                   path="/"
                   element={<HomePage />}
                 />
+
                 <Route
                   path="/boutique"
                   element={<BoutiqueHomePage />}
+                />
+
+                <Route
+                  path="/boutique/produit/:id"
+                  element={<ProductDetailsPage />}
+                />
+
+                <Route
+                  path="/boutique/panier"
+                  element={<BoutiqueCartPage />}
+                />
+
+                <Route
+                  path="/boutique/commande"
+                  element={<BoutiqueCheckoutPage />}
                 />
 
                 <Route
@@ -169,7 +190,7 @@ function App() {
               </Routes>
 
               <PublicFooter />
-            </>
+            </BoutiqueCartProvider>
           }
         />
       </Routes>
