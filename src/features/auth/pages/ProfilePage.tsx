@@ -3087,7 +3087,7 @@ function ProfilePage() {
                       <p className="mt-1 text-xs leading-5 text-amber-700">
                         {isArabic
                           ? 'بعض الطلبات المكتملة أو تجربة المتجر تحتاج إلى تقييمك.'
-                          : 'Des commandes terminées ou votre expérience boutique attendent votre avis.'}
+                          : 'Des commandes terminées ou votre expérience avec TEO STORE attendent votre avis.'}
                       </p>
 
                       <button
@@ -3408,7 +3408,7 @@ function ProfilePage() {
                   <p className="mt-1 text-xs text-slate-400">
                     {isArabic
                       ? 'تابع الدفع والتجهيز والتسليم من هنا.'
-                      : 'Suivez le paiement, le traitement et la livraison.'}
+                      : 'Suivez le paiement, la préparation et la livraison numérique de vos commandes.'}
                   </p>
                 </div>
 
@@ -3750,7 +3750,7 @@ function ProfilePage() {
                     <p className="mt-1 text-xs leading-5 text-slate-500">
                       {isArabic
                         ? `${completedOrdersCount} طلبات مكتملة. تقييم المتجر يظهر كل 5 طلبات.`
-                        : `${completedOrdersCount} commandes terminées. L’avis boutique apparaît toutes les 5 commandes.`}
+                        : `${completedOrdersCount} commandes terminées. L’avis sur TEO STORE apparaît toutes les 5 commandes.`}
                     </p>
                   </div>
                 </div>
@@ -4555,7 +4555,7 @@ function ProfilePage() {
                 <span className="text-sm font-black text-slate-700">
                   {isArabic
                     ? 'تعليقك عن المتجر'
-                    : 'Votre commentaire sur la boutique'}
+                    : 'Votre commentaire sur TEO STORE'}
                 </span>
 
                 <textarea
@@ -4578,7 +4578,7 @@ function ProfilePage() {
                   placeholder={
                     isArabic
                       ? 'ما رأيك في الخدمة والدفع والتسليم والدعم؟'
-                      : 'Que pensez-vous du service, paiement, livraison et support ?'
+                      : 'Que pensez-vous du service, du paiement, de la livraison numérique et du support ?'
                   }
                   className="mt-2 w-full resize-none rounded-[16px] border border-slate-200 bg-slate-50 p-4 text-sm outline-none focus:border-blue-400 focus:bg-white"
                 />

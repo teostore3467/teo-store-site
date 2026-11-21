@@ -57,213 +57,85 @@ function mapCatalog(
   groups: GroupRow[],
   plans: PlanRow[],
 ): ServiceCatalogItem[] {
-  const plansByGroup = new Map<
-    string,
-    ServicePlan[]
-  >()
+  const plansByGroup = new Map<string, ServicePlan[]>()
 
   for (const plan of plans) {
-    const current =
-      plansByGroup.get(
-        plan.group_id,
-      ) ?? []
+    const parsedPrice = Number(plan.price)
 
-    const parsedPrice =
-      Number(plan.price)
+    if (
+      !Number.isFinite(parsedPrice) ||
+      parsedPrice < 0
+    ) {
+      console.warn(
+        'Invalid service plan price:',
+        plan.id,
+      )
+      continue
+    }
+
+    const current = plansByGroup.get(plan.group_id) ?? []
 
     current.push({
       id: plan.plan_key,
       label: plan.label,
-      price: Number.isFinite(
-        parsedPrice,
-      )
-        ? parsedPrice
-        : 0,
+      price: parsedPrice,
       currency: 'MRU',
-      availability:
-        plan.availability,
+      availability: plan.availability,
       popular: plan.popular,
     })
 
-    plansByGroup.set(
-      plan.group_id,
-      current,
-    )
+    plansByGroup.set(plan.group_id, current)
   }
 
-  const groupsByService = new Map<
-    string,
-    ServiceGroup[]
-  >()
+  const groupsByService = new Map<string, ServiceGroup[]>()
 
   for (const group of groups) {
-    const current =
-      groupsByService.get(
-        group.service_id,
-      ) ?? []
+    const current = groupsByService.get(group.service_id) ?? []
 
     current.push({
       id: group.group_key,
       name: group.name,
-      shortName:
-        group.short_name,
-      availability:
-        group.availability,
-      fulfillment:
-        group.fulfillment,
-      plans:
-        plansByGroup.get(
-          group.id,
-        ) ?? [],
-      description:
-        group.description ??
-        undefined,
+      shortName: group.short_name,
+      availability: group.availability,
+      fulfillment: group.fulfillment,
+      plans: plansByGroup.get(group.id) ?? [],
+      description: group.description ?? undefined,
     })
 
-    groupsByService.set(
-      group.service_id,
-      current,
-    )
+    groupsByService.set(group.service_id, current)
   }
 
-  return services.map(
-    (service) => ({
-      slug: service.slug,
-      name: service.name,
-      category:
-        service.category,
-      availability:
-        service.availability,
-      description:
-        service.description ??
-        undefined,
-      groups:
-        groupsByService.get(
-          service.id,
-        ) ?? [],
-    }),
-  )
-}
-
-function hasUsablePlans(
-  service: ServiceCatalogItem,
-) {
-  return service.groups.some(
-    (group) =>
-      group.plans.some(
-        (plan) =>
-          Number.isFinite(
-            Number(plan.price),
-          ) &&
-          Number(plan.price) >= 0,
-      ),
-  )
-}
-
-function mergeWithLocalCatalog(
-  remoteCatalog: ServiceCatalogItem[],
-): ServiceCatalogItem[] {
-  /**
-   * serviceCatalog المحلي يبقى fallback.
-   *
-   * إذا كانت الخدمة موجودة بشكل كامل
-   * في Supabase، نستخدم نسخة Supabase.
-   *
-   * إذا كانت الخدمة غير موجودة في Supabase
-   * أو موجودة بدون groups/plans صالحة،
-   * نستخدم النسخة الموجودة في serviceCatalog.
-   *
-   * هذا يمنع ظهور "Bientôt" أو اختفاء السعر
-   * فقط لأن بيانات Supabase ناقصة.
-   */
-
-  const merged =
-    serviceCatalog.map(
-      (localService) => {
-        const remoteService =
-          remoteCatalog.find(
-            (service) =>
-              service.slug ===
-              localService.slug,
-          )
-
-        if (!remoteService) {
-          return localService
-        }
-
-        if (
-          !hasUsablePlans(
-            remoteService,
-          )
-        ) {
-          return localService
-        }
-
-        return remoteService
-      },
-    )
-
-  /**
-   * إذا كانت هناك خدمة جديدة في Supabase
-   * وغير موجودة بعد في serviceCatalog،
-   * لا نحذفها.
-   */
-
-  for (const remoteService of remoteCatalog) {
-    const alreadyExists =
-      merged.some(
-        (service) =>
-          service.slug ===
-          remoteService.slug,
-      )
-
-    if (
-      !alreadyExists &&
-      hasUsablePlans(
-        remoteService,
-      )
-    ) {
-      merged.push(
-        remoteService,
-      )
-    }
-  }
-
-  return merged
+  return services.map((service) => ({
+    slug: service.slug,
+    name: service.name,
+    category: service.category,
+    availability: service.availability,
+    description: service.description ?? undefined,
+    groups: groupsByService.get(service.id) ?? [],
+  }))
 }
 
 export async function fetchPublicServiceCatalog(): Promise<
   ServiceCatalogItem[]
 > {
   try {
-    const servicesResult =
-      await supabase
-        .from(
-          'digital_services',
-        )
-        .select(`
-          id,
-          slug,
-          name,
-          category,
-          availability,
-          description,
-          sort_order
-        `)
-        .eq(
-          'active',
-          true,
-        )
-        .order(
-          'sort_order',
-          {
-            ascending: true,
-          },
-        )
+    const servicesResult = await supabase
+      .from('digital_services')
+      .select(`
+        id,
+        slug,
+        name,
+        category,
+        availability,
+        description,
+        sort_order
+      `)
+      .eq('active', true)
+      .order('sort_order', {
+        ascending: true,
+      })
 
-    if (
-      servicesResult.error
-    ) {
+    if (servicesResult.error) {
       console.error(
         'Unable to load digital_services:',
         servicesResult.error,
@@ -272,56 +144,36 @@ export async function fetchPublicServiceCatalog(): Promise<
       return serviceCatalog
     }
 
-    const services =
-      (servicesResult.data ??
-        []) as ServiceRow[]
+    const services = (servicesResult.data ?? []) as ServiceRow[]
 
-    if (
-      services.length === 0
-    ) {
-      return serviceCatalog
+    // An empty result is valid: ADMIN may have disabled
+    // every service. Do not restore local services.
+    if (services.length === 0) {
+      return []
     }
 
-    const serviceIds =
-      services.map(
-        (service) =>
-          service.id,
-      )
+    const serviceIds = services.map((service) => service.id)
 
-    const groupsResult =
-      await supabase
-        .from(
-          'digital_service_groups',
-        )
-        .select(`
-          id,
-          service_id,
-          group_key,
-          name,
-          short_name,
-          availability,
-          description,
-          fulfillment,
-          sort_order
-        `)
-        .in(
-          'service_id',
-          serviceIds,
-        )
-        .eq(
-          'active',
-          true,
-        )
-        .order(
-          'sort_order',
-          {
-            ascending: true,
-          },
-        )
+    const groupsResult = await supabase
+      .from('digital_service_groups')
+      .select(`
+        id,
+        service_id,
+        group_key,
+        name,
+        short_name,
+        availability,
+        description,
+        fulfillment,
+        sort_order
+      `)
+      .in('service_id', serviceIds)
+      .eq('active', true)
+      .order('sort_order', {
+        ascending: true,
+      })
 
-    if (
-      groupsResult.error
-    ) {
+    if (groupsResult.error) {
       console.error(
         'Unable to load digital_service_groups:',
         groupsResult.error,
@@ -330,56 +182,36 @@ export async function fetchPublicServiceCatalog(): Promise<
       return serviceCatalog
     }
 
-    const groups =
-      (groupsResult.data ??
-        []) as GroupRow[]
+    const groups = (groupsResult.data ?? []) as GroupRow[]
 
-    if (
-      groups.length === 0
-    ) {
-      return serviceCatalog
+    // Services without active groups remain in the catalog.
+    // Their unavailable plans must not be restored locally.
+    if (groups.length === 0) {
+      return mapCatalog(services, [], [])
     }
 
-    const groupIds =
-      groups.map(
-        (group) =>
-          group.id,
-      )
+    const groupIds = groups.map((group) => group.id)
 
-    const plansResult =
-      await supabase
-        .from(
-          'digital_service_plans',
-        )
-        .select(`
-          id,
-          group_id,
-          plan_key,
-          label,
-          price,
-          currency,
-          availability,
-          popular,
-          sort_order
-        `)
-        .in(
-          'group_id',
-          groupIds,
-        )
-        .eq(
-          'active',
-          true,
-        )
-        .order(
-          'sort_order',
-          {
-            ascending: true,
-          },
-        )
+    const plansResult = await supabase
+      .from('digital_service_plans')
+      .select(`
+        id,
+        group_id,
+        plan_key,
+        label,
+        price,
+        currency,
+        availability,
+        popular,
+        sort_order
+      `)
+      .in('group_id', groupIds)
+      .eq('active', true)
+      .order('sort_order', {
+        ascending: true,
+      })
 
-    if (
-      plansResult.error
-    ) {
+    if (plansResult.error) {
       console.error(
         'Unable to load digital_service_plans:',
         plansResult.error,
@@ -388,20 +220,12 @@ export async function fetchPublicServiceCatalog(): Promise<
       return serviceCatalog
     }
 
-    const plans =
-      (plansResult.data ??
-        []) as PlanRow[]
+    const plans = (plansResult.data ?? []) as PlanRow[]
 
-    const remoteCatalog =
-      mapCatalog(
-        services,
-        groups,
-        plans,
-      )
-
-    return mergeWithLocalCatalog(
-      remoteCatalog,
-    )
+    // Supabase is authoritative after a successful read.
+    // Disabled services, groups and plans are not
+    // reintroduced from the local catalog.
+    return mapCatalog(services, groups, plans)
   } catch (error) {
     console.error(
       'Unable to load public service catalog:',
@@ -415,21 +239,18 @@ export async function fetchPublicServiceCatalog(): Promise<
 export async function fetchPublicServiceBySlug(
   slug: string,
 ): Promise<ServiceCatalogItem | null> {
-  const normalizedSlug =
-    slug
-      .trim()
-      .toLowerCase()
+  const normalizedSlug = slug.trim().toLowerCase()
 
-  const catalog =
-    await fetchPublicServiceCatalog()
+  if (!normalizedSlug) {
+    return null
+  }
+
+  const catalog = await fetchPublicServiceCatalog()
 
   return (
     catalog.find(
       (service) =>
-        service.slug
-          .trim()
-          .toLowerCase() ===
-        normalizedSlug,
+        service.slug.trim().toLowerCase() === normalizedSlug,
     ) ?? null
   )
 }
@@ -445,32 +266,19 @@ export async function fetchPublicServiceReviews(
   serviceSlug: string,
 ): Promise<DigitalServiceReview[]> {
   try {
-    const normalizedSlug =
-      serviceSlug
-        .trim()
-        .toLowerCase()
+    const normalizedSlug = serviceSlug.trim().toLowerCase()
 
-    if (
-      normalizedSlug.length ===
-      0
-    ) {
+    if (!normalizedSlug) {
       return []
     }
 
-    const {
-      data,
-      error,
-    } =
-      await supabase.rpc(
-        'get_public_service_reviews',
-        {
-          p_service_slug:
-            normalizedSlug,
-
-          p_limit:
-            50,
-        },
-      )
+    const { data, error } = await supabase.rpc(
+      'get_public_service_reviews',
+      {
+        p_service_slug: normalizedSlug,
+        p_limit: 50,
+      },
+    )
 
     if (error) {
       console.error(
@@ -481,44 +289,22 @@ export async function fetchPublicServiceReviews(
       return []
     }
 
-    const rows =
-      (data ??
-        []) as PublicServiceReviewRpcRow[]
+    const rows = (data ?? []) as PublicServiceReviewRpcRow[]
 
     return rows
       .map(
-        (
-          review:
-            PublicServiceReviewRpcRow,
-        ): DigitalServiceReview => ({
-          id:
-            review.id,
-
-          rating:
-            Number(
-              review.rating,
-            ),
-
-          comment:
-            review.comment ??
-            null,
-
-          created_at:
-            review.created_at,
+        (review): DigitalServiceReview => ({
+          id: review.id,
+          rating: Number(review.rating),
+          comment: review.comment ?? null,
+          created_at: review.created_at,
         }),
       )
       .filter(
-        (
-          review:
-            DigitalServiceReview,
-        ) =>
-          Number.isFinite(
-            review.rating,
-          ) &&
-          review.rating >=
-            1 &&
-          review.rating <=
-            5,
+        (review) =>
+          Number.isFinite(review.rating) &&
+          review.rating >= 1 &&
+          review.rating <= 5,
       )
   } catch (error) {
     console.error(

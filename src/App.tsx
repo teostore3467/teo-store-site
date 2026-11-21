@@ -32,12 +32,6 @@ import EsimCountryPage from './features/digital-commerce/pages/EsimCountryPage'
 
 import HomePage from './features/home/pages/HomePage'
 
-import BoutiqueHomePage from './features/boutique/pages/BoutiqueHomePage'
-import ProductDetailsPage from './features/boutique/pages/ProductDetailsPage'
-import BoutiqueCartPage from './features/boutique/pages/BoutiqueCartPage'
-import BoutiqueCheckoutPage from './features/boutique/pages/BoutiqueCheckoutPage'
-import { BoutiqueCartProvider } from './features/boutique/context/BoutiqueCartContext'
-
 function App() {
   return (
     <div className="min-h-screen bg-white">
@@ -100,37 +94,17 @@ function App() {
           </Route>
         </Route>
 
-        {/* Public website */}
+        {/* Public website - Digital services only */}
         <Route
           path="*"
           element={
-            <BoutiqueCartProvider>
+            <>
               <PublicHeader />
 
               <Routes>
                 <Route
                   path="/"
                   element={<HomePage />}
-                />
-
-                <Route
-                  path="/boutique"
-                  element={<BoutiqueHomePage />}
-                />
-
-                <Route
-                  path="/boutique/produit/:id"
-                  element={<ProductDetailsPage />}
-                />
-
-                <Route
-                  path="/boutique/panier"
-                  element={<BoutiqueCartPage />}
-                />
-
-                <Route
-                  path="/boutique/commande"
-                  element={<BoutiqueCheckoutPage />}
                 />
 
                 <Route
@@ -190,7 +164,7 @@ function App() {
               </Routes>
 
               <PublicFooter />
-            </BoutiqueCartProvider>
+            </>
           }
         />
       </Routes>

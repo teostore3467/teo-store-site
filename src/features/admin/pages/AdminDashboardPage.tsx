@@ -1510,7 +1510,7 @@ function AdminDashboardPage() {
             </h2>
 
             <p className="mt-2 text-xs leading-5 text-slate-400">
-              Résumé global des avis boutique et produits.
+              Résumé global des avis sur TEO STORE et les services numériques.
             </p>
           </div>
 
@@ -1546,7 +1546,7 @@ function AdminDashboardPage() {
                   reviewSummary.store,
                 )}
               </span>{' '}
-              boutique ·{' '}
+              TEO STORE ·{' '}
               <span dir="ltr">
                 {formatNumber(
                   reviewSummary.product,
