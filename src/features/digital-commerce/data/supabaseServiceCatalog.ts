@@ -12,6 +12,10 @@ import type {
 
 export type PublicServicePlan = ServicePlan & {
   databaseId?: string
+  delivery_minutes?: number | null
+  warranty_days?: number | null
+  warranty_full_subscription?: boolean | null
+  validity_days?: number | null
 }
 
 export type PublicServiceGroup = Omit<ServiceGroup, 'plans'> & {
@@ -19,11 +23,14 @@ export type PublicServiceGroup = Omit<ServiceGroup, 'plans'> & {
   plans: PublicServicePlan[]
 }
 
-export type PublicServiceCatalogItem = Omit<
-  ServiceCatalogItem,
-  'groups'
-> & {
+export type PublicServiceCatalogItem = Omit<ServiceCatalogItem, 'groups'> & {
   groups: PublicServiceGroup[]
+  description_ar?: string | null
+  description_fr?: string | null
+  delivery_minutes?: number | null
+  warranty_days?: number | null
+  warranty_full_subscription?: boolean | null
+  validity_days?: number | null
 }
 
 type ServiceRow = {
@@ -33,6 +40,12 @@ type ServiceRow = {
   category: string
   availability: ServiceCatalogItem['availability']
   description: string | null
+  description_ar: string | null
+  description_fr: string | null
+  delivery_minutes: number | null
+  warranty_days: number | null
+  warranty_full_subscription: boolean | null
+  validity_days: number | null
   sort_order: number
 }
 
@@ -57,6 +70,10 @@ type PlanRow = {
   currency: string
   availability: ServicePlan['availability']
   popular: boolean
+  delivery_minutes: number | null
+  warranty_days: number | null
+  warranty_full_subscription: boolean | null
+  validity_days: number | null
   sort_order: number
 }
 
@@ -72,27 +89,17 @@ function mapCatalog(
   groups: GroupRow[],
   plans: PlanRow[],
 ): PublicServiceCatalogItem[] {
-  const plansByGroup = new Map<
-    string,
-    PublicServicePlan[]
-  >()
+  const plansByGroup = new Map<string, PublicServicePlan[]>()
 
   for (const plan of plans) {
     const parsedPrice = Number(plan.price)
 
-    if (
-      !Number.isFinite(parsedPrice) ||
-      parsedPrice < 0
-    ) {
-      console.warn(
-        'Invalid service plan price:',
-        plan.id,
-      )
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+      console.warn('Invalid service plan price:', plan.id)
       continue
     }
 
-    const current =
-      plansByGroup.get(plan.group_id) ?? []
+    const current = plansByGroup.get(plan.group_id) ?? []
 
     current.push({
       id: plan.plan_key,
@@ -102,19 +109,19 @@ function mapCatalog(
       currency: 'MRU',
       availability: plan.availability,
       popular: plan.popular,
+      delivery_minutes: plan.delivery_minutes,
+      warranty_days: plan.warranty_days,
+      warranty_full_subscription: plan.warranty_full_subscription,
+      validity_days: plan.validity_days,
     })
 
     plansByGroup.set(plan.group_id, current)
   }
 
-  const groupsByService = new Map<
-    string,
-    PublicServiceGroup[]
-  >()
+  const groupsByService = new Map<string, PublicServiceGroup[]>()
 
   for (const group of groups) {
-    const current =
-      groupsByService.get(group.service_id) ?? []
+    const current = groupsByService.get(group.service_id) ?? []
 
     current.push({
       id: group.group_key,
@@ -136,6 +143,12 @@ function mapCatalog(
     category: service.category,
     availability: service.availability,
     description: service.description ?? undefined,
+    description_ar: service.description_ar,
+    description_fr: service.description_fr,
+    delivery_minutes: service.delivery_minutes,
+    warranty_days: service.warranty_days,
+    warranty_full_subscription: service.warranty_full_subscription,
+    validity_days: service.validity_days,
     groups: groupsByService.get(service.id) ?? [],
   }))
 }
@@ -153,33 +166,30 @@ export async function fetchPublicServiceCatalog(): Promise<
         category,
         availability,
         description,
+        description_ar,
+        description_fr,
+        delivery_minutes,
+        warranty_days,
+        warranty_full_subscription,
+        validity_days,
         sort_order
       `)
       .eq('active', true)
       .is('deleted_at', null)
-      .order('sort_order', {
-        ascending: true,
-      })
+      .order('sort_order', { ascending: true })
 
     if (servicesResult.error) {
-      console.error(
-        'Unable to load digital_services:',
-        servicesResult.error,
-      )
+      console.error('Unable to load digital_services:', servicesResult.error)
       return []
     }
 
-    const services = (
-      servicesResult.data ?? []
-    ) as ServiceRow[]
+    const services = (servicesResult.data ?? []) as ServiceRow[]
 
     if (services.length === 0) {
       return []
     }
 
-    const serviceIds = services.map(
-      (service) => service.id,
-    )
+    const serviceIds = services.map((service) => service.id)
 
     const groupsResult = await supabase
       .from('digital_service_groups')
@@ -196,9 +206,7 @@ export async function fetchPublicServiceCatalog(): Promise<
       `)
       .in('service_id', serviceIds)
       .eq('active', true)
-      .order('sort_order', {
-        ascending: true,
-      })
+      .order('sort_order', { ascending: true })
 
     if (groupsResult.error) {
       console.error(
@@ -208,17 +216,13 @@ export async function fetchPublicServiceCatalog(): Promise<
       return []
     }
 
-    const groups = (
-      groupsResult.data ?? []
-    ) as GroupRow[]
+    const groups = (groupsResult.data ?? []) as GroupRow[]
 
     if (groups.length === 0) {
       return mapCatalog(services, [], [])
     }
 
-    const groupIds = groups.map(
-      (group) => group.id,
-    )
+    const groupIds = groups.map((group) => group.id)
 
     const plansResult = await supabase
       .from('digital_service_plans')
@@ -231,13 +235,15 @@ export async function fetchPublicServiceCatalog(): Promise<
         currency,
         availability,
         popular,
+        delivery_minutes,
+        warranty_days,
+        warranty_full_subscription,
+        validity_days,
         sort_order
       `)
       .in('group_id', groupIds)
       .eq('active', true)
-      .order('sort_order', {
-        ascending: true,
-      })
+      .order('sort_order', { ascending: true })
 
     if (plansResult.error) {
       console.error(
@@ -247,20 +253,11 @@ export async function fetchPublicServiceCatalog(): Promise<
       return []
     }
 
-    const plans = (
-      plansResult.data ?? []
-    ) as PlanRow[]
+    const plans = (plansResult.data ?? []) as PlanRow[]
 
-    return mapCatalog(
-      services,
-      groups,
-      plans,
-    )
+    return mapCatalog(services, groups, plans)
   } catch (error) {
-    console.error(
-      'Unable to load public service catalog:',
-      error,
-    )
+    console.error('Unable to load public service catalog:', error)
     return []
   }
 }
@@ -268,21 +265,17 @@ export async function fetchPublicServiceCatalog(): Promise<
 export async function fetchPublicServiceBySlug(
   slug: string,
 ): Promise<PublicServiceCatalogItem | null> {
-  const normalizedSlug =
-    slug.trim().toLowerCase()
+  const normalizedSlug = slug.trim().toLowerCase()
 
   if (!normalizedSlug) {
     return null
   }
 
-  const catalog =
-    await fetchPublicServiceCatalog()
+  const catalog = await fetchPublicServiceCatalog()
 
   return (
     catalog.find(
-      (service) =>
-        service.slug.trim().toLowerCase() ===
-        normalizedSlug,
+      (service) => service.slug.trim().toLowerCase() === normalizedSlug,
     ) ?? null
   )
 }
@@ -298,8 +291,7 @@ export async function fetchPublicServiceReviews(
   serviceSlug: string,
 ): Promise<DigitalServiceReview[]> {
   try {
-    const normalizedSlug =
-      serviceSlug.trim().toLowerCase()
+    const normalizedSlug = serviceSlug.trim().toLowerCase()
 
     if (!normalizedSlug) {
       return []
@@ -314,16 +306,11 @@ export async function fetchPublicServiceReviews(
     )
 
     if (error) {
-      console.error(
-        'Unable to load digital service reviews:',
-        error,
-      )
+      console.error('Unable to load digital service reviews:', error)
       return []
     }
 
-    const rows = (
-      data ?? []
-    ) as PublicServiceReviewRpcRow[]
+    const rows = (data ?? []) as PublicServiceReviewRpcRow[]
 
     return rows
       .map(
@@ -341,10 +328,7 @@ export async function fetchPublicServiceReviews(
           review.rating <= 5,
       )
   } catch (error) {
-    console.error(
-      'Unable to load digital service reviews:',
-      error,
-    )
+    console.error('Unable to load digital service reviews:', error)
     return []
   }
 }
