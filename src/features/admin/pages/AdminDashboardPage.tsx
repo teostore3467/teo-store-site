@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 
 type Period = 1 | 7 | 30 | 90
+type CustomerStats = { total_inscrits: number; clients_connectes: number; connectes_30_jours: number; nouveaux_30_jours: number }
 type Order = { id: string; order_number: string; customer_name: string; service_name: string; total_amount: number; currency: string; status: string; created_at: string; updated_at: string }
 type Review = { rating: number | string; is_visible: boolean; reviewed_at: string | null }
 type Service = { id: string; availability: string; active: boolean }
@@ -60,6 +61,7 @@ function Metric({ title, value, note, to, tone = 'blue' }: { title: string; valu
 
 function AdminDashboardPage() {
   const [period, setPeriod] = useState<Period>(30)
+  const [customerStats, setCustomerStats] = useState<CustomerStats | null>(null)
   const [data, setData] = useState<Dataset>(EMPTY)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -88,6 +90,21 @@ function AdminDashboardPage() {
         readOptional<EsimCountry>('esim_countries', 'id'),
         readOptional<EsimPlan>('esim_plans', 'id'),
       ])
+      // Statistics are returned only through the admin-guarded database RPC.
+      // These are Auth accounts (may include admins), not anonymous visitors.
+      const { data: customerRows, error: customerError } = await supabase.rpc('admin_customer_stats')
+      if (customerError) {
+        issues.push(`Comptes utilisateurs : ${customerError.message}`)
+        setCustomerStats(null)
+      } else {
+        const row = (Array.isArray(customerRows) ? customerRows[0] : customerRows) as CustomerStats | null
+        setCustomerStats(row ? {
+          total_inscrits: Number(row.total_inscrits) || 0,
+          clients_connectes: Number(row.clients_connectes) || 0,
+          connectes_30_jours: Number(row.connectes_30_jours) || 0,
+          nouveaux_30_jours: Number(row.nouveaux_30_jours) || 0,
+        } : null)
+      }
       setData({ orders, storeReviews: storeReviews ?? [], productReviews: productReviews ?? [], services: services ?? [], groups: groups ?? [], plans: plans ?? [], esimCountries: esimCountries ?? [], esimPlans: esimPlans ?? [] })
       setWarning(issues.length ? `Certaines statistiques sont indisponibles : ${issues.join(' · ')}` : null)
       setLastUpdated(new Date().toISOString()); setNow(new Date())
@@ -158,6 +175,21 @@ function AdminDashboardPage() {
     {error && <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">Échec de chargement : {error}. Les dernières données disponibles restent affichées.</div>}
     {warning && <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-6 text-amber-900">{warning}. Les indicateurs correspondants peuvent être incomplets.</div>}
     {otherCurrencies && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">Les montants affichés en MRU excluent les commandes libellées dans d’autres devises.</div>}
+    <section className={panel} aria-label="Statistiques des comptes utilisateurs">
+      <div className="mb-4">
+        <p className="text-xs font-bold uppercase tracking-wider text-blue-600">Utilisateurs</p>
+        <h2 className="mt-1 text-lg font-black">Comptes et connexions</h2>
+        <p className="mt-1 text-xs text-slate-500">Comptes Supabase Auth, y compris les administrateurs éventuels. Ne mesure pas les visiteurs anonymes.</p>
+      </div>
+      {customerStats ? (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Metric title="Comptes inscrits" value={fmt(customerStats.total_inscrits)} />
+          <Metric title="Déjà connectés" value={fmt(customerStats.clients_connectes)} note="Dernière connexion enregistrée" tone="emerald" />
+          <Metric title="Connexion sur 30 jours" value={fmt(customerStats.connectes_30_jours)} note="Dernière connexion dans les 30 jours" />
+          <Metric title="Nouveaux sur 30 jours" value={fmt(customerStats.nouveaux_30_jours)} note="Comptes créés dans les 30 jours" tone="amber" />
+        </div>
+      ) : <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">{loading ? 'Chargement des comptes…' : 'Statistiques utilisateurs indisponibles. Vérifiez les droits de la fonction admin_customer_stats.'}</p>}
+    </section>
     <section aria-label="Indicateurs" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric title="Commandes" value={fmt(current.length)} note={`Évolution : ${growth(current.length, previous.length)}`} to="/admin/orders"/><Metric title="Valeur confirmée" value={amount(currentValue)} note={`Évolution : ${growth(currentValue, previousValue)}`}/><Metric title="Panier moyen" value={amount(current.length ? currentValue / current.length : 0)} note="Valeur confirmée / toutes commandes"/><Metric title="Actions urgentes" value={fmt(pendingPayments + disputes)} note="Paiements + litiges · tous les jours" tone="rose" to="/admin/orders"/></section>
     <section className="grid grid-cols-2 gap-3 lg:grid-cols-4"><Metric title="Paiements à vérifier" value={fmt(pendingPayments)} to="/admin/payments" tone="amber"/><Metric title="À traiter" value={fmt(pendingOrders)} to="/admin/orders"/><Metric title="Litiges" value={fmt(disputes)} to="/admin/orders" tone="rose"/><Metric title="Finalisation" value={`${fmt(current.length ? (completed / current.length) * 100 : 0, 1)} %`} note="Commandes terminées / créées sur la période" tone="emerald"/></section>
     <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
