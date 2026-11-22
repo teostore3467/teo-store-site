@@ -37,6 +37,12 @@ type ServiceRow = {
   availability:
     AvailabilityStatus
   description: string | null
+  description_ar: string | null
+  description_fr: string | null
+  delivery_minutes: number | null
+  warranty_days: number | null
+  warranty_full_subscription: boolean | null
+  validity_days: number | null
   active: boolean
   sort_order: number
 }
@@ -66,6 +72,10 @@ type PlanRow = {
   availability:
     AvailabilityStatus
   popular: boolean
+  delivery_minutes: number | null
+  warranty_days: number | null
+  warranty_full_subscription: boolean | null
+  validity_days: number | null
   active: boolean
   sort_order: number
 }
@@ -639,6 +649,12 @@ function AdminServiceEditPage() {
                 category,
                 availability,
                 description,
+                description_ar,
+                description_fr,
+                delivery_minutes,
+                warranty_days,
+                warranty_full_subscription,
+                validity_days,
                 active,
                 sort_order
               `,
@@ -770,6 +786,10 @@ function AdminServiceEditPage() {
                   currency,
                   availability,
                   popular,
+                  delivery_minutes,
+                  warranty_days,
+                  warranty_full_subscription,
+                  validity_days,
                   active,
                   sort_order
                 `,
@@ -919,9 +939,13 @@ function AdminServiceEditPage() {
             category:
               service.category.trim(),
             description:
-              service.description
-                ?.trim() ||
-              null,
+              service.description?.trim() || null,
+            description_ar: service.description_ar?.trim() || null,
+            description_fr: service.description_fr?.trim() || null,
+            delivery_minutes: service.delivery_minutes,
+            warranty_days: service.warranty_days,
+            warranty_full_subscription: service.warranty_full_subscription ?? false,
+            validity_days: service.validity_days,
             availability:
               service.availability,
             active:
@@ -1399,6 +1423,10 @@ function AdminServiceEditPage() {
               plan.availability,
             popular:
               plan.popular,
+            delivery_minutes: plan.delivery_minutes,
+            warranty_days: plan.warranty_days,
+            warranty_full_subscription: plan.warranty_full_subscription,
+            validity_days: plan.validity_days,
             active:
               plan.active,
             sort_order:
@@ -1778,6 +1806,27 @@ function AdminServiceEditPage() {
               />
             </label>
 
+            <div className="md:col-span-2 rounded-2xl border border-blue-100 bg-blue-50/50 p-5 space-y-4">
+              <div><h3 className="font-black text-slate-900">Descriptions bilingues / الوصف بلغتين</h3><p className="text-xs text-slate-500 mt-1">Une ligne par avantage. Les retours à la ligne sont conservés. / كل ميزة في سطر مستقل.</p></div>
+              {([['description_ar','الوصف بالعربية','rtl'],['description_fr','Description en français','ltr']] as const).map(([field,label,dir]) => (
+                <label key={field} className="block">
+                  <span className="text-sm font-bold text-slate-700">{label}</span>
+                  <textarea dir={dir} rows={6} value={service[field] ?? ''} onChange={e => updateServiceField(field,e.target.value)} placeholder={dir === 'rtl' ? '✅ ميزة أولى\n✅ ميزة ثانية\nℹ️ شروط الاستخدام' : '✅ Premier avantage\n✅ Deuxième avantage\nℹ️ Conditions'} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm leading-7 outline-none focus:border-blue-500" />
+                  {service[field]?.trim() && <div dir={dir} className="mt-2 whitespace-pre-wrap break-words rounded-xl bg-white p-3 text-sm leading-7 text-slate-700"><span className="block text-xs font-bold text-blue-600 mb-1">{dir === 'rtl' ? 'معاينة الوصف' : 'Aperçu'}</span>{service[field]}</div>}
+                </label>
+              ))}
+            </div>
+            <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+              <h3 className="font-black text-slate-900">Livraison · Garantie · Validité / التسليم والضمان والصلاحية</h3>
+              <p className="text-xs text-slate-500">Valeurs par défaut du service. Une valeur vide signifie non définie. / اترك الحقل فارغًا إذا لم تحدده.</p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {([['delivery_minutes','Livraison (minutes) / التسليم بالدقائق'],['warranty_days','Garantie (jours) / الضمان بالأيام'],['validity_days','Validité (jours) / الصلاحية بالأيام']] as const).map(([field,label]) => (
+                  <label key={field} className="block text-xs font-bold text-slate-700">{label}<input type="number" min="0" value={service[field] ?? ''} onChange={e => updateServiceField(field,e.target.value === '' ? null : Math.max(0,Number(e.target.value)))} placeholder="Non défini" className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-blue-500" /></label>
+                ))}
+              </div>
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" checked={service.warranty_full_subscription ?? false} onChange={e => updateServiceField('warranty_full_subscription',e.target.checked)} /> Garantie pendant tout l'abonnement / الضمان طوال الاشتراك</label>
+              <p className="text-xs text-slate-500">0 minute = livraison instantanée. 0 jour de garantie = sans garantie.</p>
+            </div>
             <label className="flex items-center gap-3 rounded-[14px] border border-slate-200 bg-slate-50 p-4 md:col-span-2">
               <input
                 type="checkbox"
@@ -2176,6 +2225,18 @@ function AdminServiceEditPage() {
                                 </select>
                               </label>
 
+                              <div className="col-span-full rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
+                                <p className="text-xs font-black text-slate-700">Paramètres de cette offre / إعدادات هذه الباقة</p>
+                                <p className="text-xs text-slate-500">Vide = utiliser la valeur du service. / فارغ = اعتماد إعداد الخدمة.</p>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                  {([['delivery_minutes','Livraison (min)'],['warranty_days','Garantie (jours)'],['validity_days','Validité (jours)']] as const).map(([field,label]) => (
+                                    <label key={field} className="text-xs font-semibold text-slate-600">{label}<input type="number" min="0" value={plan[field] ?? ''} onChange={e => updatePlan(group.id,plan.id,{[field]: e.target.value === '' ? null : Math.max(0,Number(e.target.value))})} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3" /></label>
+                                  ))}
+                                </div>
+                                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700"><input type="checkbox" checked={plan.warranty_full_subscription ?? false} onChange={e => updatePlan(group.id,plan.id,{warranty_full_subscription:e.target.checked})} /> Garantie pendant l'abonnement / ضمان طوال الاشتراك</label>
+                                <p className="text-xs text-slate-500">{plan.warranty_full_subscription === null ? 'Garantie : héritée du service (si définie).' : 'Garantie : paramètre propre à cette offre.'}</p>
+                                <button type="button" onClick={() => updatePlan(group.id,plan.id,{warranty_full_subscription:null})} className="text-xs font-bold text-blue-600 underline">Réinitialiser la garantie / اعتماد ضمان الخدمة</button>
+                              </div>
                               <div className="flex gap-2">
                                 <button
                                   type="button"
