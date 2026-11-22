@@ -378,6 +378,9 @@ function defaultFulfillment(
   return base
 }
 
+const LOGO_BUCKET = 'service-logos'
+const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp']
+
 function AdminServiceEditPage() {
   const {
     serviceSlug,
@@ -390,6 +393,77 @@ function AdminServiceEditPage() {
     useState<
       ServiceRow | null
     >(null)
+
+  const [serviceLogo, setServiceLogo] = useState<{path: string; url: string} | null>(null)
+  const [logoBusy, setLogoBusy] = useState(false)
+  const [logoLoadingError, setLogoLoadingError] = useState<string | null>(null)
+
+  const refreshLogo = useCallback(async (slug: string) => {
+    const { data, error } = await supabase.from('service_logos')
+      .select('logo_path').eq('service_slug', slug).maybeSingle()
+    if (error) {
+      setLogoLoadingError(error.message)
+      return
+    }
+    setLogoLoadingError(null)
+    if (!data?.logo_path) {
+      setServiceLogo(null)
+      return
+    }
+    const path = data.logo_path as string
+    const { data: urlData } = supabase.storage.from(LOGO_BUCKET).getPublicUrl(path)
+    setServiceLogo({ path, url: urlData.publicUrl })
+  }, [])
+
+  const uploadServiceLogo = async (file?: File) => {
+    if (!service || !file || logoBusy) return
+    if (!LOGO_TYPES.includes(file.type) || file.size > 3 * 1024 * 1024) {
+      showToast({ type: 'error', title: 'Fichier non accepté', message: 'PNG, JPG ou WEBP, 3 Mo maximum.' })
+      return
+    }
+    setLogoBusy(true)
+    const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
+    const path = `${service.slug}/logo-${Date.now()}.${extension}`
+    try {
+      const { error: uploadError } = await supabase.storage.from(LOGO_BUCKET)
+        .upload(path, file, { contentType: file.type, upsert: false })
+      if (uploadError) throw uploadError
+      const { error: recordError } = await supabase.from('service_logos')
+        .upsert({ service_slug: service.slug, logo_path: path, updated_at: new Date().toISOString() },
+          { onConflict: 'service_slug' })
+      if (recordError) {
+        await supabase.storage.from(LOGO_BUCKET).remove([path])
+        throw recordError
+      }
+      const previousPath = serviceLogo?.path
+      await refreshLogo(service.slug)
+      if (previousPath && previousPath !== path) {
+        const { error: cleanupError } = await supabase.storage.from(LOGO_BUCKET).remove([previousPath])
+        if (cleanupError) console.warn('Ancien logo:', cleanupError.message)
+      }
+      showToast({ type: 'success', title: 'Logo mis à jour' })
+    } catch (error) {
+      showToast({ type: 'error', title: 'Logo non enregistré', message: error instanceof Error ? error.message : 'Erreur inconnue' })
+    } finally { setLogoBusy(false) }
+  }
+
+  const removeServiceLogo = async () => {
+    if (!service || !serviceLogo || logoBusy) return
+    if (!window.confirm('Retirer le logo personnalisé de ce service ?')) return
+    setLogoBusy(true)
+    try {
+      const { error } = await supabase.from('service_logos').delete()
+        .eq('service_slug', service.slug).select('service_slug')
+      if (error) throw error
+      // Storage cleanup is secondary; do not lose the database success.
+      const { error: cleanupError } = await supabase.storage.from(LOGO_BUCKET).remove([serviceLogo.path])
+      if (cleanupError) console.warn('Logo storage:', cleanupError.message)
+      await refreshLogo(service.slug)
+      showToast({ type: 'success', title: 'Logo retiré' })
+    } catch (error) {
+      showToast({ type: 'error', title: 'Suppression impossible', message: error instanceof Error ? error.message : 'Erreur inconnue' })
+    } finally { setLogoBusy(false) }
+  }
 
   const [
     groups,
@@ -597,6 +671,7 @@ function AdminServiceEditPage() {
         setService(
           nextService,
         )
+        void refreshLogo(nextService.slug)
 
         const {
           data:
@@ -1554,6 +1629,30 @@ function AdminServiceEditPage() {
 
       {detailsTab === 'general' && (
       <div className="mt-6 grid gap-5 xl:grid-cols-[1fr_300px] xl:items-start">
+        <div className="xl:col-span-2 rounded-[22px] border border-slate-200 bg-white p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                {serviceLogo ? <img src={serviceLogo.url} alt={`Logo ${service.name}`} className="h-full w-full object-contain" />
+                  : <span className="text-xl font-black text-slate-400">{service.name.slice(0, 2).toUpperCase()}</span>}
+              </div>
+              <div>
+                <h2 className="text-base font-black text-slate-950">Logo du service</h2>
+                <p className="mt-1 text-xs text-slate-500">PNG, JPG ou WEBP · 3 Mo maximum</p>
+                {logoLoadingError && <p className="mt-1 text-xs text-rose-600">{logoLoadingError}</p>}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <label className={`inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white ${logoBusy ? 'pointer-events-none opacity-50' : 'hover:bg-blue-700'}`}>
+                {logoBusy ? 'Traitement...' : serviceLogo ? 'Changer le logo' : 'Ajouter un logo'}
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={logoBusy}
+                  onChange={event => { void uploadServiceLogo(event.target.files?.[0]); event.currentTarget.value = '' }} />
+              </label>
+              {serviceLogo && <button type="button" disabled={logoBusy} onClick={() => void removeServiceLogo()}
+                className="min-h-11 rounded-xl border border-rose-200 px-4 text-sm font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50">Retirer</button>}
+            </div>
+          </div>
+        </div>
         <section className="rounded-[22px] border border-slate-200 bg-white p-5">
           <h2 className="text-lg font-black text-slate-950">
             Informations principales
