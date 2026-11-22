@@ -105,6 +105,11 @@ function AdminStoreReviewsPage() {
     useState<string | null>(null)
 
   const [searchQuery, setSearchQuery] = useState('')
+  const [expandedReviews, setExpandedReviews] = useState<string[]>([])
+
+  const toggleExpanded = (key: string) => {
+    setExpandedReviews((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])
+  }
 
   const [reviewTypeFilter, setReviewTypeFilter] =
     useState<ReviewTypeFilter>('all')
@@ -506,6 +511,47 @@ function AdminStoreReviewsPage() {
     visibilityFilter,
   ])
 
+  const exportFilteredReviews = () => {
+    if (filteredReviews.length === 0) return
+
+    const csvCell = (value: unknown) => {
+      const raw = String(value ?? '')
+      // Prevent spreadsheet formula injection in exported user comments.
+      const safe = /^[\s]*[=+\-@]/.test(raw) ? `\'${raw}` : raw
+      return `"${safe.replace(/"/g, '""')}"`
+    }
+
+    const headers = [
+      'Type', 'Date', 'Note', 'Visibilite', 'Commentaire',
+      'Commande', 'Service',
+    ]
+
+    const rows = filteredReviews.map((review) => [
+      review.type === 'store' ? 'Boutique' : 'Service',
+      review.created_at,
+      review.rating,
+      review.is_visible ? 'Visible' : 'Masque',
+      review.comment ?? '',
+      review.type === 'product' ? review.productReview.order_number : '',
+      review.type === 'product' ? review.productReview.service_name : '',
+    ])
+
+    const csv = '\uFEFF' + [headers, ...rows]
+      .map((row) => row.map(csvCell).join(';'))
+      .join('\r\n')
+
+    const url = URL.createObjectURL(
+      new Blob([csv], { type: 'text/csv;charset=utf-8;' }),
+    )
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `teo-avis-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
   const formatDate = (value: string) => {
     const date = new Date(value)
 
@@ -672,10 +718,10 @@ function AdminStoreReviewsPage() {
   return (
     <main
       dir={isArabic ? 'rtl' : 'ltr'}
-      className="min-h-screen bg-[#f7f9fc] py-6 sm:py-8 lg:py-10"
+      className="min-h-screen bg-[#f5f7fb] py-5 sm:py-7"
     >
       <Container>
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-6xl">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-600">
@@ -733,8 +779,8 @@ function AdminStoreReviewsPage() {
             </div>
           )}
 
-          <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-6">
-            <div className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+          <section className="mt-5 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-xs font-black uppercase tracking-wide text-slate-400">
                 {isArabic ? 'الإجمالي' : 'Total'}
               </p>
@@ -747,7 +793,7 @@ function AdminStoreReviewsPage() {
               </p>
             </div>
 
-            <div className="rounded-[20px] border border-violet-100 bg-violet-50 p-4 shadow-sm">
+            <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4 shadow-sm">
               <p className="text-xs font-black uppercase tracking-wide text-violet-600">
                 {isArabic ? 'TEO STORE' : 'TEO STORE'}
               </p>
@@ -760,7 +806,7 @@ function AdminStoreReviewsPage() {
               </p>
             </div>
 
-            <div className="rounded-[20px] border border-blue-100 bg-blue-50 p-4 shadow-sm">
+            <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-sm">
               <p className="text-xs font-black uppercase tracking-wide text-blue-600">
                 {isArabic
                   ? 'الخدمات الرقمية'
@@ -775,7 +821,7 @@ function AdminStoreReviewsPage() {
               </p>
             </div>
 
-            <div className="rounded-[20px] border border-emerald-100 bg-emerald-50 p-4 shadow-sm">
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm">
               <p className="text-xs font-black uppercase tracking-wide text-emerald-600">
                 {isArabic ? 'ظاهر' : 'Visibles'}
               </p>
@@ -788,7 +834,7 @@ function AdminStoreReviewsPage() {
               </p>
             </div>
 
-            <div className="rounded-[20px] border border-slate-200 bg-slate-100 p-4 shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4 shadow-sm">
               <p className="text-xs font-black uppercase tracking-wide text-slate-500">
                 {isArabic ? 'مخفي' : 'Masqués'}
               </p>
@@ -801,7 +847,7 @@ function AdminStoreReviewsPage() {
               </p>
             </div>
 
-            <div className="rounded-[20px] border border-amber-100 bg-amber-50 p-4 shadow-sm">
+            <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 shadow-sm">
               <p className="text-xs font-black uppercase tracking-wide text-amber-600">
                 {isArabic
                   ? 'متوسط الظاهر'
@@ -823,7 +869,7 @@ function AdminStoreReviewsPage() {
             </div>
           </section>
 
-          <section className="mt-6 rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_auto_auto_auto]">
               <div className="relative">
                 <svg
@@ -932,13 +978,22 @@ function AdminStoreReviewsPage() {
               </select>
             </div>
 
-            <div className="mt-4 flex items-center justify-between gap-3">
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs font-semibold text-slate-400">
                 {isArabic
                   ? `${filteredReviews.length} تقييم مطابق`
                   : `${filteredReviews.length} avis trouvé(s)`}
               </p>
 
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={exportFilteredReviews}
+                  disabled={filteredReviews.length === 0}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:border-blue-200 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {isArabic ? 'تصدير التقييمات CSV' : 'Exporter les avis CSV'}
+                </button>
               {(searchQuery ||
                 reviewTypeFilter !== 'all' ||
                 visibilityFilter !== 'all' ||
@@ -951,12 +1006,28 @@ function AdminStoreReviewsPage() {
                   {isArabic ? 'إعادة ضبط' : 'Réinitialiser'}
                 </button>
               )}
+              </div>
             </div>
           </section>
 
-          <section className="mt-5">
+          <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label={isArabic ? 'تصفية سريعة' : 'Filtres rapides'}>
+            {([
+              ['all', isArabic ? 'كل التقييمات' : 'Tous les avis'],
+              ['visible', isArabic ? 'الظاهرة' : 'Visibles'],
+              ['hidden', isArabic ? 'المخفية' : 'Masqués'],
+            ] as const).map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setVisibilityFilter(value)}
+                aria-pressed={visibilityFilter === value}
+                className={['rounded-full border px-4 py-2 text-xs font-bold transition',
+                  visibilityFilter === value ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'].join(' ')}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <section className="mt-4">
             {filteredReviews.length > 0 ? (
-              <div className="grid gap-4 xl:grid-cols-2">
+              <div className="grid gap-3 lg:grid-cols-2">
                 {filteredReviews.map((review) => {
                   const key = `${review.type}:${review.id}`
                   const busy = processingKey === key
@@ -966,13 +1037,13 @@ function AdminStoreReviewsPage() {
                     <article
                       key={key}
                       className={[
-                        'overflow-hidden rounded-[22px] border bg-white shadow-[0_8px_28px_rgba(15,23,42,0.05)]',
+                        'overflow-hidden rounded-2xl border bg-white shadow-sm transition-shadow hover:shadow-md',
                         review.is_visible
                           ? 'border-slate-200'
                           : 'border-slate-200 bg-slate-50/70',
                       ].join(' ')}
                     >
-                      <div className="p-5 sm:p-6">
+                      <div className="p-4 sm:p-5">
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
@@ -1066,10 +1137,10 @@ function AdminStoreReviewsPage() {
                           </span>
                         </div>
 
-                        <div className="mt-5 min-h-[90px] rounded-[16px] border border-slate-100 bg-slate-50 p-4">
+                        <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
                           {review.comment &&
                           review.comment.trim().length > 0 ? (
-                            <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">
+                            <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700 line-clamp-3">
                               “{review.comment}”
                             </p>
                           ) : (
@@ -1081,7 +1152,14 @@ function AdminStoreReviewsPage() {
                           )}
                         </div>
 
-                        <div className="mt-4 grid grid-cols-2 gap-2">
+                        <button type="button" onClick={() => toggleExpanded(key)}
+                          aria-expanded={expandedReviews.includes(key)}
+                          className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-start text-xs font-bold text-blue-700 hover:bg-blue-50">
+                          {expandedReviews.includes(key)
+                            ? (isArabic ? 'إخفاء التفاصيل' : 'Masquer les détails')
+                            : (isArabic ? 'عرض التفاصيل والتواريخ' : 'Voir les détails et dates')}
+                        </button>
+                        {expandedReviews.includes(key) && <div className="mt-3 grid grid-cols-2 gap-2">
                           <div className="rounded-[14px] bg-slate-50 p-3">
                             <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
                               {isArabic ? 'تاريخ التقييم' : 'Date'}
@@ -1109,9 +1187,9 @@ function AdminStoreReviewsPage() {
                               {formatDate(review.updated_at)}
                             </p>
                           </div>
-                        </div>
+                        </div>}
 
-                        <div className="mt-5 border-t border-slate-100 pt-4">
+                        <div className="mt-3 border-t border-slate-100 pt-3">
                           <button
                             type="button"
                             onClick={() =>
@@ -1144,7 +1222,7 @@ function AdminStoreReviewsPage() {
                 })}
               </div>
             ) : (
-              <div className="rounded-[24px] border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] bg-amber-50 text-2xl text-amber-400">
                   ★
                 </div>
