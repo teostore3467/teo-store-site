@@ -21,7 +21,7 @@ const between = (date: string, start: Date, end: Date) => { const ms = new Date(
 const statusLabels: Record<string, string> = { payment_review: 'Paiement à vérifier', payment_partial: 'Paiement incomplet', payment_confirmed: 'Paiement confirmé', processing: 'En traitement', fulfillment_sent: 'Service envoyé', disputed: 'Litige', completed: 'Terminée', cancelled: 'Annulée', refunded: 'Remboursée' }
 const statusColor = (status: string) => status === 'completed' ? 'bg-emerald-50 text-emerald-700' : status === 'disputed' || status === 'cancelled' || status === 'refunded' ? 'bg-rose-50 text-rose-700' : status === 'payment_review' || status === 'payment_partial' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'
 const dateLabel = (date: string) => { const value = new Date(date); return Number.isNaN(value.getTime()) ? '—' : new Intl.DateTimeFormat('fr-FR-u-nu-latn', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(value) }
-const panel = 'rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-6'
+const panel = 'rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-[0_8px_28px_rgba(15,23,42,0.035)] sm:p-6'
 
 // Supabase paginates table reads. This helper avoids the default 1,000-row truncation.
 async function readAll<T>(table: string, columns: string, orderBy?: string): Promise<T[]> {
@@ -39,8 +39,23 @@ async function readAll<T>(table: string, columns: string, orderBy?: string): Pro
 }
 
 function Metric({ title, value, note, to, tone = 'blue' }: { title: string; value: string; note?: string; to?: string; tone?: 'blue' | 'amber' | 'rose' | 'emerald' }) {
-  const inner = <><div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${tone === 'amber' ? 'bg-amber-500' : tone === 'rose' ? 'bg-rose-500' : tone === 'emerald' ? 'bg-emerald-500' : 'bg-blue-500'}`} /><span className="text-xs font-bold text-slate-500">{title}</span></div><p dir="ltr" className="mt-4 break-words text-left text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{value}</p>{note && <p className="mt-2 text-xs leading-5 text-slate-400">{note}</p>}</>
-  return to ? <Link to={to} className={`${panel} block transition hover:border-blue-300 hover:shadow-md`}>{inner}</Link> : <div className={panel}>{inner}</div>
+  const tones = {
+    blue: { border: 'border-blue-100', bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
+    amber: { border: 'border-amber-100', bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+    rose: { border: 'border-rose-100', bg: 'bg-rose-50', text: 'text-rose-700', dot: 'bg-rose-500' },
+    emerald: { border: 'border-emerald-100', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  }
+  const style = tones[tone]
+  const inner = <>
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-xs font-bold leading-5 text-slate-500 sm:text-sm">{title}</span>
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${style.bg} ${style.text}`}><span className={`h-2.5 w-2.5 rounded-full ${style.dot}`} /></span>
+    </div>
+    <p dir="ltr" className="mt-5 break-words text-left text-2xl font-black tracking-tight text-slate-950 sm:text-[30px]">{value}</p>
+    {note && <p className="mt-2 text-xs leading-5 text-slate-500">{note}</p>}
+  </>
+  const classes = `block min-w-0 rounded-[22px] border ${style.border} bg-white p-4 shadow-[0_8px_28px_rgba(15,23,42,0.035)] transition sm:p-5 ${to ? 'hover:-translate-y-0.5 hover:shadow-lg' : ''}`
+  return to ? <Link to={to} className={classes}>{inner}</Link> : <div className={classes}>{inner}</div>
 }
 
 function AdminDashboardPage() {
@@ -126,16 +141,24 @@ function AdminDashboardPage() {
   const otherCurrencies = current.some(o => o.currency !== 'MRU')
 
   return <div dir="ltr" className="min-w-0 space-y-5 overflow-x-hidden pb-12 text-slate-900 sm:space-y-6">
-    <header className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-900 p-5 text-white shadow-xl sm:p-8">
-      <div className="relative flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-        <div><span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-bold tracking-widest text-blue-100"><span className="h-2 w-2 rounded-full bg-emerald-400" /> TEO STORE · ADMIN</span><h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">Dashboard</h1><p className="mt-2 max-w-xl text-sm leading-6 text-blue-100/75">Vue d’ensemble des commandes, paiements, services et avis clients.</p></div>
-        <div className="flex flex-col gap-3 sm:flex-row lg:items-end"><div className="grid grid-cols-4 gap-1 rounded-2xl bg-white/10 p-1">{([1, 7, 30, 90] as Period[]).map(p => <button key={p} type="button" onClick={() => setPeriod(p)} aria-pressed={period === p} className={`rounded-xl px-3 py-3 text-xs font-bold transition ${period === p ? 'bg-white text-slate-950' : 'text-white/80 hover:bg-white/10'}`}>{p === 1 ? 'Jour' : `${p} j`}</button>)}</div><button type="button" onClick={() => void load(true)} disabled={loading || refreshing} className="min-h-11 rounded-xl border border-white/20 bg-white/10 px-4 text-xs font-bold transition hover:bg-white/20 disabled:opacity-50">{loading || refreshing ? 'Actualisation…' : '↻ Actualiser'}</button></div>
-      </div><p className="relative mt-5 text-xs text-blue-100/65">{lastUpdated ? `Mis à jour : ${dateLabel(lastUpdated)}` : 'Chargement des données…'} · Période : {new Intl.DateTimeFormat('fr-FR-u-nu-latn', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(start)} – {new Intl.DateTimeFormat('fr-FR-u-nu-latn', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(dateShift(end, -1))}</p>
+    <header className="rounded-[24px] border border-slate-200 bg-white px-5 py-5 shadow-[0_8px_28px_rgba(15,23,42,0.035)] sm:px-7 sm:py-6">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-blue-700">TEO STORE · ADMINISTRATION</span></div>
+          <h1 className="mt-2 text-[27px] font-black tracking-tight text-slate-950 sm:text-3xl">Tableau de bord</h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">Suivi des commandes, des paiements et du catalogue, en un seul endroit.</p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="grid grid-cols-4 gap-1 rounded-[15px] bg-slate-100 p-1">{([1, 7, 30, 90] as Period[]).map(p => <button key={p} type="button" onClick={() => setPeriod(p)} aria-pressed={period === p} className={`min-h-10 rounded-xl px-3 text-xs font-black transition ${period === p ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>{p === 1 ? '1 j' : `${p} j`}</button>)}</div>
+          <button type="button" onClick={() => void load(true)} disabled={loading || refreshing} className="min-h-11 rounded-xl bg-blue-600 px-5 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-50">{loading || refreshing ? 'Actualisation…' : '↻ Actualiser'}</button>
+        </div>
+      </div>
+      <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 text-[11px] font-semibold text-slate-400"><span>{lastUpdated ? `Mis à jour : ${dateLabel(lastUpdated)}` : 'Chargement des données…'}</span><span>·</span><span>{new Intl.DateTimeFormat('fr-FR-u-nu-latn', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(start)} – {new Intl.DateTimeFormat('fr-FR-u-nu-latn', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(dateShift(end, -1))}</span></div>
     </header>
     {error && <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">Échec de chargement : {error}. Les dernières données disponibles restent affichées.</div>}
     {warning && <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-6 text-amber-900">{warning}. Les indicateurs correspondants peuvent être incomplets.</div>}
     {otherCurrencies && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">Les montants affichés en MRU excluent les commandes libellées dans d’autres devises.</div>}
-    <section aria-label="Indicateurs" className="grid grid-cols-2 gap-3 xl:grid-cols-4"><Metric title="Commandes" value={fmt(current.length)} note={`Évolution : ${growth(current.length, previous.length)}`} to="/admin/orders"/><Metric title="Valeur confirmée" value={amount(currentValue)} note={`Évolution : ${growth(currentValue, previousValue)}`}/><Metric title="Panier moyen" value={amount(current.length ? currentValue / current.length : 0)} note="Valeur confirmée / toutes commandes"/><Metric title="Actions urgentes" value={fmt(pendingPayments + disputes)} note="Paiements + litiges · tous les jours" tone="rose" to="/admin/orders"/></section>
+    <section aria-label="Indicateurs" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric title="Commandes" value={fmt(current.length)} note={`Évolution : ${growth(current.length, previous.length)}`} to="/admin/orders"/><Metric title="Valeur confirmée" value={amount(currentValue)} note={`Évolution : ${growth(currentValue, previousValue)}`}/><Metric title="Panier moyen" value={amount(current.length ? currentValue / current.length : 0)} note="Valeur confirmée / toutes commandes"/><Metric title="Actions urgentes" value={fmt(pendingPayments + disputes)} note="Paiements + litiges · tous les jours" tone="rose" to="/admin/orders"/></section>
     <section className="grid grid-cols-2 gap-3 lg:grid-cols-4"><Metric title="Paiements à vérifier" value={fmt(pendingPayments)} to="/admin/payments" tone="amber"/><Metric title="À traiter" value={fmt(pendingOrders)} to="/admin/orders"/><Metric title="Litiges" value={fmt(disputes)} to="/admin/orders" tone="rose"/><Metric title="Finalisation" value={`${fmt(current.length ? (completed / current.length) * 100 : 0, 1)} %`} note="Commandes terminées / créées sur la période" tone="emerald"/></section>
     <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
       <section className={panel}><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-wider text-blue-600">Performance</p><h2 className="mt-1 text-lg font-black">Valeur des commandes confirmées</h2></div><span className="text-xs text-slate-400">MRU · par jour</span></div><div className="mt-7 flex h-48 items-end gap-1 overflow-x-auto border-b border-slate-100 pb-2 sm:h-56">{daily.map((d, i) => <div key={d.key} title={`${d.label} : ${amount(d.value)} · ${d.count} commandes`} className="group flex h-full min-w-[5px] flex-1 flex-col justify-end" aria-label={`${d.label}: ${amount(d.value)}`}><div className="w-full rounded-t bg-blue-500 transition hover:bg-indigo-600" style={{ height: `${d.value ? Math.max(3, (d.value / maxDaily) * 100) : 2}%` }} />{(period <= 7 || (period === 30 && i % 5 === 0) || (period === 90 && i % 15 === 0)) && <span className="mt-2 whitespace-nowrap text-center text-[9px] text-slate-400">{d.label}</span>}</div>)}</div><p className="mt-3 text-xs text-slate-400">Survolez les barres pour voir les montants. Les commandes annulées ou remboursées sont exclues.</p></section>
