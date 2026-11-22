@@ -2386,7 +2386,7 @@ function AdminOrdersPage() {
   return (
     <div
       dir="ltr"
-      className="pb-10"
+      className="min-w-0 overflow-x-hidden pb-10"
     >
       {toast && (
         <div className="fixed right-4 top-4 z-[250] w-[calc(100%-2rem)] max-w-sm">
@@ -2462,71 +2462,35 @@ function AdminOrdersPage() {
         </div>
       )}
 
-      <section
-        className="relative overflow-hidden rounded-[30px] border border-slate-800/40 p-6 text-white shadow-[0_24px_70px_rgba(15,23,42,0.16)] sm:p-7"
-        style={{
-          background:
-            'linear-gradient(135deg,#020617 0%,#0d1b3e 50%,#312e81 100%)',
-        }}
-      >
-        <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-3 py-2">
-              <span className="h-2 w-2 rounded-full bg-blue-400" />
-
-              <span className="text-xs font-black uppercase tracking-[0.14em] text-white/65">
-                TEO STORE
-              </span>
+      <section className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm sm:px-7 sm:py-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-blue-600">
+              <span className="h-2 w-2 rounded-full bg-blue-600" />
+              TEO STORE / ADMINISTRATION
             </div>
-
-            <h1 className="mt-5 text-3xl font-black sm:text-4xl">
-              Commandes numériques
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 sm:text-[30px]">
+              Gestion des commandes
             </h1>
-
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/60">
-              Supervision des traitements, livraisons, confirmations client et litiges.
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              Suivez les paiements, les livraisons, les confirmations clients et les litiges depuis un seul espace.
             </p>
           </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="rounded-[16px] border border-white/10 bg-white/[0.06] px-4 py-3">
-              <p className="text-xs font-black uppercase text-white/40">
-                Commandes
-              </p>
-
-              <p
-                dir="ltr"
-                className="mt-1 text-lg font-black"
-              >
-                {formatNumber(
-                  orders.length,
-                )}
-              </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="min-w-[120px] rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total commandes</p>
+              <p dir="ltr" className="mt-0.5 text-xl font-extrabold text-slate-950">{formatNumber(orders.length)}</p>
             </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                void loadOrders(
-                  false,
-                  true,
-                )
-              }
-              disabled={
-                isRefreshing ||
-                isLoading
-              }
-              className="min-h-[54px] rounded-[16px] border border-white/10 bg-white/[0.08] px-5 text-sm font-black text-white"
-            >
-              {isRefreshing
-                ? 'Actualisation...'
-                : 'Actualiser'}
+            <button type="button" onClick={() => void loadOrders(false, true)}
+              disabled={isRefreshing || isLoading}
+              className="min-h-[46px] rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
+              {isRefreshing ? 'Actualisation...' : '↻ Actualiser'}
             </button>
           </div>
         </div>
       </section>
 
-      <section className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <section className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {[
           {
             label:
@@ -2644,7 +2608,7 @@ function AdminOrdersPage() {
           </section>
         )}
 
-      <section className="mt-6 rounded-[24px] border border-slate-200 bg-white p-4 sm:p-5">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="grid gap-4 lg:grid-cols-[1fr_250px_auto]">
           <input
             type="search"
@@ -2773,7 +2737,7 @@ function AdminOrdersPage() {
                     order.id
                   }
                   className={[
-                    'overflow-hidden rounded-[25px] border bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)] transition-all duration-300',
+                    'overflow-hidden rounded-2xl border bg-white shadow-sm transition-all duration-300 hover:shadow-md',
 
                     status ===
                     'disputed'
