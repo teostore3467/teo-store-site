@@ -895,6 +895,68 @@ function AdminOrdersPage() {
         'completed',
     ).length
 
+  const exportFilteredOrdersCsv = () => {
+    if (filteredOrders.length === 0) {
+      return
+    }
+
+    // Prevent spreadsheet formula execution when opening user-entered text.
+    const safeCell = (value: unknown): string => {
+      const raw = String(value ?? '')
+      const escaped = /^[\s]*[=+@-]/.test(raw)
+        ? `\'${raw}`
+        : raw
+
+      return `"${escaped.replace(/"/g, '""')}"`
+    }
+
+    const columns = [
+      'Numéro',
+      'Date',
+      'Statut',
+      'Service',
+      'Groupe',
+      'Forfait',
+      'Client',
+      'Téléphone',
+      'Montant',
+      'Devise',
+      'Paiement',
+    ]
+
+    const lines = [
+      columns.map(safeCell).join(';'),
+      ...filteredOrders.map((order) =>
+        [
+          order.order_number,
+          order.created_at,
+          normalizeStatus(order.status),
+          order.service_name,
+          order.group_name,
+          order.plan_label,
+          order.customer_name,
+          order.customer_phone,
+          order.total_amount,
+          order.currency,
+          order.payment_method_name ?? order.payment_method,
+        ].map(safeCell).join(';'),
+      ),
+    ]
+
+    const blob = new Blob(
+      ['\uFEFF', lines.join('\r\n')],
+      { type: 'text/csv;charset=utf-8;' },
+    )
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `TEO-commandes-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
   const activeFilters =
     searchQuery
       .trim()
@@ -2697,6 +2759,20 @@ function AdminOrdersPage() {
           </button>
         </div>
       </section>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs font-bold text-slate-500">
+          {filteredOrders.length} commande(s) affichée(s)
+        </p>
+        <button
+          type="button"
+          onClick={exportFilteredOrdersCsv}
+          disabled={isLoading || filteredOrders.length === 0}
+          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Exporter CSV
+        </button>
+      </div>
 
       {loadError && (
         <div className="mt-5 rounded-[18px] border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-700">
