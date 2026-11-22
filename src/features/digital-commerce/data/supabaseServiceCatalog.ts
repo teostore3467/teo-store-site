@@ -11,6 +11,19 @@ import type {
   ServiceFulfillmentConfig,
 } from '../types/serviceFulfillment'
 
+export type PublicServicePlan = ServicePlan & {
+  databaseId?: string
+}
+
+export type PublicServiceGroup = Omit<ServiceGroup, 'plans'> & {
+  databaseId?: string
+  plans: PublicServicePlan[]
+}
+
+export type PublicServiceCatalogItem = Omit<ServiceCatalogItem, 'groups'> & {
+  groups: PublicServiceGroup[]
+}
+
 type ServiceRow = {
   id: string
   slug: string
@@ -56,20 +69,14 @@ function mapCatalog(
   services: ServiceRow[],
   groups: GroupRow[],
   plans: PlanRow[],
-): ServiceCatalogItem[] {
-  const plansByGroup = new Map<string, ServicePlan[]>()
+): PublicServiceCatalogItem[] {
+  const plansByGroup = new Map<string, PublicServicePlan[]>()
 
   for (const plan of plans) {
     const parsedPrice = Number(plan.price)
 
-    if (
-      !Number.isFinite(parsedPrice) ||
-      parsedPrice < 0
-    ) {
-      console.warn(
-        'Invalid service plan price:',
-        plan.id,
-      )
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+      console.warn('Invalid service plan price:', plan.id)
       continue
     }
 
@@ -77,6 +84,7 @@ function mapCatalog(
 
     current.push({
       id: plan.plan_key,
+      databaseId: plan.id,
       label: plan.label,
       price: parsedPrice,
       currency: 'MRU',
@@ -87,13 +95,14 @@ function mapCatalog(
     plansByGroup.set(plan.group_id, current)
   }
 
-  const groupsByService = new Map<string, ServiceGroup[]>()
+  const groupsByService = new Map<string, PublicServiceGroup[]>()
 
   for (const group of groups) {
     const current = groupsByService.get(group.service_id) ?? []
 
     current.push({
       id: group.group_key,
+      databaseId: group.id,
       name: group.name,
       shortName: group.short_name,
       availability: group.availability,
@@ -116,7 +125,7 @@ function mapCatalog(
 }
 
 export async function fetchPublicServiceCatalog(): Promise<
-  ServiceCatalogItem[]
+  PublicServiceCatalogItem[]
 > {
   try {
     const servicesResult = await supabase
@@ -131,23 +140,15 @@ export async function fetchPublicServiceCatalog(): Promise<
         sort_order
       `)
       .eq('active', true)
-      .order('sort_order', {
-        ascending: true,
-      })
+      .order('sort_order', { ascending: true })
 
     if (servicesResult.error) {
-      console.error(
-        'Unable to load digital_services:',
-        servicesResult.error,
-      )
-
+      console.error('Unable to load digital_services:', servicesResult.error)
       return serviceCatalog
     }
 
     const services = (servicesResult.data ?? []) as ServiceRow[]
 
-    // An empty result is valid: ADMIN may have disabled
-    // every service. Do not restore local services.
     if (services.length === 0) {
       return []
     }
@@ -169,23 +170,18 @@ export async function fetchPublicServiceCatalog(): Promise<
       `)
       .in('service_id', serviceIds)
       .eq('active', true)
-      .order('sort_order', {
-        ascending: true,
-      })
+      .order('sort_order', { ascending: true })
 
     if (groupsResult.error) {
       console.error(
         'Unable to load digital_service_groups:',
         groupsResult.error,
       )
-
       return serviceCatalog
     }
 
     const groups = (groupsResult.data ?? []) as GroupRow[]
 
-    // Services without active groups remain in the catalog.
-    // Their unavailable plans must not be restored locally.
     if (groups.length === 0) {
       return mapCatalog(services, [], [])
     }
@@ -207,38 +203,28 @@ export async function fetchPublicServiceCatalog(): Promise<
       `)
       .in('group_id', groupIds)
       .eq('active', true)
-      .order('sort_order', {
-        ascending: true,
-      })
+      .order('sort_order', { ascending: true })
 
     if (plansResult.error) {
       console.error(
         'Unable to load digital_service_plans:',
         plansResult.error,
       )
-
       return serviceCatalog
     }
 
     const plans = (plansResult.data ?? []) as PlanRow[]
 
-    // Supabase is authoritative after a successful read.
-    // Disabled services, groups and plans are not
-    // reintroduced from the local catalog.
     return mapCatalog(services, groups, plans)
   } catch (error) {
-    console.error(
-      'Unable to load public service catalog:',
-      error,
-    )
-
+    console.error('Unable to load public service catalog:', error)
     return serviceCatalog
   }
 }
 
 export async function fetchPublicServiceBySlug(
   slug: string,
-): Promise<ServiceCatalogItem | null> {
+): Promise<PublicServiceCatalogItem | null> {
   const normalizedSlug = slug.trim().toLowerCase()
 
   if (!normalizedSlug) {
@@ -249,8 +235,7 @@ export async function fetchPublicServiceBySlug(
 
   return (
     catalog.find(
-      (service) =>
-        service.slug.trim().toLowerCase() === normalizedSlug,
+      (service) => service.slug.trim().toLowerCase() === normalizedSlug,
     ) ?? null
   )
 }
@@ -281,11 +266,7 @@ export async function fetchPublicServiceReviews(
     )
 
     if (error) {
-      console.error(
-        'Unable to load digital service reviews:',
-        error,
-      )
-
+      console.error('Unable to load digital service reviews:', error)
       return []
     }
 
@@ -307,11 +288,7 @@ export async function fetchPublicServiceReviews(
           review.rating <= 5,
       )
   } catch (error) {
-    console.error(
-      'Unable to load digital service reviews:',
-      error,
-    )
-
+    console.error('Unable to load digital service reviews:', error)
     return []
   }
 }
