@@ -57,6 +57,12 @@ function AdminLayout() {
       { label: 'Avis', description: 'Évaluations des clients', to: '/admin/store-reviews', icon: <Icon name="reviews"/>, badge: newReviewsCount },
     ]},
     { label: 'Catalogue', items: [
+      {
+  label: 'Stock Digital',
+  description: 'Codes et livraisons',
+  to: '/admin/stock',
+  icon: <Icon name="services" />,
+},
       { label: 'Services', description: 'Catalogue numérique', to: '/admin/services', icon: <Icon name="services"/> },
       { label: 'Plans', description: 'Offres et tarifs', to: '/admin/plans', icon: <Icon name="plans"/> },
       { label: 'eSIM', description: 'Pays et forfaits', to: '/admin/esim', icon: <Icon name="esim"/> },
