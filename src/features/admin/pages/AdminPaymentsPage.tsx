@@ -696,7 +696,6 @@ function AdminPaymentsPage() {
                     'image/jpeg',
                     'image/png',
                     'image/webp',
-                    'image/svg+xml',
                 ].includes(
                     methodImageFile.type,
                 )
@@ -709,7 +708,7 @@ function AdminPaymentsPage() {
                         'Image non valide',
 
                     message:
-                        'Utilisez JPG, PNG, WEBP ou SVG.',
+                        'Utilisez JPG, PNG ou WEBP.',
                 });
 
                 return;
@@ -1057,21 +1056,15 @@ function AdminPaymentsPage() {
             );
 
             try {
-                const {
-                    error,
-                } =
-                    await supabase
-                        .from(
-                            'payment_methods',
-                        )
-                        .delete()
-                        .eq(
-                            'id',
-                            method.id,
-                        );
+                const { data: deletedRows, error } = await supabase
+                    .from('payment_methods')
+                    .delete()
+                    .eq('id', method.id)
+                    .select('id');
 
-                if (error) {
-                    throw error;
+                if (error) throw error;
+                if (!deletedRows?.length) {
+                    throw new Error('Aucune ligne supprimée. Vérifiez les autorisations Supabase (RLS).');
                 }
 
                 if (
@@ -1401,7 +1394,9 @@ function AdminPaymentsPage() {
                         order,
                     ) =>
                         Boolean(
-                            order.payment_method_name,
+                            order.payment_method_name ||
+                            order.payment_proof_path ||
+                            order.payment_sender_number,
                         ),
                 ),
             [
@@ -1545,10 +1540,9 @@ function AdminPaymentsPage() {
                             order,
                         ) =>
                             total +
-                            Number(
-                                order.amount_remaining ??
-                                    0,
-                            ),
+                            (order.currency?.toUpperCase() === 'MRU'
+                                ? Number(order.amount_remaining ?? 0)
+                                : 0),
                         0,
                     );
 
@@ -1559,10 +1553,9 @@ function AdminPaymentsPage() {
                             order,
                         ) =>
                             total +
-                            Number(
-                                order.total_amount ??
-                                    0,
-                            ),
+                            (order.currency?.toUpperCase() === 'MRU'
+                                ? Number(order.total_amount ?? 0)
+                                : 0),
                         0,
                     );
 
@@ -1954,10 +1947,7 @@ function AdminPaymentsPage() {
                     new Date()
                         .toISOString();
 
-                const {
-                    error,
-                } =
-                    await supabase
+                const { data: changedRows, error } = await supabase
                         .from(
                             'digital_orders',
                         )
@@ -1998,10 +1988,13 @@ function AdminPaymentsPage() {
                         .eq(
                             'id',
                             order.id,
-                        );
+                        )
+                        .in('status', ['payment_review', 'payment_partial'])
+                        .select('id');
 
-                if (error) {
-                    throw error;
+                if (error) throw error;
+                if (!changedRows?.length) {
+                    throw new Error('La commande a changé de statut ou vous ne disposez pas des autorisations nécessaires. Actualisez la page.');
                 }
 
                 setPreviewOrder(
@@ -2202,10 +2195,7 @@ function AdminPaymentsPage() {
                     new Date()
                         .toISOString();
 
-                const {
-                    error,
-                } =
-                    await supabase
+                const { data: changedRows, error } = await supabase
                         .from(
                             'digital_orders',
                         )
@@ -2246,10 +2236,13 @@ function AdminPaymentsPage() {
                         .eq(
                             'id',
                             partialOrder.id,
-                        );
+                        )
+                        .in('status', ['payment_review', 'payment_partial'])
+                        .select('id');
 
-                if (error) {
-                    throw error;
+                if (error) throw error;
+                if (!changedRows?.length) {
+                    throw new Error('La commande a changé de statut ou vous ne disposez pas des autorisations nécessaires. Actualisez la page.');
                 }
 
                 setPartialOrder(
@@ -2391,10 +2384,7 @@ function AdminPaymentsPage() {
                     new Date()
                         .toISOString();
 
-                const {
-                    error,
-                } =
-                    await supabase
+                const { data: changedRows, error } = await supabase
                         .from(
                             'digital_orders',
                         )
@@ -2429,10 +2419,13 @@ function AdminPaymentsPage() {
                         .eq(
                             'id',
                             rejectionOrder.id,
-                        );
+                        )
+                        .in('status', ['payment_review'])
+                        .select('id');
 
-                if (error) {
-                    throw error;
+                if (error) throw error;
+                if (!changedRows?.length) {
+                    throw new Error('La commande a changé de statut ou vous ne disposez pas des autorisations nécessaires. Actualisez la page.');
                 }
 
                 setRejectionOrder(
@@ -2560,7 +2553,7 @@ function AdminPaymentsPage() {
                 ),
 
             description:
-                'Montant encore attendu',
+                'Montant en MRU encore attendu',
 
             className:
                 'border-violet-400/15 bg-violet-400/[0.08]',
@@ -2702,7 +2695,7 @@ function AdminPaymentsPage() {
             )}
 
             <section
-                className="relative w-full min-w-0 overflow-hidden rounded-[26px] border border-slate-800/40 p-5 text-white shadow-[0_24px_70px_rgba(15,23,42,0.18)] sm:rounded-[30px] sm:p-7"
+                className="relative w-full min-w-0 overflow-hidden rounded-[22px] border border-slate-800/40 p-4 text-white shadow-[0_12px_36px_rgba(15,23,42,0.12)] sm:rounded-[24px] sm:p-6"
                 style={{
                     background:
                         'linear-gradient(135deg,#020617 0%,#10265b 52%,#312e81 100%)',
@@ -2727,7 +2720,7 @@ function AdminPaymentsPage() {
                                 </span>
                             </div>
 
-                            <h1 className="mt-5 text-[30px] font-black tracking-[-0.045em] sm:text-4xl">
+                            <h1 className="mt-3 text-[27px] font-black tracking-[-0.045em] sm:text-3xl">
                                 Paiements
                             </h1>
 
@@ -2797,7 +2790,7 @@ function AdminPaymentsPage() {
                         </div>
                     </div>
 
-                    <div className="mt-6 grid min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+                    <div className="mt-4 grid min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
                         {statCards.map(
                             (
                                 stat,
@@ -2850,7 +2843,7 @@ function AdminPaymentsPage() {
                     <div className="mt-3 min-w-0 rounded-[17px] border border-white/10 bg-black/10 px-4 py-3">
                         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <p className="text-xs font-black uppercase tracking-[0.12em] text-white/40">
-                                Valeur des paiements validés
+                                Valeur des commandes validées (MRU uniquement)
                             </p>
 
                             <p
@@ -3495,20 +3488,24 @@ function AdminPaymentsPage() {
                                                             </p>
                                                         </div>
 
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                openPartialDialog(
-                                                                    order,
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                busy
-                                                            }
-                                                            className="min-h-[40px] shrink-0 rounded-[11px] border border-orange-200 bg-white px-3 text-sm font-black text-orange-700 disabled:opacity-50"
-                                                        >
-                                                            Modifier
-                                                        </button>
+                                                        <div className="flex flex-col gap-2 sm:flex-row">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openPartialDialog(order)}
+                                                                disabled={busy}
+                                                                className="min-h-[40px] shrink-0 rounded-[11px] border border-orange-200 bg-white px-3 text-sm font-black text-orange-700 disabled:opacity-50"
+                                                            >
+                                                                Modifier
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => requestConfirmPayment(order)}
+                                                                disabled={busy}
+                                                                className="min-h-[40px] shrink-0 rounded-[11px] bg-emerald-600 px-3 text-sm font-black text-white disabled:opacity-50"
+                                                            >
+                                                                Solde reçu : confirmer
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 )}
 
@@ -3920,7 +3917,7 @@ function AdminPaymentsPage() {
                             <label className="mt-2 flex min-h-[120px] cursor-pointer items-center justify-center rounded-[18px] border border-dashed border-slate-300 bg-slate-50 p-4 text-center transition hover:border-blue-300 hover:bg-blue-50/40">
                                 <input
                                     type="file"
-                                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                                    accept="image/png,image/jpeg,image/webp"
                                     onChange={(
                                         event,
                                     ) =>
@@ -3946,7 +3943,7 @@ function AdminPaymentsPage() {
                                     </p>
 
                                     <p className="mt-1 text-[10px] text-slate-400">
-                                        JPG · PNG · WEBP · SVG · 5 MB max
+                                        JPG · PNG · WEBP · 5 MB max
                                     </p>
                                 </div>
                             </label>
@@ -4585,6 +4582,12 @@ function AdminPaymentsPage() {
                             </span>
                             .
                         </p>
+
+                        {normalizeStatus(confirmation.order.status) === 'payment_partial' && (
+                            <div className="mt-4 rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-xs font-bold leading-5 text-amber-800">
+                                Vérifiez réellement le versement du solde avant de confirmer. Cette action marque la totalité de la commande comme reçue.
+                            </div>
+                        )}
 
                         <div className="mt-4 rounded-[15px] border border-emerald-100 bg-emerald-50 p-4">
                             <p className="text-xs font-black uppercase text-emerald-600">

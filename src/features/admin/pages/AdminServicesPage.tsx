@@ -251,6 +251,10 @@ function AdminServicesPage() {
       name: string
     } | null>(null)
 
+  const [deleteTarget, setDeleteTarget] = useState<DigitalServiceRow | null>(null)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+
   const [
     logoPreview,
     setLogoPreview,
@@ -481,7 +485,8 @@ function AdminServicesPage() {
                 .toLowerCase()
                 .includes(
                   query,
-                )
+                ) ||
+              (service.description ?? '').toLowerCase().includes(query)
 
             const matchesFilter =
               filter ===
@@ -973,6 +978,43 @@ function AdminServicesPage() {
       })
     }
 
+  const handleDeleteService = async () => {
+    if (!deleteTarget || isDeleting || deleteConfirmation.trim() !== deleteTarget.slug) return
+    setIsDeleting(true)
+    const target = deleteTarget
+    try {
+      const { data, error } = await supabase.rpc('admin_delete_digital_service', {
+        p_service_id: target.id,
+      })
+      if (error) throw error
+      if (data !== true) throw new Error('Service introuvable ou déjà supprimé.')
+
+      // La suppression du catalogue est confirmée. Le nettoyage du logo
+      // reste secondaire : un échec de Storage ne rétablit pas le service.
+      const logo = serviceLogos[target.slug]
+      const { error: logoRowError } = await supabase.from('service_logos')
+        .delete().eq('service_slug', target.slug)
+      if (!logoRowError && logo?.path) {
+        const { error: storageError } = await supabase.storage
+          .from(SERVICE_LOGOS_BUCKET).remove([logo.path])
+        if (storageError) console.warn('Logo storage cleanup:', storageError)
+      } else if (logoRowError) {
+        console.warn('Logo record cleanup:', logoRowError)
+      }
+      setDeleteTarget(null)
+      setDeleteConfirmation('')
+      setServices(current => current.filter(item => item.id !== target.id))
+      await loadData(false)
+      showToast({ type: 'success', title: 'Service supprimé définitivement',
+        message: `${target.name} a été retiré du catalogue Supabase.` })
+    } catch (error) {
+      showToast({ type: 'error', title: 'Suppression impossible',
+        message: error instanceof Error ? error.message : 'Erreur inconnue.' })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const handleRemoveLogo =
     async () => {
       if (
@@ -1312,7 +1354,7 @@ function AdminServicesPage() {
         </div>
       ) : filteredServices.length >
         0 ? (
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-6 grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
           {filteredServices.map(
             (
               service,
@@ -1334,9 +1376,9 @@ function AdminServicesPage() {
                   key={
                     service.id
                   }
-                  className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_8px_26px_rgba(15,23,42,0.04)]"
+                  className="min-w-0 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm transition hover:border-blue-200 hover:shadow-md"
                 >
-                  <div className="p-5">
+                  <div className="p-3 sm:p-4">
                     <div className="flex items-start gap-4">
                       <button
                         type="button"
@@ -1481,6 +1523,15 @@ function AdminServicesPage() {
                           }}
                         />
                       </label>
+
+                      <button
+                        type="button"
+                        onClick={() => { setDeleteTarget(service); setDeleteConfirmation('') }}
+                        className="min-h-[42px] rounded-[12px] border border-rose-200 bg-rose-50 px-3 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                        title="Supprimer définitivement ce service et ses groupes et plans"
+                      >
+                        Supprimer le service
+                      </button>
 
                       {logo && (
                         <button
@@ -1765,6 +1816,38 @@ function AdminServicesPage() {
                 className="h-11 rounded-[12px] bg-rose-600 text-sm font-black text-white hover:bg-rose-700"
               >
                 Retirer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm" role="presentation">
+          <div role="dialog" aria-modal="true" aria-labelledby="delete-service-title" className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[24px] bg-white p-5 shadow-2xl sm:p-6">
+            <h3 id="delete-service-title" className="text-lg font-black text-rose-700">Suppression définitive / حذف نهائي</h3>
+            <p dir="auto" className="mt-3 break-words text-sm font-semibold text-slate-900">{deleteTarget.name}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Cette opération supprime le service, ses groupes et ses plans du catalogue. Elle est irréversible.
+            </p>
+            <p dir="rtl" className="mt-2 text-sm leading-6 text-slate-600">
+              سيتم حذف الخدمة ومجموعاتها وخططها نهائيًا. لا يمكن التراجع عن العملية.
+            </p>
+            <label className="mt-5 block text-xs font-bold text-slate-700" htmlFor="confirm-service-slug">
+              Saisissez le slug pour confirmer / اكتب رمز الخدمة للتأكيد:
+            </label>
+            <code dir="ltr" className="mt-2 block rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-900">{deleteTarget.slug}</code>
+            <input id="confirm-service-slug" dir="ltr" autoComplete="off" spellCheck={false}
+              value={deleteConfirmation} onChange={event => setDeleteConfirmation(event.target.value)}
+              className="mt-3 h-12 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-rose-500"
+              placeholder={deleteTarget.slug} />
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button type="button" disabled={isDeleting} onClick={() => { setDeleteTarget(null); setDeleteConfirmation('') }}
+                className="min-h-12 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 disabled:opacity-50">Annuler / إلغاء</button>
+              <button type="button" disabled={isDeleting || deleteConfirmation.trim() !== deleteTarget.slug}
+                onClick={() => void handleDeleteService()}
+                className="min-h-12 rounded-xl bg-rose-600 px-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-40">
+                {isDeleting ? 'Suppression...' : 'Supprimer / حذف نهائي'}
               </button>
             </div>
           </div>
