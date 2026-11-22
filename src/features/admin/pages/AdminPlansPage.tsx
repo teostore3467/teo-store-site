@@ -1,850 +1,138 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { supabase } from '../../../lib/supabase'
 
-import {
-  Link,
-} from 'react-router-dom'
-
-import {
-  supabase,
-} from '../../../lib/supabase'
-
-type AvailabilityStatus =
-  | 'available'
-  | 'out_of_stock'
-  | 'coming_soon'
-
-type PlanViewRow = {
-  id: string
-  plan_key: string
-  label: string
-  price: number
-  currency: string
-  availability:
-    AvailabilityStatus
-  popular: boolean
-  active: boolean
-  sort_order: number
-  group_id: string
+type Availability = 'available' | 'out_of_stock' | 'coming_soon'
+type Plan = {
+  id: string; plan_key: string; label: string; price: number; currency: string
+  availability: Availability; popular: boolean; active: boolean; sort_order: number; group_id: string
   digital_service_groups: {
-    id: string
-    name: string
-    short_name: string
-    service_id: string
-    digital_services: {
-      id: string
-      slug: string
-      name: string
-      category: string
-    } | null
+    id: string; name: string; short_name: string; service_id: string
+    digital_services: { id: string; slug: string; name: string; category: string; deleted_at: string | null } | null
   } | null
 }
-
-type ToastState = {
-  type:
-    | 'success'
-    | 'error'
-    | 'info'
-  title: string
-  message?: string
+type Notice = { kind: 'success' | 'error'; text: string }
+const availabilityLabels: Record<Availability, string> = {
+  available: 'Disponible', out_of_stock: 'Rupture', coming_soon: 'Bientôt',
 }
+const amount = (value: number) => `${new Intl.NumberFormat('fr-FR-u-nu-latn', { maximumFractionDigits: 2 }).format(value)} MRU`
 
-function AdminPlansPage() {
-  const locale =
-    'fr-FR-u-nu-latn'
+export default function AdminPlansPage() {
+  const [plans, setPlans] = useState<Plan[]>([])
+  const [original, setOriginal] = useState<Record<string, Plan>>({})
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState<'all' | Availability>('all')
+  const [visibility, setVisibility] = useState<'all' | 'active' | 'inactive'>('all')
+  const [loading, setLoading] = useState(true)
+  const [savingId, setSavingId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
 
-  const [
-    plans,
-    setPlans,
-  ] =
-    useState<
-      PlanViewRow[]
-    >([])
-
-  const [
-    searchQuery,
-    setSearchQuery,
-  ] =
-    useState('')
-
-  const [
-    statusFilter,
-    setStatusFilter,
-  ] =
-    useState<
-      | 'all'
-      | AvailabilityStatus
-    >('all')
-
-  const [
-    isLoading,
-    setIsLoading,
-  ] =
-    useState(true)
-
-  const [
-    savingPlanId,
-    setSavingPlanId,
-  ] =
-    useState<
-      string | null
-    >(null)
-
-  const [
-    toast,
-    setToast,
-  ] =
-    useState<
-      ToastState | null
-    >(null)
-
-  const showToast =
-    useCallback(
-      (
-        nextToast:
-          ToastState,
-      ) => {
-        setToast(
-          nextToast,
-        )
-
-        window.setTimeout(
-          () => {
-            setToast(
-              null,
-            )
-          },
-          4000,
-        )
-      },
-      [],
-    )
-
-  const loadPlans =
-    useCallback(
-      async () => {
-        setIsLoading(
-          true,
-        )
-
-        const {
-          data,
-          error,
-        } =
-          await supabase
-            .from(
-              'digital_service_plans',
-            )
-            .select(
-              `
-                id,
-                plan_key,
-                label,
-                price,
-                currency,
-                availability,
-                popular,
-                active,
-                sort_order,
-                group_id,
-                digital_service_groups (
-                  id,
-                  name,
-                  short_name,
-                  service_id,
-                  digital_services (
-                    id,
-                    slug,
-                    name,
-                    category
-                  )
-                )
-              `,
-            )
-            .order(
-              'sort_order',
-              {
-                ascending:
-                  true,
-              },
-            )
-
-        setIsLoading(
-          false,
-        )
-
-        if (
-          error
-        ) {
-          showToast({
-            type:
-              'error',
-            title:
-              'Chargement impossible',
-            message:
-              error.message,
-          })
-          return
-        }
-
-        setPlans(
-          (data ??
-            []) as unknown as PlanViewRow[],
-        )
-      },
-      [
-        showToast,
-      ],
-    )
-
-  useEffect(() => {
-    void loadPlans()
-  }, [
-    loadPlans,
-  ])
-
-  const filteredPlans =
-    useMemo(
-      () => {
-        const query =
-          searchQuery
-            .trim()
-            .toLowerCase()
-
-        return plans.filter(
-          (
-            plan,
-          ) => {
-            const service =
-              plan
-                .digital_service_groups
-                ?.digital_services
-
-            const group =
-              plan
-                .digital_service_groups
-
-            const matchesSearch =
-              query.length ===
-                0 ||
-              plan.label
-                .toLowerCase()
-                .includes(
-                  query,
-                ) ||
-              plan.plan_key
-                .toLowerCase()
-                .includes(
-                  query,
-                ) ||
-              service?.name
-                .toLowerCase()
-                .includes(
-                  query,
-                ) ||
-              service?.slug
-                .toLowerCase()
-                .includes(
-                  query,
-                ) ||
-              group?.name
-                .toLowerCase()
-                .includes(
-                  query,
-                )
-
-            const matchesStatus =
-              statusFilter ===
-                'all' ||
-              plan.availability ===
-                statusFilter
-
-            return (
-              matchesSearch &&
-              matchesStatus
-            )
-          },
-        )
-      },
-      [
-        plans,
-        searchQuery,
-        statusFilter,
-      ],
-    )
-
-  const stats =
-    useMemo(
-      () => ({
-        total:
-          plans.length,
-        available:
-          plans.filter(
-            (
-              plan,
-            ) =>
-              plan.availability ===
-              'available',
-          ).length,
-        outOfStock:
-          plans.filter(
-            (
-              plan,
-            ) =>
-              plan.availability ===
-              'out_of_stock',
-          ).length,
-        comingSoon:
-          plans.filter(
-            (
-              plan,
-            ) =>
-              plan.availability ===
-              'coming_soon',
-          ).length,
-        popular:
-          plans.filter(
-            (
-              plan,
-            ) =>
-              plan.popular,
-          ).length,
-      }),
-      [
-        plans,
-      ],
-    )
-
-  const formatAmount =
-    (
-      amount: number,
-    ) =>
-      `${new Intl.NumberFormat(
-        locale,
-        {
-          numberingSystem:
-            'latn',
-          maximumFractionDigits:
-            2,
-        },
-      ).format(
-        Number(
-          amount,
-        ),
-      )} MRU`
-
-  const updatePlan =
-    (
-      planId: string,
-      patch:
-        Partial<PlanViewRow>,
-    ) => {
-      setPlans(
-        (
-          current,
-        ) =>
-          current.map(
-            (
-              plan,
-            ) =>
-              plan.id ===
-              planId
-                ? {
-                    ...plan,
-                    ...patch,
-                  }
-                : plan,
-          ),
+  const load = useCallback(async () => {
+    setLoading(true)
+    const { data, error } = await supabase.from('digital_service_plans').select(`
+      id, plan_key, label, price, currency, availability, popular, active, sort_order, group_id,
+      digital_service_groups (
+        id, name, short_name, service_id,
+        digital_services (id, slug, name, category, deleted_at)
       )
+    `).order('sort_order', { ascending: true })
+    setLoading(false)
+    if (error) { setNotice({ kind: 'error', text: error.message }); return }
+    const rows = ((data ?? []) as unknown as Plan[]).filter(p => p.digital_service_groups?.digital_services?.deleted_at == null && p.digital_service_groups?.digital_services != null)
+    setPlans(rows)
+    setOriginal(Object.fromEntries(rows.map(p => [p.id, { ...p }])))
+  }, [])
+
+  useEffect(() => { void load() }, [load])
+  const update = (id: string, patch: Partial<Plan>) => setPlans(current => current.map(p => p.id === id ? { ...p, ...patch } : p))
+  const changed = (p: Plan) => {
+    const before = original[p.id]
+    return !!before && ['label', 'price', 'availability', 'popular', 'active', 'sort_order'].some(key => p[key as keyof Plan] !== before[key as keyof Plan])
+  }
+  const save = async (p: Plan) => {
+    if (!p.label.trim() || !Number.isFinite(Number(p.price)) || Number(p.price) <= 0 || !Number.isInteger(Number(p.sort_order))) {
+      setNotice({ kind: 'error', text: 'Vérifiez le nom, le prix (supérieur à 0) et l’ordre.' }); return
     }
+    setSavingId(p.id)
+    const { error } = await supabase.from('digital_service_plans').update({
+      label: p.label.trim(), price: Number(p.price), currency: 'MRU', availability: p.availability,
+      popular: p.popular, active: p.active, sort_order: Number(p.sort_order),
+    }).eq('id', p.id)
+    setSavingId(null)
+    if (error) { setNotice({ kind: 'error', text: error.message }); return }
+    setNotice({ kind: 'success', text: `Modifications enregistrées : ${p.label}` })
+    await load()
+  }
+  const filtered = useMemo(() => plans.filter(p => {
+    const group = p.digital_service_groups
+    const service = group?.digital_services
+    const text = [p.label, p.plan_key, group?.name, service?.name, service?.slug].join(' ').toLowerCase()
+    return text.includes(query.trim().toLowerCase()) && (status === 'all' || p.availability === status) && (visibility === 'all' || (visibility === 'active' ? p.active : !p.active))
+  }), [plans, query, status, visibility])
+  const stats = useMemo(() => ({ total: plans.length, active: plans.filter(p => p.active).length, available: plans.filter(p => p.active && p.availability === 'available').length, popular: plans.filter(p => p.popular).length }), [plans])
+  const field = 'mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
 
-  const savePlan =
-    async (
-      plan:
-        PlanViewRow,
-    ) => {
-      setSavingPlanId(
-        plan.id,
-      )
+  return <div className="space-y-5 pb-10">
+    <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div><p className="text-xs font-bold uppercase tracking-widest text-blue-600">Catalogue · Administration</p>
+          <h1 className="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">Plans et prix</h1>
+          <p className="mt-2 text-sm text-slate-500">Gérez les tarifs et la disponibilité, sans encombrer la liste.</p></div>
+        <button type="button" onClick={() => void load()} disabled={loading} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">↻ Actualiser</button>
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+        {([['Total des plans', stats.total], ['Actifs', stats.active], ['Disponibles', stats.available], ['Populaires', stats.popular]] as const).map(([label, value]) =>
+          <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-xs font-semibold text-slate-500">{label}</p><p className="mt-1 text-2xl font-black text-slate-900">{value}</p></div>)}
+      </div>
+    </header>
 
-      const {
-        error,
-      } =
-        await supabase
-          .from(
-            'digital_service_plans',
-          )
-          .update({
-            label:
-              plan.label.trim(),
-            price:
-              Number(
-                plan.price,
-              ),
-            currency:
-              'MRU',
-            availability:
-              plan.availability,
-            popular:
-              plan.popular,
-            active:
-              plan.active,
-            sort_order:
-              Number(
-                plan.sort_order,
-              ),
-          })
-          .eq(
-            'id',
-            plan.id,
-          )
+    {notice && <div role="status" className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm font-semibold ${notice.kind === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}><span>{notice.text}</span><button type="button" onClick={() => setNotice(null)} aria-label="Fermer">×</button></div>}
 
-      setSavingPlanId(
-        null,
-      )
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_170px_auto]">
+        <input aria-label="Rechercher" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher service, groupe ou plan..." className={field + ' mt-0'} />
+        <select aria-label="Disponibilité" value={status} onChange={e => setStatus(e.target.value as typeof status)} className={field + ' mt-0'}><option value="all">Tous les statuts</option><option value="available">Disponible</option><option value="out_of_stock">Rupture</option><option value="coming_soon">Bientôt</option></select>
+        <select aria-label="Activation" value={visibility} onChange={e => setVisibility(e.target.value as typeof visibility)} className={field + ' mt-0'}><option value="all">Tous les plans</option><option value="active">Actifs</option><option value="inactive">Désactivés</option></select>
+        <button type="button" onClick={() => { setQuery(''); setStatus('all'); setVisibility('all') }} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50">Effacer</button>
+      </div>
+      <p className="mt-3 text-xs font-medium text-slate-500">{filtered.length} plan(s) affiché(s) · Les services dans la corbeille sont exclus.</p>
+    </section>
 
-      if (
-        error
-      ) {
-        showToast({
-          type:
-            'error',
-          title:
-            'Enregistrement impossible',
-          message:
-            error.message,
-        })
-        return
-      }
-
-      showToast({
-        type:
-          'success',
-        title:
-          'Plan enregistré',
-        message:
-          `${plan.label} — ${formatAmount(
-            plan.price,
-          )}`,
-      })
-
-      await loadPlans()
-    }
-
-  return (
-    <div className="pb-10">
-      {toast && (
-        <div className="fixed right-4 top-4 z-[250] w-[calc(100%-2rem)] max-w-sm">
-          <div className="rounded-[18px] border border-slate-200 bg-white p-4 shadow-[0_22px_60px_rgba(15,23,42,0.18)]">
-            <div className="flex items-start gap-3">
-              <div
-                className={[
-                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] font-black',
-                  toast.type ===
-                  'success'
-                    ? 'bg-emerald-50 text-emerald-600'
-                    : toast.type ===
-                        'error'
-                      ? 'bg-rose-50 text-rose-600'
-                      : 'bg-blue-50 text-blue-600',
-                ].join(
-                  ' ',
-                )}
-              >
-                {toast.type ===
-                'success'
-                  ? '✓'
-                  : toast.type ===
-                      'error'
-                    ? '!'
-                    : 'i'}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-black text-slate-950">
-                  {toast.title}
-                </p>
-                {toast.message && (
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    {toast.message}
-                  </p>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setToast(
-                    null,
-                  )
-                }
-                className="text-lg font-black text-slate-300"
-              >
-                ×
-              </button>
-            </div>
+    <section className="space-y-2">
+      {loading ? <div className="rounded-2xl border bg-white p-10 text-center text-sm text-slate-500">Chargement des plans...</div> : filtered.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">Aucun plan trouvé.</div> : filtered.map(p => {
+        const service = p.digital_service_groups?.digital_services
+        const isExpanded = expandedId === p.id
+        const dirty = changed(p)
+        return <article key={p.id} className={`overflow-hidden rounded-2xl border bg-white shadow-sm ${dirty ? 'border-amber-300' : 'border-slate-200'}`}>
+          <div className="flex flex-wrap items-center gap-3 p-3 sm:p-4">
+            <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-blue-600">{service?.name ?? 'Service'} · {p.digital_service_groups?.name ?? 'Groupe'}</p>
+              <h2 className="mt-1 truncate text-sm font-black text-slate-950 sm:text-base">{p.label}</h2></div>
+            <div className="text-right"><p className="text-base font-black text-slate-950" dir="ltr">{amount(Number(p.price))}</p><p className="mt-1 text-xs text-slate-500">{p.popular ? '★ Populaire · ' : ''}{availabilityLabels[p.availability]}</p></div>
+            <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${p.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{p.active ? 'Actif' : 'Désactivé'}</span>
+            {dirty && <span className="text-xs font-bold text-amber-700">Non enregistré</span>}
+            <button type="button" onClick={() => setExpandedId(isExpanded ? null : p.id)} aria-expanded={isExpanded} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">{isExpanded ? 'Fermer' : 'Modifier'}</button>
           </div>
-        </div>
-      )}
-
-      <section
-        className="rounded-[30px] p-6 text-white sm:p-7"
-        style={{
-          background:
-            'linear-gradient(135deg,#020617 0%,#10265b 50%,#312e81 100%)',
-        }}
-      >
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-violet-300">
-          DIGITAL PRICING CONTROL
-        </p>
-
-        <h1 className="mt-3 text-3xl font-black sm:text-4xl">
-          Plans et prix
-        </h1>
-
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-white/60">
-          Modifiez les prix, statuts et mises en avant directement dans Supabase.
-        </p>
-
-        <div className="mt-6 grid grid-cols-2 gap-2 lg:grid-cols-5">
-          {[
-            [
-              'Plans',
-              stats.total,
-            ],
-            [
-              'Disponibles',
-              stats.available,
-            ],
-            [
-              'Rupture',
-              stats.outOfStock,
-            ],
-            [
-              'Bientôt',
-              stats.comingSoon,
-            ],
-            [
-              'Populaires',
-              stats.popular,
-            ],
-          ].map(
-            (
-              [
-                label,
-                value,
-              ],
-            ) => (
-              <div
-                key={
-                  label
-                }
-                className="rounded-[16px] border border-white/10 bg-white/[0.06] p-3"
-              >
-                <p className="text-xs font-black uppercase text-white/40">
-                  {label}
-                </p>
-                <p className="mt-1 text-xl font-black">
-                  {value}
-                </p>
-              </div>
-            ),
-          )}
-        </div>
-      </section>
-
-      <section className="mt-6 rounded-[22px] border border-slate-200 bg-white p-4 sm:p-5">
-        <div className="grid gap-3 lg:grid-cols-[1fr_240px_auto]">
-          <input
-            type="search"
-            value={
-              searchQuery
-            }
-            onChange={(
-              event,
-            ) =>
-              setSearchQuery(
-                event.target.value,
-              )
-            }
-            placeholder="Service, groupe, plan..."
-            className="h-12 rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-sm font-semibold outline-none focus:border-blue-500 focus:bg-white"
-          />
-
-          <select
-            value={
-              statusFilter
-            }
-            onChange={(
-              event,
-            ) =>
-              setStatusFilter(
-                event.target
-                  .value as
-                  | 'all'
-                  | AvailabilityStatus,
-              )
-            }
-            className="h-12 rounded-[14px] border border-slate-200 bg-slate-50 px-3 text-sm font-black outline-none focus:border-blue-500"
-          >
-            <option value="all">
-              Tous les statuts
-            </option>
-            <option value="available">
-              Disponible
-            </option>
-            <option value="out_of_stock">
-              Rupture
-            </option>
-            <option value="coming_soon">
-              Bientôt
-            </option>
-          </select>
-
-          <button
-            type="button"
-            onClick={() => {
-              setSearchQuery(
-                '',
-              )
-              setStatusFilter(
-                'all',
-              )
-            }}
-            className="h-12 rounded-[14px] border border-slate-200 px-4 text-sm font-black text-slate-600 hover:bg-slate-50"
-          >
-            Réinitialiser
-          </button>
-        </div>
-      </section>
-
-      {isLoading ? (
-        <div className="mt-6 rounded-[22px] border border-slate-200 bg-white p-10 text-center text-sm font-bold text-slate-400">
-          Chargement des plans...
-        </div>
-      ) : (
-        <div className="mt-6 space-y-3">
-          {filteredPlans.map(
-            (
-              plan,
-            ) => {
-              const group =
-                plan
-                  .digital_service_groups
-              const service =
-                group
-                  ?.digital_services
-
-              return (
-                <article
-                  key={
-                    plan.id
-                  }
-                  className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_6px_22px_rgba(15,23,42,0.04)]"
-                >
-                  <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr_180px_180px_auto] xl:items-end">
-                    <div>
-                      <p className="text-xs font-black uppercase text-blue-600">
-                        {service?.name ??
-                          'Service'}
-                      </p>
-                      <p className="mt-1 text-sm font-black text-slate-950">
-                        {group?.name ??
-                          'Groupe'}
-                      </p>
-                      {service?.slug && (
-                        <Link
-                          to={`/admin/services/${service.slug}`}
-                          className="mt-2 inline-flex text-xs font-black text-blue-600 hover:text-blue-700"
-                        >
-                          Gérer le service →
-                        </Link>
-                      )}
-                    </div>
-
-                    <label>
-                      <span className="text-xs font-black uppercase text-slate-400">
-                        Plan
-                      </span>
-                      <input
-                        type="text"
-                        value={
-                          plan.label
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updatePlan(
-                            plan.id,
-                            {
-                              label:
-                                event.target.value,
-                            },
-                          )
-                        }
-                        className="mt-2 h-11 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
-                      />
-                    </label>
-
-                    <label>
-                      <span className="text-xs font-black uppercase text-slate-400">
-                        Prix MRU
-                      </span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={
-                          plan.price
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updatePlan(
-                            plan.id,
-                            {
-                              price:
-                                Number(
-                                  event.target.value,
-                                ),
-                            },
-                          )
-                        }
-                        className="mt-2 h-11 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 text-sm font-black outline-none focus:border-blue-500"
-                      />
-                      <p
-                        dir="ltr"
-                        className="mt-1 text-left text-xs font-bold text-slate-400"
-                      >
-                        {formatAmount(
-                          plan.price,
-                        )}
-                      </p>
-                    </label>
-
-                    <label>
-                      <span className="text-xs font-black uppercase text-slate-400">
-                        Statut
-                      </span>
-                      <select
-                        value={
-                          plan.availability
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updatePlan(
-                            plan.id,
-                            {
-                              availability:
-                                event.target
-                                  .value as AvailabilityStatus,
-                            },
-                          )
-                        }
-                        className="mt-2 h-11 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 text-sm font-black outline-none focus:border-blue-500"
-                      >
-                        <option value="available">
-                          Disponible
-                        </option>
-                        <option value="out_of_stock">
-                          Rupture
-                        </option>
-                        <option value="coming_soon">
-                          Bientôt
-                        </option>
-                      </select>
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void savePlan(
-                          plan,
-                        )
-                      }
-                      disabled={
-                        savingPlanId ===
-                        plan.id
-                      }
-                      className="h-11 rounded-[12px] bg-blue-600 px-4 text-sm font-black text-white hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {savingPlanId ===
-                      plan.id
-                        ? 'Enregistrement...'
-                        : 'Enregistrer'}
-                    </button>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-4 border-t border-slate-100 pt-3">
-                    <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={
-                          plan.popular
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updatePlan(
-                            plan.id,
-                            {
-                              popular:
-                                event.target.checked,
-                            },
-                          )
-                        }
-                      />
-                      Populaire
-                    </label>
-
-                    <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={
-                          plan.active
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updatePlan(
-                            plan.id,
-                            {
-                              active:
-                                event.target.checked,
-                            },
-                          )
-                        }
-                      />
-                      Actif
-                    </label>
-
-                    <span
-                      dir="ltr"
-                      className="text-xs text-slate-400"
-                    >
-                      {plan.plan_key}
-                    </span>
-                  </div>
-                </article>
-              )
-            },
-          )}
-
-          {filteredPlans.length ===
-            0 && (
-            <div className="rounded-[22px] border border-dashed border-slate-300 bg-white p-10 text-center text-sm font-black text-slate-600">
-              Aucun plan trouvé.
+          {isExpanded && <div className="border-t border-slate-100 bg-slate-50/70 p-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="text-xs font-bold text-slate-600">Nom du plan<input className={field} value={p.label} onChange={e => update(p.id, { label: e.target.value })}/></label>
+              <label className="text-xs font-bold text-slate-600">Prix (MRU)<input className={field} type="number" min="0.01" step="0.01" value={p.price} onChange={e => update(p.id, { price: Number(e.target.value) })}/></label>
+              <label className="text-xs font-bold text-slate-600">Disponibilité<select className={field} value={p.availability} onChange={e => update(p.id, { availability: e.target.value as Availability })}><option value="available">Disponible</option><option value="out_of_stock">Rupture</option><option value="coming_soon">Bientôt</option></select></label>
+              <label className="text-xs font-bold text-slate-600">Ordre d’affichage<input className={field} type="number" step="1" value={p.sort_order} onChange={e => update(p.id, { sort_order: Number(e.target.value) })}/></label>
             </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
+            <div className="mt-4 flex flex-wrap items-center gap-4">
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" checked={p.active} onChange={e => update(p.id, { active: e.target.checked })}/>Plan actif</label>
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" checked={p.popular} onChange={e => update(p.id, { popular: e.target.checked })}/>Mettre en avant</label>
+              <span className="text-xs text-slate-400" dir="ltr">{p.plan_key}</span>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+              {service?.slug ? <Link to={`/admin/services/${service.slug}`} className="text-sm font-bold text-blue-600 hover:underline">Gérer le service →</Link> : <span/>}
+              <div className="flex gap-2"><button type="button" onClick={() => { const before = original[p.id]; if (before) update(p.id, before) }} disabled={!dirty} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 disabled:opacity-40">Annuler</button>
+                <button type="button" onClick={() => void save(p)} disabled={!dirty || savingId === p.id} className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40">{savingId === p.id ? 'Enregistrement...' : 'Enregistrer'}</button></div>
+            </div>
+          </div>}
+        </article>
+      })}
+    </section>
+  </div>
 }
-
-export default AdminPlansPage
