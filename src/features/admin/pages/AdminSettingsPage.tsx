@@ -1,8 +1,37 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { supabase } from '../../../lib/supabase'
 
-type SettingsTab = 'store' | 'payments' | 'orders' | 'reviews' | 'maintenance'
+type SettingsTab = 'store' | 'preorders' | 'payments' | 'orders' | 'reviews' | 'maintenance'
 type StoreSettings = { storeName: string; sloganFr: string; sloganAr: string; currency: string; country: string; logoUrl: string }
+type PreorderItem = { id: string; titleAr: string; titleFr: string; imageUrl: string; price: number; deliveryMinDays: number; deliveryMaxDays: number; whatsappNumber: string; referenceCode: string; visible: boolean }
+type PreorderSettings = { enabled: boolean; titleAr: string; titleFr: string; whatsappNumber: string; items: PreorderItem[] }
+const defaultPreorderItem = (n: number): PreorderItem => ({ id: `teo-featured-${n}`, titleAr: '', titleFr: '', imageUrl: '', price: 0, deliveryMinDays: 4, deliveryMaxDays: 17, whatsappNumber: '', referenceCode: `TEO-${n}`, visible: false })
+const defaultPreorderSettings: PreorderSettings = { enabled: false, titleAr: 'مختارات TEO STORE حسب الطلب', titleFr: 'Sélection TEO STORE sur commande', whatsappNumber: '', items: [defaultPreorderItem(1), defaultPreorderItem(2)] }
+const parsePreorderSettings = (value: unknown): PreorderSettings => {
+  const source = asObject(value)
+  const items = Array.isArray(source.items) ? source.items : []
+  return {
+    enabled: source.enabled === true,
+    titleAr: typeof source.titleAr === 'string' ? source.titleAr : defaultPreorderSettings.titleAr,
+    titleFr: typeof source.titleFr === 'string' ? source.titleFr : defaultPreorderSettings.titleFr,
+    whatsappNumber: typeof source.whatsappNumber === 'string' ? source.whatsappNumber : '',
+    items: [0, 1].map(i => {
+      const item = asObject(items[i]); const base = defaultPreorderItem(i + 1)
+      return {
+        id: typeof item.id === 'string' && item.id ? item.id : base.id,
+        titleAr: typeof item.titleAr === 'string' ? item.titleAr : '',
+        titleFr: typeof item.titleFr === 'string' ? item.titleFr : '',
+        imageUrl: typeof item.imageUrl === 'string' ? item.imageUrl : '',
+        price: typeof item.price === 'number' && Number.isFinite(item.price) ? item.price : 0,
+        deliveryMinDays: typeof item.deliveryMinDays === 'number' ? item.deliveryMinDays : 4,
+        deliveryMaxDays: typeof item.deliveryMaxDays === 'number' ? item.deliveryMaxDays : 17,
+        whatsappNumber: typeof item.whatsappNumber === 'string' ? item.whatsappNumber : '',
+        referenceCode: typeof item.referenceCode === 'string' ? item.referenceCode : base.referenceCode,
+        visible: item.visible === true,
+      }
+    }),
+  }
+}
 type SupportSettings = { phone: string; whatsapp: string; whatsappActive: boolean; email: string; supportMessageFr: string; supportMessageAr: string }
 type PaymentId = 'bankily' | 'masrvi' | 'sedad'
 type PaymentSettings = { id: PaymentId; name: string; number: string; active: boolean; instructionsFr: string; instructionsAr: string }
@@ -35,6 +64,8 @@ function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('store')
   const [showSaveDetails, setShowSaveDetails] = useState(false)
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings)
+  const [preorderSettings, setPreorderSettings] = useState<PreorderSettings>(defaultPreorderSettings)
+  const [uploadingPreorder, setUploadingPreorder] = useState<number | null>(null)
   const [supportSettings, setSupportSettings] = useState<SupportSettings>(defaultSupportSettings)
   const [payments, setPayments] = useState<PaymentSettings[]>(defaultPayments)
   const [orderSettings, setOrderSettings] = useState<OrderSettings>(defaultOrderSettings)
@@ -55,6 +86,8 @@ function AdminSettingsPage() {
 
   const markDirty = () => { dirtyRef.current = true; setIsDirty(true) }
   const changeStore = (values: Partial<StoreSettings>) => { markDirty(); setStoreSettings(current => ({ ...current, ...values })) }
+  const changePreorder = (values: Partial<PreorderSettings>) => { markDirty(); setPreorderSettings(current => ({ ...current, ...values })) }
+  const changePreorderItem = (index: number, values: Partial<PreorderItem>) => { markDirty(); setPreorderSettings(current => ({ ...current, items: current.items.map((item, i) => i === index ? { ...item, ...values } : item) })) }
   const changeSupport = (values: Partial<SupportSettings>) => { markDirty(); setSupportSettings(current => ({ ...current, ...values })) }
   const changeOrder = (values: Partial<OrderSettings>) => { markDirty(); setOrderSettings(current => ({ ...current, ...values })) }
   const changeReview = (values: Partial<ReviewSettings>) => { markDirty(); setReviewSettings(current => ({ ...current, ...values })) }
@@ -85,6 +118,7 @@ function AdminSettingsPage() {
     const rows = (data ?? []) as AppSettingsRow[]
     const findValue = (key: string) => rows.find(row => row.setting_key === key)?.setting_value
     setStoreSettings(mergeKnown(defaultStoreSettings, findValue('store')))
+    setPreorderSettings(parsePreorderSettings(findValue('preorder_featured')))
     const support = mergeKnown(defaultSupportSettings, findValue('support'))
     const whatsapp = asObject(findValue('support_whatsapp'))
     setSupportSettings({
@@ -143,6 +177,28 @@ function AdminSettingsPage() {
     }
   }
 
+  const handlePreorderImageUpload = async (index: number, file: File | undefined) => {
+    if (!file) return
+    if (!['image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+      showToast({ type: 'error', title: 'Image refusée', message: 'Choisissez PNG ou WebP de 2 Mo maximum.' })
+      return
+    }
+    setUploadingPreorder(index)
+    try {
+      const { data: session } = await supabase.auth.getUser()
+      if (!session.user) throw new Error('Connectez-vous en tant qu’administrateur.')
+      const ext = file.type === 'image/png' ? 'png' : 'webp'
+      const path = `preorders/${crypto.randomUUID()}.${ext}`
+      const { error } = await supabase.storage.from('store-branding').upload(path, file, { contentType: file.type, upsert: false, cacheControl: '3600' })
+      if (error) throw error
+      const { data } = supabase.storage.from('store-branding').getPublicUrl(path)
+      changePreorderItem(index, { imageUrl: data.publicUrl })
+      showToast({ type: 'success', title: 'Image ajoutée', message: 'Cliquez sur Enregistrer tout pour publier.' })
+    } catch (error) {
+      showToast({ type: 'error', title: 'Échec du téléchargement', message: error instanceof Error ? error.message : 'Erreur inconnue' })
+    } finally { setUploadingPreorder(null) }
+  }
+
   const handleSaveAll = async () => {
     if (savingRef.current) return
     const number = normalizeWhatsapp(supportSettings.whatsapp)
@@ -162,11 +218,25 @@ function AdminSettingsPage() {
       showToast({ type: 'error', title: 'Valeurs incorrectes', message: 'Vérifiez les délais et la note minimale.' })
       return
     }
+    if (preorderSettings.enabled) {
+      const active = preorderSettings.items.filter(item => item.visible && item.imageUrl.trim())
+      if (active.some(item => (!item.titleAr.trim() && !item.titleFr.trim()) || !Number.isFinite(item.price) || item.price <= 0 || item.deliveryMinDays < 1 || item.deliveryMaxDays < item.deliveryMinDays)) {
+        showToast({ type: 'error', title: 'Produits sur commande', message: 'Vérifiez les noms, prix et délais des produits visibles.' }); return
+      }
+      const phones = [preorderSettings.whatsappNumber, ...active.map(item => item.whatsappNumber)].filter(Boolean)
+      if (phones.some(phone => !/^222\d{8}$/.test(normalizeWhatsapp(phone)))) {
+        showToast({ type: 'error', title: 'WhatsApp invalide', message: 'Utilisez 8 chiffres mauritaniens ou 222 + 8 chiffres.' }); return
+      }
+      if (active.length && !active.every(item => item.whatsappNumber || preorderSettings.whatsappNumber || supportSettings.whatsapp)) {
+        showToast({ type: 'error', title: 'WhatsApp requis' }); return
+      }
+    }
     savingRef.current = true
     setIsSaving(true)
     loadSequenceRef.current += 1
     const entries: Array<[string, Record<string, unknown>]> = [
       ['store', { ...storeSettings }],
+      ['preorder_featured', { ...preorderSettings, whatsappNumber: normalizeWhatsapp(preorderSettings.whatsappNumber || supportSettings.whatsapp), items: preorderSettings.items.map(item => ({ ...item, whatsappNumber: item.whatsappNumber ? normalizeWhatsapp(item.whatsappNumber) : '' })) }],
       ['support', { phone: supportSettings.phone, whatsapp: supportSettings.whatsapp, email: supportSettings.email, supportMessageFr: supportSettings.supportMessageFr, supportMessageAr: supportSettings.supportMessageAr }],
       ['support_whatsapp', { active: supportSettings.whatsappActive, number, messageFr: supportSettings.supportMessageFr, messageAr: supportSettings.supportMessageAr }],
       ...payments.map((payment): [string, Record<string, unknown>] => [`payment_${payment.id}`, { ...payment }]),
@@ -200,6 +270,7 @@ function AdminSettingsPage() {
 
   const tabs: Array<{ id: SettingsTab; label: string; description: string }> = [
     { id: 'store', label: 'Boutique', description: 'Identité et support' },
+    { id: 'preorders', label: 'Sélection sur commande', description: 'Deux produits sur WhatsApp' },
     { id: 'payments', label: 'Paiements', description: 'Bankily, Masrvi, Sedad' },
     { id: 'orders', label: 'Commandes', description: 'Workflow client' },
     { id: 'reviews', label: 'Évaluations', description: 'Avis clients' },
@@ -245,6 +316,40 @@ function AdminSettingsPage() {
       <main className="min-w-0">
         <div className="mb-4 rounded-[18px] border border-slate-200 bg-white px-5 py-4 shadow-sm"><p className="text-xs font-black uppercase tracking-widest text-blue-600">Section {tabs.findIndex(tab => tab.id === activeTab) + 1} / {tabs.length}</p><h2 className="mt-1 text-xl font-black text-slate-950">{tabs.find(tab => tab.id === activeTab)?.label}</h2><p className="mt-1 text-sm text-slate-500">{tabs.find(tab => tab.id === activeTab)?.description}</p></div>
       {activeTab === 'store' && <div className="space-y-4"><SettingsCard title="Identité de TEO STORE" description="Informations générales visibles sur TEO STORE."><div className="grid gap-4 sm:grid-cols-2"><TextField label="Nom de la plateforme" value={storeSettings.storeName} onChange={value => changeStore({ storeName: value })} /><TextField label="Devise" value={storeSettings.currency} onChange={value => changeStore({ currency: value })} /><TextField label="Pays" value={storeSettings.country} onChange={value => changeStore({ country: value })} /><div /><TextAreaField label="Slogan français" value={storeSettings.sloganFr} onChange={value => changeStore({ sloganFr: value })} /><TextAreaField label="Slogan arabe" dir="rtl" value={storeSettings.sloganAr} onChange={value => changeStore({ sloganAr: value })} /></div></SettingsCard><SettingsCard title="Logo du magasin / شعار المتجر" description="Importez un PNG ou WebP transparent depuis votre appareil (maximum 2 Mo)."><div className="flex flex-wrap items-center gap-5"><div className="flex h-24 w-40 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-3">{storeSettings.logoUrl ? <img src={storeSettings.logoUrl} alt="Logo TEO STORE" className="max-h-full max-w-full object-contain" /> : <span className="text-sm font-black text-slate-400">TEO STORE</span>}</div><div className="space-y-3"><label className="inline-flex cursor-pointer items-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700">{isUploadingLogo ? 'Importation...' : 'Choisir un logo / رفع الشعار'}<input type="file" accept="image/png,image/webp" className="sr-only" disabled={isUploadingLogo} onChange={event => { void handleLogoUpload(event.target.files?.[0]); event.currentTarget.value = '' }} /></label>{storeSettings.logoUrl && <button type="button" onClick={() => changeStore({ logoUrl: '' })} className="block text-sm font-semibold text-rose-600">Supprimer le logo</button>}<p className="text-xs text-slate-500">Après l’import, cliquez sur Enregistrer en haut de la page.</p></div></div></SettingsCard><SettingsCard title="Support client" description="Coordonnées utilisées pour aider les clients." action={<Toggle checked={supportSettings.whatsappActive} label={supportSettings.whatsappActive ? 'WhatsApp actif' : 'WhatsApp inactif'} onChange={checked => changeSupport({ whatsappActive: checked })} />}><div className="grid gap-4 sm:grid-cols-2"><TextField label="Téléphone" value={supportSettings.phone} onChange={value => changeSupport({ phone: value })} /><div><TextField label="WhatsApp" value={supportSettings.whatsapp} onChange={value => changeSupport({ whatsapp: value })} /><p className="mt-2 text-xs text-slate-400">Saisissez 8 chiffres. L’indicatif 222 est ajouté lors de l’enregistrement.</p></div><TextField label="E-mail" type="email" value={supportSettings.email} onChange={value => changeSupport({ email: value })} /><div /><TextAreaField label="Message WhatsApp français" value={supportSettings.supportMessageFr} onChange={value => changeSupport({ supportMessageFr: value })} /><TextAreaField label="Message WhatsApp arabe" dir="rtl" value={supportSettings.supportMessageAr} onChange={value => changeSupport({ supportMessageAr: value })} /></div></SettingsCard></div>}
+      {activeTab === 'preorders' && <div className="space-y-4">
+        <SettingsCard title="Sélection Premium — TEO STORE" description="Choisissez jusqu’à deux produits sur commande. Une carte sans image ou désactivée est automatiquement masquée sur l’accueil." action={<Toggle checked={preorderSettings.enabled} label={preorderSettings.enabled ? 'Section visible' : 'Section masquée'} onChange={enabled => changePreorder({ enabled })} />}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField label="Titre français" value={preorderSettings.titleFr} onChange={titleFr => changePreorder({ titleFr })} />
+            <TextField label="العنوان بالعربية" dir="rtl" value={preorderSettings.titleAr} onChange={titleAr => changePreorder({ titleAr })} />
+            <TextField label="WhatsApp par défaut (8 chiffres)" value={preorderSettings.whatsappNumber} onChange={whatsappNumber => changePreorder({ whatsappNumber })} />
+          </div>
+          <p className="mt-3 text-xs text-slate-500">Le numéro de support est utilisé si vous laissez le WhatsApp de cette section vide. La référence produit n’est pas un numéro de suivi de commande.</p>
+        </SettingsCard>
+        {preorderSettings.items.map((item, index) => <SettingsCard key={item.id} title={`Produit ${index + 1} / المنتج ${index + 1}`} description="Un produit sans photo ne sera pas affiché." action={<Toggle checked={item.visible} label={item.visible ? 'Afficher' : 'Masquer'} onChange={visible => changePreorderItem(index, { visible })} />}>
+          <div className="grid gap-5 lg:grid-cols-[190px_1fr]">
+            <div className="space-y-3">
+              <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50">
+                {item.imageUrl ? <img src={item.imageUrl} alt={item.titleFr || item.titleAr || 'Produit'} className="h-full w-full object-contain" /> : <span className="px-3 text-center text-sm text-slate-400">Aucune photo</span>}
+              </div>
+              <label className="flex cursor-pointer justify-center rounded-xl bg-blue-600 px-3 py-3 text-center text-xs font-bold text-white hover:bg-blue-700">
+                {uploadingPreorder === index ? 'Téléchargement...' : 'Importer une photo PNG / WebP'}
+                <input type="file" accept="image/png,image/webp" className="sr-only" disabled={uploadingPreorder !== null} onChange={event => { void handlePreorderImageUpload(index, event.target.files?.[0]); event.currentTarget.value = '' }} />
+              </label>
+              {item.imageUrl && <button type="button" className="text-xs font-semibold text-rose-600" onClick={() => changePreorderItem(index, { imageUrl: '', visible: false })}>Retirer la photo et masquer</button>}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextField label="Nom français" value={item.titleFr} onChange={titleFr => changePreorderItem(index, { titleFr })} />
+              <TextField label="اسم المنتج بالعربية" dir="rtl" value={item.titleAr} onChange={titleAr => changePreorderItem(index, { titleAr })} />
+              <NumberField label="Prix (MRU / أوقية جديدة)" min={0} value={item.price} onChange={price => changePreorderItem(index, { price })} />
+              <TextField label="Référence du produit" value={item.referenceCode} onChange={referenceCode => changePreorderItem(index, { referenceCode })} />
+              <NumberField label="Livraison minimum (jours)" min={1} value={item.deliveryMinDays} onChange={deliveryMinDays => changePreorderItem(index, { deliveryMinDays })} />
+              <NumberField label="Livraison maximum (jours)" min={1} value={item.deliveryMaxDays} onChange={deliveryMaxDays => changePreorderItem(index, { deliveryMaxDays })} />
+              <TextField label="WhatsApp spécifique (facultatif)" value={item.whatsappNumber} onChange={whatsappNumber => changePreorderItem(index, { whatsappNumber })} />
+            </div>
+          </div>
+        </SettingsCard>)}
+        <p className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">Après vos modifications, cliquez sur « Enregistrer tout ». Le suivi des commandes par code nécessite un système de commandes distinct ; le bouton WhatsApp transmet pour le moment la référence du produit.</p>
+      </div>}
       {activeTab === 'payments' && <div className="space-y-4">{payments.map(payment => <SettingsCard key={payment.id} title={payment.name} description={`Compte de réception ${payment.name}`} action={<Toggle checked={payment.active} label={payment.active ? 'Actif' : 'Inactif'} onChange={checked => updatePayment(payment.id, { active: checked })} />}><div className="grid gap-4 sm:grid-cols-2"><TextField label="Nom" value={payment.name} onChange={value => updatePayment(payment.id, { name: value })} /><TextField label="Numéro de réception" value={payment.number} onChange={value => updatePayment(payment.id, { number: value })} /><TextAreaField label="Instructions françaises" value={payment.instructionsFr} onChange={value => updatePayment(payment.id, { instructionsFr: value })} /><TextAreaField label="Instructions arabes" dir="rtl" value={payment.instructionsAr} onChange={value => updatePayment(payment.id, { instructionsAr: value })} /></div></SettingsCard>)}</div>}
       {activeTab === 'orders' && <div className="space-y-4"><SettingsCard title="Traitement des commandes" description="Paramètres généraux du workflow client."><div className="grid gap-4 sm:grid-cols-2"><NumberField label="Temps estimé de traitement (minutes)" min={1} value={orderSettings.estimatedProcessingMinutes} onChange={value => changeOrder({ estimatedProcessingMinutes: value })} /><NumberField label="Délai maximum de litige (heures)" min={1} value={orderSettings.disputeWindowHours} onChange={value => changeOrder({ disputeWindowHours: value })} /></div><div className="mt-5 space-y-3"><ToggleRow title="Autoriser les litiges" description="Le client peut signaler un problème après livraison." checked={orderSettings.allowDisputes} onChange={checked => changeOrder({ allowDisputes: checked })} /><ToggleRow title="Confirmation client obligatoire" description="Le client doit confirmer la réception avant de terminer la commande." checked={orderSettings.customerConfirmationRequired} onChange={checked => changeOrder({ customerConfirmationRequired: checked })} /></div></SettingsCard><SettingsCard title="Messages de suivi" description="Textes pouvant être affichés au client pendant le traitement."><div className="grid gap-4 sm:grid-cols-2"><TextAreaField label="Vérification du paiement — français" value={orderSettings.paymentReviewMessageFr} onChange={value => changeOrder({ paymentReviewMessageFr: value })} /><TextAreaField label="Vérification du paiement — arabe" dir="rtl" value={orderSettings.paymentReviewMessageAr} onChange={value => changeOrder({ paymentReviewMessageAr: value })} /><TextAreaField label="Commande en préparation — français" value={orderSettings.processingMessageFr} onChange={value => changeOrder({ processingMessageFr: value })} /><TextAreaField label="Commande en préparation — arabe" dir="rtl" value={orderSettings.processingMessageAr} onChange={value => changeOrder({ processingMessageAr: value })} /></div></SettingsCard></div>}
       {activeTab === 'reviews' && <SettingsCard title="Évaluations clients" description="Contrôlez le système d'avis après commande."><div className="space-y-3"><ToggleRow title="Activer les évaluations" description="Les clients peuvent noter une commande terminée." checked={reviewSettings.enabled} onChange={checked => changeReview({ enabled: checked })} /><ToggleRow title="Autoriser les commentaires" description="Permet au client d'ajouter un commentaire avec les étoiles." checked={reviewSettings.allowComment} onChange={checked => changeReview({ allowComment: checked })} /><ToggleRow title="Afficher les avis publiquement" description="Prépare l'affichage futur des avis sur les pages publiques." checked={reviewSettings.publicReviews} onChange={checked => changeReview({ publicReviews: checked })} /><ToggleRow title="Afficher la note moyenne" description="Affiche la moyenne générale des évaluations." checked={reviewSettings.showAverageRating} onChange={checked => changeReview({ showAverageRating: checked })} /><NumberField label="Note minimum pour affichage public" min={1} max={5} value={reviewSettings.minimumPublicRating} onChange={value => changeReview({ minimumPublicRating: Math.max(1, Math.min(5, value)) })} /></div></SettingsCard>}
