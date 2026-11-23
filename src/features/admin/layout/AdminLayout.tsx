@@ -1,3 +1,4 @@
+import ThemeSwitch from '../../../components/layout/ThemeSwitch'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
@@ -57,12 +58,6 @@ function AdminLayout() {
       { label: 'Avis', description: 'Évaluations des clients', to: '/admin/store-reviews', icon: <Icon name="reviews"/>, badge: newReviewsCount },
     ]},
     { label: 'Catalogue', items: [
-      {
-  label: 'Stock Digital',
-  description: 'Codes et livraisons',
-  to: '/admin/stock',
-  icon: <Icon name="services" />,
-},
       { label: 'Services', description: 'Catalogue numérique', to: '/admin/services', icon: <Icon name="services"/> },
       { label: 'Plans', description: 'Offres et tarifs', to: '/admin/plans', icon: <Icon name="plans"/> },
       { label: 'eSIM', description: 'Pays et forfaits', to: '/admin/esim', icon: <Icon name="esim"/> },
@@ -170,9 +165,9 @@ function AdminLayout() {
           <div className="space-y-1">
             {group.items.map(item => (
               <NavLink key={item.to} to={item.to} end={item.end} onClick={() => mobile && setIsMobileMenuOpen(false)}
-                className={({ isActive }) => `group flex min-h-[56px] items-center gap-3 rounded-2xl border px-3 py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${isActive ? 'border-blue-400/30 bg-blue-500/20 text-white shadow-[inset_3px_0_0_#60a5fa]' : 'border-transparent text-slate-300 hover:bg-white/10 hover:text-white'}`}>
+                className={({ isActive }) => `group flex min-h-[56px] items-center gap-3 rounded-2xl border px-3 py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${isActive ? 'border-blue-100 bg-blue-50 text-blue-700' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-950'}`}>
                 {({ isActive }) => <>
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isActive ? 'bg-blue-500 text-white' : 'bg-white/10 text-slate-300'}`}>{item.icon}</span>
+                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{item.icon}</span>
                   <span className="min-w-0 flex-1"><span className="block truncate text-[13px] font-extrabold">{item.label}</span><span className="mt-0.5 block truncate text-[10px] font-medium opacity-65">{item.description}</span></span>
                   {Boolean(item.badge && item.badge > 0) && <span className="flex min-h-6 min-w-6 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-black text-white" dir="ltr">{item.badge! > 99 ? '99+' : item.badge}</span>}
                   <span className="opacity-40"><Icon name="chevron"/></span>
@@ -185,23 +180,23 @@ function AdminLayout() {
     </nav>
   )
 
-  const identity = <div className="flex items-center gap-3"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-lg font-black text-white shadow-md">T</div><div className="min-w-0"><p className="truncate text-base font-black tracking-tight text-white">TEO STORE</p><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Admin Control Center</p></div></div>
+  const identity = <div className="flex items-center gap-3"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-lg font-black text-white shadow-md">T</div><div className="min-w-0"><p className="truncate text-base font-black tracking-tight text-slate-950">TEO STORE</p><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Admin Control Center</p></div></div>
 
-  return <div dir="ltr" className="min-h-screen bg-[#edf2f9] text-slate-950">
+  return <div dir="ltr" className="min-h-screen bg-[#f4f7fb] text-slate-950">
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-[284px] shrink-0 flex-col border-r border-slate-800 bg-[#0b1730] lg:flex xl:w-[300px]">
-        <div className="border-b border-white/10 px-5 py-6">{identity}</div>
+      <aside className="sticky top-0 hidden h-screen w-[284px] shrink-0 flex-col border-r border-slate-200 bg-white lg:flex xl:w-[300px]">
+        <div className="border-b border-slate-100 px-5 py-6">{identity}</div>
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-5">{navigation()}</div>
-        <div className="border-t border-white/10 p-3"><button type="button" onClick={() => navigate('/admin/settings')} className="flex w-full items-center gap-3 rounded-2xl bg-white/10 p-3 text-left text-white transition hover:bg-white/15"><div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-black text-white">{profileInitial}<span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${connectionDot}`}/></div><div className="min-w-0"><p className="truncate text-xs font-black">{adminProfile?.name ?? 'Administrateur'}</p><p className="truncate text-[10px] text-slate-300">{adminProfile?.email ?? connectionLabel}</p></div></button></div>
+        <div className="border-t border-slate-100 p-3"><button type="button" onClick={() => navigate('/admin/settings')} className="flex w-full items-center gap-3 rounded-2xl bg-slate-50 p-3 text-left transition hover:bg-blue-50"><div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-black text-white">{profileInitial}<span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${connectionDot}`}/></div><div className="min-w-0"><p className="truncate text-xs font-black">{adminProfile?.name ?? 'Administrateur'}</p><p className="truncate text-[10px] text-slate-400">{adminProfile?.email ?? connectionLabel}</p></div></button></div>
       </aside>
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
+        <header className="teo-themed-header sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
           <div className="mx-auto flex h-[70px] max-w-[1700px] items-center justify-between gap-3 px-3 sm:px-6 lg:h-[78px] lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <button type="button" onClick={() => setIsMobileMenuOpen(true)} aria-label="Ouvrir le menu" aria-expanded={isMobileMenuOpen} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white lg:hidden"><Icon name="menu"/></button>
               <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-widest text-blue-600">TEO STORE / ADMIN</p><h1 className="mt-1 truncate text-base font-black sm:text-xl">{pageTitle}</h1></div>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3"><ThemeSwitch />
               <span title={connectionLabel} className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold text-slate-600 sm:flex"><span className={`h-2 w-2 rounded-full ${connectionDot}`}/>{connectionLabel}</span>
               {newReviewsCount > 0 && <NavLink to="/admin/store-reviews" title="Nouveaux avis" className="rounded-xl bg-rose-50 px-3 py-2 text-xs font-black text-rose-600">Avis {newReviewsCount > 99 ? '99+' : newReviewsCount}</NavLink>}
               <div ref={profileMenuRef} className="relative">
@@ -214,7 +209,7 @@ function AdminLayout() {
         <main className="min-w-0 px-3 pb-10 pt-4 sm:px-5 sm:pt-6 lg:px-7 lg:pt-7 xl:px-9"><div className="mx-auto w-full max-w-[1540px] min-w-0"><Outlet/></div></main>
       </div>
     </div>
-    {isMobileMenuOpen && <div className="fixed inset-0 z-[100] lg:hidden"><button type="button" aria-label="Fermer le menu" onClick={() => setIsMobileMenuOpen(false)} className="absolute inset-0 bg-slate-950/55"/><aside role="dialog" aria-modal="true" aria-label="Menu administration" className="absolute inset-y-0 left-0 flex w-[min(88vw,360px)] flex-col bg-[#0b1730] text-white shadow-2xl"><div className="flex items-center justify-between border-b border-white/10 px-4 py-4">{identity}<button type="button" aria-label="Fermer le menu" onClick={() => setIsMobileMenuOpen(false)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white"><Icon name="close"/></button></div><div className="min-h-0 flex-1 overflow-y-auto px-3 py-5">{navigation(true)}</div><div className="border-t border-white/10 p-3"><div className="mb-3 rounded-xl bg-white/10 p-3"><p className="truncate text-sm font-black">{adminProfile?.name ?? 'Administrateur'}</p><p className="truncate text-xs text-slate-300">{connectionLabel}</p></div><button type="button" disabled={isLoggingOut} onClick={() => void handleLogout()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-rose-50 p-3 text-sm font-black text-rose-600 disabled:opacity-50"><Icon name="logout"/>{isLoggingOut ? 'Déconnexion...' : 'Déconnexion'}</button></div></aside></div>}
+    {isMobileMenuOpen && <div className="fixed inset-0 z-[100] lg:hidden"><button type="button" aria-label="Fermer le menu" onClick={() => setIsMobileMenuOpen(false)} className="absolute inset-0 bg-slate-950/55"/><aside role="dialog" aria-modal="true" aria-label="Menu administration" className="absolute inset-y-0 left-0 flex w-[min(88vw,360px)] flex-col bg-white shadow-2xl"><div className="flex items-center justify-between border-b border-slate-100 px-4 py-4">{identity}<button type="button" aria-label="Fermer le menu" onClick={() => setIsMobileMenuOpen(false)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100"><Icon name="close"/></button></div><div className="min-h-0 flex-1 overflow-y-auto px-3 py-5">{navigation(true)}</div><div className="border-t border-slate-100 p-3"><div className="mb-3 rounded-xl bg-slate-50 p-3"><p className="truncate text-sm font-black">{adminProfile?.name ?? 'Administrateur'}</p><p className="truncate text-xs text-slate-500">{connectionLabel}</p></div><button type="button" disabled={isLoggingOut} onClick={() => void handleLogout()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-rose-50 p-3 text-sm font-black text-rose-600 disabled:opacity-50"><Icon name="logout"/>{isLoggingOut ? 'Déconnexion...' : 'Déconnexion'}</button></div></aside></div>}
   </div>
 }
 
