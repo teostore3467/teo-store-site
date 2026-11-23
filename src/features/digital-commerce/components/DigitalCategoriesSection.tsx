@@ -1,199 +1,79 @@
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-
+import {
+  ArrowLeft, ArrowRight, Bot, Clapperboard, Code2, CreditCard,
+  Gamepad2, Palette, Users,
+} from 'lucide-react'
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 
-type CategoryItem = {
-  id: string
-  shortLabel: string
-  name: {
-    fr: string
-    ar: string
-  }
-  description: {
-    fr: string
-    ar: string
-  }
-}
+const categories = [
+  { id: 'ai', icon: Bot, fr: 'Intelligence artificielle', ar: 'الذكاء الاصطناعي', frDescription: 'Assistants et outils IA', arDescription: 'مساعدون وأدوات ذكية', tone: 'text-indigo-600 bg-indigo-50' },
+  { id: 'gaming', icon: Gamepad2, fr: 'Gaming & Codes', ar: 'الألعاب والأكواد', frDescription: 'Jeux et recharges', arDescription: 'ألعاب وشحن رقمي', tone: 'text-violet-600 bg-violet-50' },
+  { id: 'streaming', icon: Clapperboard, fr: 'Streaming', ar: 'الترفيه', frDescription: 'Films et musique', arDescription: 'أفلام وموسيقى', tone: 'text-rose-600 bg-rose-50' },
+  { id: 'design', icon: Palette, fr: 'Design & Création', ar: 'التصميم والإبداع', frDescription: 'Création et montage', arDescription: 'تصميم ومونتاج', tone: 'text-orange-600 bg-orange-50' },
+  { id: 'software', icon: Code2, fr: 'Logiciels', ar: 'البرامج', frDescription: 'Outils et licences', arDescription: 'برامج وتراخيص', tone: 'text-sky-600 bg-sky-50' },
+  { id: 'gift-cards', icon: CreditCard, fr: 'Cartes cadeaux', ar: 'بطاقات الهدايا', frDescription: 'Cartes numériques', arDescription: 'بطاقات رقمية', tone: 'text-emerald-600 bg-emerald-50' },
+  { id: 'social', icon: Users, fr: 'Réseaux sociaux', ar: 'التواصل الاجتماعي', frDescription: 'Services premium', arDescription: 'خدمات مميزة', tone: 'text-blue-600 bg-blue-50' },
+] as const
 
-const categories: CategoryItem[] = [
-  {
-    id: 'ai',
-    shortLabel: 'AI',
-    name: {
-      fr: 'Intelligence artificielle',
-      ar: 'الذكاء الاصطناعي',
-    },
-    description: {
-      fr: 'ChatGPT, Gemini, Claude, Perplexity et plus.',
-      ar: 'ChatGPT وGemini وClaude وPerplexity والمزيد.',
-    },
-  },
-  {
-    id: 'gaming',
-    shortLabel: 'GA',
-    name: {
-      fr: 'Gaming & Codes',
-      ar: 'الألعاب والأكواد',
-    },
-    description: {
-      fr: 'Recharges gaming et clés digitales.',
-      ar: 'شحن الألعاب والأكواد الرقمية.',
-    },
-  },
-  {
-    id: 'streaming',
-    shortLabel: 'ST',
-    name: {
-      fr: 'Streaming',
-      ar: 'البث',
-    },
-    description: {
-      fr: 'Netflix, Shahid, Spotify et plus.',
-      ar: 'Netflix وShahid وSpotify والمزيد.',
-    },
-  },
-  {
-    id: 'design',
-    shortLabel: 'DE',
-    name: {
-      fr: 'Design',
-      ar: 'التصميم',
-    },
-    description: {
-      fr: 'Canva, Adobe, Picsart et CapCut.',
-      ar: 'Canva وAdobe وPicsart وCapCut.',
-    },
-  },
-  {
-    id: 'software',
-    shortLabel: 'SO',
-    name: {
-      fr: 'Logiciels',
-      ar: 'البرامج',
-    },
-    description: {
-      fr: 'Windows, VPN et logiciels numériques.',
-      ar: 'Windows وVPN والبرامج الرقمية.',
-    },
-  },
-  {
-    id: 'gift-cards',
-    shortLabel: 'GI',
-    name: {
-      fr: 'Gift Cards',
-      ar: 'بطاقات الهدايا',
-    },
-    description: {
-      fr: 'Cartes cadeaux digitales.',
-      ar: 'بطاقات هدايا رقمية.',
-    },
-  },
-  {
-    id: 'social',
-    shortLabel: 'SO',
-    name: {
-      fr: 'Social',
-      ar: 'الخدمات الاجتماعية',
-    },
-    description: {
-      fr: 'Abonnements premium sociaux.',
-      ar: 'اشتراكات مميزة للخدمات الاجتماعية.',
-    },
-  },
-]
-
-function DigitalCategoriesSection() {
+export default function DigitalCategoriesSection() {
   const navigate = useNavigate()
-
   const { language } = useLanguage()
-
   const isArabic = language === 'ar'
+  const railRef = useRef<HTMLDivElement>(null)
+  const [canBack, setCanBack] = useState(false)
+  const [canNext, setCanNext] = useState(false)
 
-  const handleCategoryClick = (
-    categoryId: string,
-  ) => {
-    navigate(
-      `/services-numeriques?category=${categoryId}`,
-    )
+  const updateArrows = () => {
+    const el = railRef.current
+    if (!el) return
+    const max = el.scrollWidth - el.clientWidth
+    const current = Math.abs(el.scrollLeft)
+    setCanBack(current > 5)
+    setCanNext(current < max - 5)
+  }
+
+  useEffect(() => {
+    updateArrows()
+    window.addEventListener('resize', updateArrows)
+    return () => window.removeEventListener('resize', updateArrows)
+  }, [language])
+
+  const move = (direction: -1 | 1) => {
+    const el = railRef.current
+    if (!el) return
+    el.scrollBy({ left: (isArabic ? -1 : 1) * direction * Math.max(220, el.clientWidth * 0.55), behavior: 'smooth' })
   }
 
   return (
-    <section className="border-b border-slate-200 bg-[#f7f9fc] py-8 sm:py-10 lg:py-12">
+    <section className="border-b border-slate-100 bg-white py-8 sm:py-10" dir={isArabic ? 'rtl' : 'ltr'}>
       <Container>
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">
-            {isArabic ? 'الفئات' : 'CATÉGORIES'}
-          </p>
-
-          <h2 className="mt-2 text-[28px] font-black tracking-[-0.035em] text-slate-950 sm:text-3xl">
-            {isArabic
-              ? 'استكشف الخدمات'
-              : 'Explorer les services'}
-          </h2>
-
-          <p className="mt-2 max-w-2xl text-[12px] leading-6 text-slate-500 sm:text-sm">
-            {isArabic
-              ? 'انتقل مباشرة إلى نوع الخدمة التي تبحث عنها.'
-              : 'Accédez directement au type de service que vous recherchez.'}
-          </p>
+        <div className="mb-5 flex items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-bold tracking-widest text-blue-600">{isArabic ? 'تصفح حسب النوع' : 'PAR CATÉGORIE'}</p>
+            <h2 className="mt-1 text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl">{isArabic ? 'استكشف الخدمات' : 'Explorer les catégories'}</h2>
+            <p className="mt-1 text-xs text-slate-500 sm:text-sm">{isArabic ? 'اختر التصنيف الذي يناسبك' : 'Choisissez les services qui vous intéressent'}</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2" dir="ltr">
+            <button type="button" onClick={() => move(-1)} disabled={!canBack} aria-label={isArabic ? 'السابق' : 'Précédent'} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-blue-300 hover:text-blue-600 disabled:opacity-30"><ArrowLeft size={17} /></button>
+            <button type="button" onClick={() => move(1)} disabled={!canNext} aria-label={isArabic ? 'التالي' : 'Suivant'} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-blue-300 hover:text-blue-600 disabled:opacity-30"><ArrowRight size={17} /></button>
+          </div>
         </div>
-
-        <div
-          className="mt-6 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory lg:gap-4 [&::-webkit-scrollbar]:hidden"
-          style={{
-            scrollbarWidth: 'none',
-            WebkitOverflowScrolling: 'touch',
-          }}
-        >
-          {categories.map((category) => (
-            <article
-              key={category.id}
-              className={[
-                'w-[164px] shrink-0 snap-start rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)]',
-                'sm:w-[190px]',
-                'lg:w-[220px] lg:p-5',
-                'xl:w-[230px]',
-                isArabic ? 'text-right' : 'text-left',
-              ].join(' ')}
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-[16px] bg-gradient-to-br from-blue-600 to-indigo-600 text-xs font-black text-white shadow-[0_8px_20px_rgba(37,99,235,0.16)]">
-                {category.shortLabel}
-              </div>
-
-              <h3 className="mt-4 text-sm font-black leading-5 text-slate-950 sm:text-base">
-                {category.name[language]}
-              </h3>
-
-              <p className="mt-2 min-h-[42px] text-[11px] leading-5 text-slate-500 sm:text-xs">
-                {category.description[language]}
-              </p>
-
-              <button
-                type="button"
-                onClick={() =>
-                  handleCategoryClick(
-                    category.id,
-                  )
-                }
-                className="mt-4 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-blue-600 transition hover:text-blue-500"
-              >
-                {isArabic ? 'استكشف' : 'Explorer'}
-
-                <span
-                  className={
-                    isArabic ? 'rotate-180' : ''
-                  }
-                >
-                  →
-                </span>
+        <div ref={railRef} onScroll={updateArrows} className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent]" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {categories.map((category) => {
+            const Icon = category.icon
+            return (
+              <button key={category.id} type="button" onClick={() => navigate(`/services-numeriques?category=${category.id}`)} className="group flex w-[165px] shrink-0 snap-start flex-col items-start rounded-2xl border border-slate-200 bg-white p-4 text-start shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md sm:w-[190px]">
+                <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${category.tone}`}><Icon size={23} strokeWidth={2.1} aria-hidden="true" /></span>
+                <span className="mt-3 text-sm font-bold text-slate-900">{isArabic ? category.ar : category.fr}</span>
+                <span className="mt-1 text-xs text-slate-500">{isArabic ? category.arDescription : category.frDescription}</span>
+                <span className="mt-3 text-xs font-semibold text-blue-600 group-hover:underline">{isArabic ? 'عرض الخدمات' : 'Découvrir'} →</span>
               </button>
-            </article>
-          ))}
+            )
+          })}
         </div>
       </Container>
     </section>
   )
 }
-
-export default DigitalCategoriesSection

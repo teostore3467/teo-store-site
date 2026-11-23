@@ -110,6 +110,17 @@ function PreorderShowcase({ ar }: { ar: boolean }) {
 function HomePage() {
   const { language, t } = useLanguage()
   const ar = language === 'ar'
+  const [signedIn, setSignedIn] = useState(false)
+  useEffect(() => {
+    let mounted = true
+    void supabase.auth.getUser().then(({ data }) => {
+      if (mounted) setSignedIn(Boolean(data.user))
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) setSignedIn(Boolean(session?.user))
+    })
+    return () => { mounted = false; subscription.unsubscribe() }
+  }, [])
   const Arrow = ar ? ArrowLeft : ArrowRight
   const categories = [
     { icon: Bot, ar: 'الذكاء الاصطناعي', fr: 'Intelligence artificielle', tint: 'bg-violet-50 text-violet-700' },
@@ -129,7 +140,7 @@ function HomePage() {
               <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100/85">{ar ? 'خدمات رقمية ومنتجات مختارة، بأسعار واضحة وطلبات سهلة المتابعة.' : 'Services numériques et produits sélectionnés, prix clairs et commandes faciles à suivre.'}</p>
               <div className="mt-3 flex flex-wrap gap-2.5">
                 <Link to="/services-numeriques" className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500"><ShoppingBag size={16}/>{t.home.exploreServices}<Arrow size={14}/></Link>
-                <Link to="/connexion" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-xs font-bold text-white hover:bg-white/15"><PackageCheck size={16}/>{t.common.myAccount}</Link>
+                <Link to={signedIn ? "/profil" : "/connexion?redirect=%2Fprofil"} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-xs font-bold text-white hover:bg-white/15"><PackageCheck size={16}/>{t.common.myAccount}</Link>
               </div>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import Container from '../../../components/layout/Container'
@@ -64,38 +65,38 @@ function ProductRail({ services, serviceLogos }: { services: ServiceCatalogItem[
   const { language, formatCurrencyText } = useLanguage()
   const navigate = useNavigate()
   const railRef = useRef<HTMLDivElement>(null)
-  const [isPaused, setIsPaused] = useState(false)
   const isArabic = language === 'ar'
-  const shouldLoop = services.length >= 4
-  const displayedServices = useMemo(() => shouldLoop ? [...services, ...services] : services, [services, shouldLoop])
+  const [canScrollBack, setCanScrollBack] = useState(false)
+  const [canScrollForward, setCanScrollForward] = useState(false)
+
+  const updateArrows = () => {
+    const rail = railRef.current
+    if (!rail) return
+    setCanScrollBack(rail.scrollLeft > 3)
+    setCanScrollForward(rail.scrollLeft + rail.clientWidth < rail.scrollWidth - 3)
+  }
 
   useEffect(() => {
     const rail = railRef.current
-    if (!rail || !shouldLoop || isPaused) return
-    const interval = window.setInterval(() => {
-      if (document.hidden || !rail.isConnected) return
-      const firstCard = rail.querySelector<HTMLElement>('[data-product-card="true"]')
-      if (!firstCard) return
-      const styles = window.getComputedStyle(rail)
-      const gap = Number.parseFloat(styles.columnGap || styles.gap) || 12
-      const step = firstCard.offsetWidth + gap
-      const halfway = rail.scrollWidth / 2
-      if (rail.scrollLeft >= halfway - step) rail.scrollLeft -= halfway
-      rail.scrollBy({ left: step, behavior: 'smooth' })
-    }, 2600)
-    return () => window.clearInterval(interval)
-  }, [shouldLoop, isPaused, displayedServices])
-
-  useEffect(() => {
-    const rail = railRef.current
-    if (!rail || !shouldLoop) return
-    const handleScroll = () => {
-      const halfway = rail.scrollWidth / 2
-      if (rail.scrollLeft >= halfway) rail.scrollLeft -= halfway
+    if (!rail) return
+    const frame = requestAnimationFrame(updateArrows)
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateArrows) : null
+    observer?.observe(rail)
+    window.addEventListener('resize', updateArrows)
+    return () => {
+      cancelAnimationFrame(frame)
+      observer?.disconnect()
+      window.removeEventListener('resize', updateArrows)
     }
-    rail.addEventListener('scroll', handleScroll, { passive: true })
-    return () => rail.removeEventListener('scroll', handleScroll)
-  }, [shouldLoop, displayedServices])
+  }, [services.length])
+
+  const scrollCards = (direction: -1 | 1) => {
+    const rail = railRef.current
+    if (!rail) return
+    const card = rail.querySelector<HTMLElement>('[data-product-card="true"]')
+    const gap = parseFloat(getComputedStyle(rail).gap) || 12
+    rail.scrollBy({ left: direction * ((card?.offsetWidth || 200) + gap) * 2, behavior: 'smooth' })
+  }
 
   const formatPrice = (price: number) => {
     const number = new Intl.NumberFormat(isArabic ? 'ar-MR-u-nu-latn' : 'fr-FR-u-nu-latn', {
@@ -105,21 +106,19 @@ function ProductRail({ services, serviceLogos }: { services: ServiceCatalogItem[
   }
 
   return (
-    <div
-      ref={railRef}
-      dir="ltr"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-      onTouchStart={() => setIsPaused(true)}
-      onTouchEnd={() => setIsPaused(false)}
-      onTouchCancel={() => setIsPaused(false)}
-      onFocusCapture={() => setIsPaused(true)}
-      onBlurCapture={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setIsPaused(false)
-      }}
-      className="mt-4 flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-5 sm:gap-4 lg:gap-5"
-    >
-      {displayedServices.map((service, index) => {
+    <div className="relative">
+      <div className="mb-3 flex items-center justify-end gap-2">
+        <span className="me-auto text-[11px] font-medium text-slate-500">{isArabic ? 'اسحب لاستكشاف المنتجات' : 'Glissez pour explorer les produits'}</span>
+        <button type="button" onClick={() => scrollCards(-1)} disabled={!canScrollBack} aria-label={isArabic ? 'المنتجات السابقة' : 'Produits précédents'} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-blue-300 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-30"><ChevronLeft size={18}/></button>
+        <button type="button" onClick={() => scrollCards(1)} disabled={!canScrollForward} aria-label={isArabic ? 'المنتجات التالية' : 'Produits suivants'} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-blue-300 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-30"><ChevronRight size={18}/></button>
+      </div>
+      <div
+        ref={railRef}
+        dir="ltr"
+        onScroll={updateArrows}
+        className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent] sm:gap-4"
+      >
+      {services.map((service) => {
         const prices = getAvailablePrices(service)
         const minPrice = prices.length ? Math.min(...prices) : null
         const isOutOfStock = service.availability === 'out_of_stock'
@@ -143,11 +142,11 @@ function ProductRail({ services, serviceLogos }: { services: ServiceCatalogItem[
 
         return (
           <button
-            key={`${service.slug}-${index}`}
+            key={service.slug}
             type="button"
             data-product-card="true"
             onClick={() => navigate(`/services-numeriques/${encodeURIComponent(service.slug)}`)}
-            className={`group block w-[164px] shrink-0 cursor-pointer sm:w-[190px] lg:w-[220px] xl:w-[230px] ${isArabic ? 'text-right' : 'text-left'}`}
+            className={`group block w-[164px] shrink-0 snap-start cursor-pointer sm:w-[190px] lg:w-[205px] xl:w-[210px] ${isArabic ? 'text-right' : 'text-left'}`}
           >
             <article dir={isArabic ? 'rtl' : 'ltr'} className="h-full overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_6px_20px_rgba(15,23,42,0.04)] transition duration-300 group-hover:-translate-y-1 group-hover:border-blue-200 group-hover:shadow-[0_18px_40px_rgba(15,23,42,0.09)] lg:rounded-[22px]">
               <div className={`relative flex aspect-[1.22/1] items-center justify-center overflow-hidden bg-gradient-to-br ${getTone(service.slug)}`}>
@@ -181,6 +180,7 @@ function ProductRail({ services, serviceLogos }: { services: ServiceCatalogItem[
           </button>
         )
       })}
+      </div>
     </div>
   )
 }
