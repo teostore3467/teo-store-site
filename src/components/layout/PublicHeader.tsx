@@ -1,3 +1,4 @@
+import ThemeSwitch from './ThemeSwitch'
 import {
   useCallback,
   useEffect,
@@ -1699,10 +1700,10 @@ function PublicHeader() {
         </Container>
       </div>
 
-      <header className="border-b border-slate-100 bg-white/95 shadow-sm backdrop-blur-xl">
+      <header className="teo-themed-header border-b border-slate-100 bg-white/95 shadow-sm backdrop-blur-xl">
         <Container>
           <div className="hidden xl:block">
-            <div className="grid min-h-[76px] grid-cols-[235px_minmax(380px,1fr)_310px] items-center gap-6">
+            <div className="grid min-h-[76px] grid-cols-[215px_minmax(260px,1fr)_350px] items-center gap-6">
               <Link
                 to="/"
                 onClick={() => {
@@ -1738,6 +1739,7 @@ function PublicHeader() {
               </div>
 
               <div className="flex items-center justify-end gap-2">
+                <ThemeSwitch arabic={isArabic} />
                 {notificationButton}
 
                 <button
@@ -1953,6 +1955,7 @@ function PublicHeader() {
               </Link>
 
               <div className="flex shrink-0 items-center gap-1.5">
+                <ThemeSwitch arabic={isArabic} />
                 {!authLoading &&
                   isAuthenticated &&
                   notificationButton}
