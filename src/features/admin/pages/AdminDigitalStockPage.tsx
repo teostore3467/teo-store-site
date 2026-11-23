@@ -1,24 +1,19 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 
 type Lang = 'ar' | 'fr'
-type ItemType =
-  | 'account'
-  | 'activation_code'
-  | 'gift_card'
-  | 'link'
-  | 'other'
+type ItemType = 'account' | 'activation_code' | 'gift_card' | 'link' | 'other'
 type DeliveryMode = 'manual' | 'automatic'
-type StockStatus =
-  | 'available'
-  | 'reserved'
-  | 'delivered'
-  | 'disabled'
+type StockStatus = 'available' | 'reserved' | 'delivered' | 'disabled'
+type Action = 'delete' | 'disable' | 'enable'
+
+const itemTypes: ItemType[] = [
+  'account',
+  'activation_code',
+  'gift_card',
+  'link',
+  'other',
+]
 
 type Plan = {
   id: string
@@ -26,13 +21,11 @@ type Plan = {
   plan_key: string
   digital_service_groups: {
     name: string
-    digital_services: {
-      name: string
-    } | null
+    digital_services: { name: string } | null
   } | null
 }
 
-type StockCount = {
+type Count = {
   plan_id: string
   available_count: number
   reserved_count: number
@@ -48,331 +41,245 @@ type StockItem = {
   created_at: string
 }
 
-type Notice = {
-  kind: 'success' | 'error' | 'warning'
-  message: string
+type ServiceGroup = {
+  name: string
+  plans: Plan[]
+  available: number
 }
 
-type Action = 'delete' | 'disable' | 'enable'
-
-const itemTypes: ItemType[] = [
-  'account',
-  'activation_code',
-  'gift_card',
-  'link',
-  'other',
-]
-
-const messages = {
+const i18n = {
   ar: {
     title: 'إدارة المخزون الرقمي',
-    subtitle: 'إضافة وإدارة الحسابات والأكواد حسب الباقة',
+    subtitle: 'إدارة الخدمات والباقات والمخزون في مكان واحد',
+    services: 'الخدمات',
+    packages: 'الباقات',
+    inventory: 'عناصر المخزون',
     search: 'ابحث عن خدمة أو باقة...',
     refresh: 'تحديث',
+    allServices: 'جميع الخدمات',
     available: 'متوفر',
     reserved: 'محجوز',
     delivered: 'تم التسليم',
     disabled: 'معطّل',
-    add: 'إضافة',
-    manage: 'إدارة',
-    addTitle: 'إضافة مخزون',
-    manageTitle: 'إدارة عناصر المخزون',
+    add: 'إضافة مخزون',
+    manage: 'إدارة المخزون',
+    back: 'العودة',
+    close: 'إغلاق',
+    cancel: 'إلغاء',
+    save: 'حفظ المخزون',
+    saving: 'جارٍ الحفظ...',
+    processing: 'جارٍ التنفيذ...',
     type: 'نوع المنتج',
     mode: 'طريقة التسليم',
-    manual: 'يدوي',
-    automatic: 'تلقائي',
-    manualHint: 'تقوم بتسليم المنتج بنفسك.',
-    automaticHint:
-      'التسليم التلقائي يتطلب ربط الطلبات وتأكيد الدفع.',
-    account: 'حساب',
+    account: 'حساب جاهز',
     activation_code: 'كود تفعيل',
     gift_card: 'بطاقة هدية',
-    link: 'رابط',
+    link: 'رابط تفعيل',
     other: 'منتج آخر',
     email: 'البريد الإلكتروني',
     password: 'كلمة المرور',
     show: 'إظهار',
     hide: 'إخفاء',
-    values: 'الأكواد أو الروابط',
-    onePerLine: 'عنصر واحد في كل سطر، بحد أقصى 100.',
-    save: 'حفظ المخزون',
-    saving: 'جارٍ الحفظ...',
-    cancel: 'إلغاء',
-    close: 'إغلاق',
+    manual: 'يدوي',
+    automatic: 'تلقائي',
+    manualHelp: 'تسليم المنتج بواسطة المدير',
+    automaticHelp: 'يتطلب نظامًا فعّالًا لتأكيد الدفع والتسليم',
+    autoWarning: 'اختيار الوضع التلقائي لا يفعّل التسليم تلقائيًا دون ربط نظام الطلبات والدفع.',
+    lines: 'أدخل عنصرًا واحدًا في كل سطر (100 كحد أقصى)',
+    noServices: 'لا توجد خدمات مطابقة',
+    noPlans: 'لا توجد باقات',
+    noStock: 'لا يوجد مخزون لهذه الباقة',
     loading: 'جارٍ التحميل...',
-    empty: 'لا توجد باقات',
-    noStock: 'لا توجد عناصر مخزون لهذه الباقة',
     delete: 'حذف',
     disable: 'تعطيل',
-    enable: 'تفعيل',
-    deleting: 'جارٍ التنفيذ...',
-    confirmDelete: 'تأكيد الحذف النهائي',
-    confirmDisable: 'تأكيد التعطيل',
-    confirmEnable: 'تأكيد إعادة التفعيل',
-    deleteWarning:
-      'سيتم حذف هذا العنصر نهائيًا. لا يمكن التراجع عن العملية.',
-    disableWarning:
-      'سيتوقف هذا العنصر عن التوفر للبيع.',
-    enableWarning:
-      'سيعود هذا العنصر إلى المخزون المتوفر.',
+    enable: 'إعادة التفعيل',
     confirm: 'تأكيد العملية',
-    successAdd: 'تمت إضافة المخزون بنجاح',
-    successAction: 'تم تنفيذ العملية بنجاح',
+    deleteWarning: 'سيُحذف العنصر نهائيًا ولا يمكن استرجاعه.',
+    disableWarning: 'سيُمنع هذا العنصر من البيع مؤقتًا.',
+    enableWarning: 'سيصبح العنصر متوفرًا للبيع مجددًا.',
+    security: 'بيانات الحسابات والأكواد مشفّرة ولا تظهر في قائمة الإدارة.',
+    protected: 'العناصر المحجوزة والمسلّمة محمية من الحذف والتعديل.',
+    success: 'تمت العملية بنجاح',
     failed: 'فشلت العملية',
-    partial: 'تمت إضافة بعض العناصر فقط',
-    invalidAccount: 'أدخل البريد الإلكتروني وكلمة المرور',
-    invalidLink: 'الرابط غير صحيح',
-    noItems: 'أدخل بيانات المخزون',
-    maxItems: 'الحد الأقصى 100 عنصر',
-    added: 'نجح',
-    errors: 'فشل',
-    security:
-      'البيانات السرية مشفّرة على الخادم ولا تظهر في قائمة الإدارة.',
-    history:
-      'العناصر المحجوزة والمسلّمة لا يمكن حذفها أو تعديل حالتها.',
-    date: 'تاريخ الإضافة',
+    invalid: 'تحقق من البيانات المدخلة',
+    limit: 'الحد الأقصى 100 عنصر',
+    partial: 'تم حفظ بعض العناصر فقط. احتفظنا بالعناصر التي فشلت.',
+    serviceCount: 'باقة',
     status: 'الحالة',
-    actions: 'الإجراءات',
-    item: 'العنصر',
-    retry:
-      'احتفظنا بالعناصر التي لم تُحفظ لإعادة المحاولة.',
-    accountRetry:
-      'لم يتم حفظ الحساب. يمكنك تصحيح البيانات وإعادة المحاولة.',
-    all: 'الكل',
-    loadError: 'تعذر تحميل البيانات',
-    service: 'الخدمة',
-    stockItems: 'عناصر المخزون',
-    autoWarning:
-      'اختيار تلقائي لا يفعّل إرسال المنتجات حتى نكمل نظام التسليم.',
+    date: 'تاريخ الإضافة',
+    retry: 'إعادة المحاولة',
   },
   fr: {
     title: 'Gestion du stock',
-    subtitle: 'Gestion des comptes et codes par forfait',
+    subtitle: 'Services, forfaits et inventaire au même endroit',
+    services: 'Services',
+    packages: 'Forfaits',
+    inventory: 'Éléments du stock',
     search: 'Rechercher un service ou un forfait...',
     refresh: 'Actualiser',
+    allServices: 'Tous les services',
     available: 'Disponibles',
     reserved: 'Réservés',
     delivered: 'Livrés',
     disabled: 'Désactivés',
-    add: 'Ajouter',
-    manage: 'Gérer',
-    addTitle: 'Ajouter du stock',
-    manageTitle: 'Gestion des éléments',
+    add: 'Ajouter du stock',
+    manage: 'Gérer le stock',
+    back: 'Retour',
+    close: 'Fermer',
+    cancel: 'Annuler',
+    save: 'Enregistrer',
+    saving: 'Enregistrement...',
+    processing: 'Traitement...',
     type: 'Type de produit',
     mode: 'Mode de livraison',
-    manual: 'Manuelle',
-    automatic: 'Automatique',
-    manualHint: 'Vous livrez le produit manuellement.',
-    automaticHint:
-      'La livraison automatique nécessite les commandes et la validation du paiement.',
-    account: 'Compte',
+    account: 'Compte prêt',
     activation_code: "Code d'activation",
     gift_card: 'Carte cadeau',
-    link: 'Lien',
+    link: "Lien d'activation",
     other: 'Autre produit',
     email: 'Adresse e-mail',
     password: 'Mot de passe',
     show: 'Afficher',
     hide: 'Masquer',
-    values: 'Codes ou liens',
-    onePerLine: 'Un élément par ligne, maximum 100.',
-    save: 'Enregistrer',
-    saving: 'Enregistrement...',
-    cancel: 'Annuler',
-    close: 'Fermer',
-    loading: 'Chargement...',
-    empty: 'Aucun forfait trouvé',
+    manual: 'Manuelle',
+    automatic: 'Automatique',
+    manualHelp: "Livraison effectuée par l'administrateur",
+    automaticHelp: 'Nécessite un système de paiement et de livraison actif',
+    autoWarning: "Ce choix n'active pas la livraison sans intégration des commandes et paiements.",
+    lines: 'Un élément par ligne (maximum 100)',
+    noServices: 'Aucun service correspondant',
+    noPlans: 'Aucun forfait',
     noStock: 'Aucun élément dans ce forfait',
+    loading: 'Chargement...',
     delete: 'Supprimer',
     disable: 'Désactiver',
     enable: 'Réactiver',
-    deleting: 'Traitement...',
-    confirmDelete: 'Confirmer la suppression',
-    confirmDisable: 'Confirmer la désactivation',
-    confirmEnable: 'Confirmer la réactivation',
-    deleteWarning:
-      'Cet élément sera définitivement supprimé.',
-    disableWarning:
-      'Cet élément ne sera plus disponible à la vente.',
-    enableWarning:
-      "Cet élément redeviendra disponible.",
     confirm: 'Confirmer',
-    successAdd: 'Stock ajouté avec succès',
-    successAction: 'Opération réussie',
+    deleteWarning: 'Cet élément sera définitivement supprimé.',
+    disableWarning: 'Cet élément ne sera plus disponible à la vente.',
+    enableWarning: 'Cet élément redeviendra disponible à la vente.',
+    security: 'Les secrets sont chiffrés et ne sont pas affichés dans la gestion.',
+    protected: 'Les éléments réservés ou livrés sont protégés.',
+    success: 'Opération réussie',
     failed: "Échec de l'opération",
-    partial: 'Ajout partiellement terminé',
-    invalidAccount: 'Saisissez un e-mail et un mot de passe',
-    invalidLink: 'Lien invalide',
-    noItems: 'Saisissez les données du stock',
-    maxItems: 'Maximum 100 éléments',
-    added: 'Réussis',
-    errors: 'Échecs',
-    security:
-      'Les secrets sont chiffrés côté serveur et ne sont pas affichés.',
-    history:
-      'Les éléments réservés ou livrés ne peuvent pas être supprimés ou modifiés.',
-    date: "Date d'ajout",
+    invalid: 'Vérifiez les données saisies',
+    limit: 'Maximum 100 éléments',
+    partial: 'Enregistrement partiel. Les éléments échoués sont conservés.',
+    serviceCount: 'forfaits',
     status: 'Statut',
-    actions: 'Actions',
-    item: 'Élément',
-    retry:
-      'Les éléments non enregistrés ont été conservés.',
-    accountRetry:
-      'Le compte n’a pas été enregistré. Vous pouvez réessayer.',
-    all: 'Tous',
-    loadError: 'Chargement impossible',
-    service: 'Service',
-    stockItems: 'Éléments du stock',
-    autoWarning:
-      "La sélection automatique n'active pas encore la livraison.",
+    date: "Date d'ajout",
+    retry: 'Réessayer',
   },
 }
 
-function getLanguage(): Lang {
+function getLang(): Lang {
   if (typeof document === 'undefined') return 'fr'
-  return document.documentElement.lang
-    .toLowerCase()
-    .startsWith('ar')
+  return document.documentElement.lang.toLowerCase().startsWith('ar')
     ? 'ar'
     : 'fr'
 }
 
-function makePayload(
+function getError(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String(error.message)
+  }
+  return String(error)
+}
+
+function payloadFor(
   value: string,
   type: ItemType
 ): Record<string, string> {
   if (type === 'link') {
-    let url: URL
-    try {
-      url = new URL(value)
-    } catch {
-      throw new Error('INVALID_LINK')
-    }
+    const url = new URL(value)
 
     if (!['http:', 'https:'].includes(url.protocol)) {
-      throw new Error('INVALID_LINK')
+      throw new Error('Invalid URL protocol')
     }
 
     return { url: value }
   }
 
-  if (type === 'other') return { value }
+  if (type === 'other') {
+    return { value }
+  }
+
   return { code: value }
 }
 
-function errorMessage(error: unknown): string {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error
-  ) {
-    return String(error.message)
-  }
-
-  return String(error)
-}
+const buttonBase =
+  'rounded-xl px-4 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50'
 
 export default function AdminDigitalStockPage() {
-  const [language, setLanguage] = useState<Lang>(
-    getLanguage
-  )
+  const [lang, setLang] = useState<Lang>(getLang)
+  const t = i18n[lang]
+  const rtl = lang === 'ar'
+
   const [plans, setPlans] = useState<Plan[]>([])
-  const [counts, setCounts] = useState<StockCount[]>([])
-  const [query, setQuery] = useState('')
+  const [counts, setCounts] = useState<Count[]>([])
   const [loading, setLoading] = useState(true)
-  const [pageError, setPageError] = useState('')
-  const [notice, setNotice] = useState<Notice | null>(null)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
 
-  const [selectedPlan, setSelectedPlan] =
-    useState<Plan | null>(null)
-  const [panel, setPanel] =
-    useState<'add' | 'manage' | null>(null)
+  const [search, setSearch] = useState('')
+  const [service, setService] = useState<string | null>(null)
+  const [plan, setPlan] = useState<Plan | null>(null)
+  const [view, setView] = useState<'add' | 'manage' | null>(null)
 
-  const [itemType, setItemType] =
-    useState<ItemType>('account')
-  const [deliveryMode, setDeliveryMode] =
-    useState<DeliveryMode>('manual')
+  const [type, setType] = useState<ItemType>('account')
+  const [mode, setMode] = useState<DeliveryMode>('manual')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [rawItems, setRawItems] = useState('')
+  const [lines, setLines] = useState('')
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
-  const [formNotice, setFormNotice] =
-    useState<Notice | null>(null)
 
-  const [stockItems, setStockItems] =
-    useState<StockItem[]>([])
-  const [stockLoading, setStockLoading] = useState(false)
-  const [stockError, setStockError] = useState('')
-  const [statusFilter, setStatusFilter] =
-    useState<'all' | StockStatus>('all')
-
-  const [pendingAction, setPendingAction] =
-    useState<{
-      item: StockItem
-      action: Action
-    } | null>(null)
+  const [items, setItems] = useState<StockItem[]>([])
+  const [itemsLoading, setItemsLoading] = useState(false)
+  const [itemsError, setItemsError] = useState('')
+  const [filter, setFilter] = useState<'all' | StockStatus>('all')
+  const [pending, setPending] = useState<{ item: StockItem; action: Action } | null>(null)
   const [acting, setActing] = useState(false)
 
-  const t = messages[language]
-  const isArabic = language === 'ar'
-
   useEffect(() => {
-    const update = () => setLanguage(getLanguage())
-    const observer = new MutationObserver(update)
-
+    const observer = new MutationObserver(() => setLang(getLang()))
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['lang'],
     })
-
     return () => observer.disconnect()
   }, [])
 
   useEffect(() => {
-    if (!panel) return
-
-    const previous = document.body.style.overflow
+    if (!view) return
+    const old = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-
     return () => {
-      document.body.style.overflow = previous
+      document.body.style.overflow = old
     }
-  }, [panel])
+  }, [view])
 
   const refresh = useCallback(async () => {
     setLoading(true)
-    setPageError('')
-
+    setError('')
     try {
-      const [plansResult, countsResult] =
-        await Promise.all([
-          supabase
-            .from('digital_service_plans')
-            .select(`
-              id,
-              label,
-              plan_key,
-              digital_service_groups (
-                name,
-                digital_services (name)
-              )
-            `),
-          supabase.rpc('admin_digital_stock_summary'),
-        ])
-
-      if (plansResult.error) throw plansResult.error
-      if (countsResult.error) throw countsResult.error
-
-      setPlans(
-        (plansResult.data ?? []) as unknown as Plan[]
-      )
-      setCounts(
-        (countsResult.data ?? []) as StockCount[]
-      )
-    } catch (error) {
-      setPageError(errorMessage(error))
+      const [p, c] = await Promise.all([
+        supabase.from('digital_service_plans').select(`
+          id, label, plan_key,
+          digital_service_groups (
+            name,
+            digital_services (name)
+          )
+        `),
+        supabase.rpc('admin_digital_stock_summary'),
+      ])
+      if (p.error) throw p.error
+      if (c.error) throw c.error
+      setPlans((p.data ?? []) as unknown as Plan[])
+      setCounts((c.data ?? []) as Count[])
+    } catch (e) {
+      setError(getError(e))
     } finally {
       setLoading(false)
     }
@@ -382,600 +289,511 @@ export default function AdminDigitalStockPage() {
     void refresh()
   }, [refresh])
 
-  const loadStock = useCallback(async (planId: string) => {
-    setStockLoading(true)
-    setStockError('')
-
-    try {
-      const { data, error } = await supabase.rpc(
-        'admin_list_digital_stock',
-        { p_plan_id: planId }
-      )
-
-      if (error) throw error
-
-      setStockItems((data ?? []) as StockItem[])
-    } catch (error) {
-      setStockItems([])
-      setStockError(errorMessage(error))
-    } finally {
-      setStockLoading(false)
-    }
-  }, [])
-
-  const countsByPlan = useMemo(
+  const byPlan = useMemo(
     () => new Map(counts.map(c => [c.plan_id, c])),
     [counts]
   )
 
   const totals = useMemo(
-    () =>
-      counts.reduce(
-        (acc, item) => ({
-          available:
-            acc.available + Number(item.available_count),
-          reserved:
-            acc.reserved + Number(item.reserved_count),
-          delivered:
-            acc.delivered + Number(item.delivered_count),
-          disabled:
-            acc.disabled + Number(item.disabled_count),
-        }),
-        {
-          available: 0,
-          reserved: 0,
-          delivered: 0,
-          disabled: 0,
-        }
-      ),
+    () => counts.reduce(
+      (a, c) => ({
+        available: a.available + Number(c.available_count),
+        reserved: a.reserved + Number(c.reserved_count),
+        delivered: a.delivered + Number(c.delivered_count),
+        disabled: a.disabled + Number(c.disabled_count),
+      }),
+      { available: 0, reserved: 0, delivered: 0, disabled: 0 }
+    ),
     [counts]
   )
 
-  const filteredPlans = useMemo(() => {
-    const search = query.trim().toLowerCase()
-
-    return plans.filter(plan =>
-      [
-        plan.label,
-        plan.plan_key,
-        plan.digital_service_groups?.name,
-        plan.digital_service_groups
-          ?.digital_services?.name,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-        .includes(search)
+  const groups = useMemo<ServiceGroup[]>(() => {
+    const map = new Map<string, ServiceGroup>()
+    for (const p of plans) {
+      const name =
+        p.digital_service_groups?.digital_services?.name ||
+        p.digital_service_groups?.name ||
+        'Autres'
+      const existing = map.get(name) ?? { name, plans: [], available: 0 }
+      existing.plans.push(p)
+      existing.available += Number(byPlan.get(p.id)?.available_count ?? 0)
+      map.set(name, existing)
+    }
+    return [...map.values()].sort((a, b) =>
+      a.name.localeCompare(b.name)
     )
-  }, [plans, query])
+  }, [plans, byPlan])
 
-  const visibleStock = useMemo(
-    () =>
-      stockItems.filter(
-        item =>
-          statusFilter === 'all' ||
-          item.status === statusFilter
-      ),
-    [stockItems, statusFilter]
+  const selectedGroup = groups.find(g => g.name === service)
+
+  const searchValue = search.trim().toLowerCase()
+
+  const shownGroups = groups.filter(g =>
+    [g.name, ...g.plans.map(p => p.label)]
+      .join(' ')
+      .toLowerCase()
+      .includes(searchValue)
   )
 
-  const openAdd = (plan: Plan) => {
-    setSelectedPlan(plan)
-    setPanel('add')
-    setItemType('account')
-    setDeliveryMode('manual')
+  const shownPlans = selectedGroup?.plans.filter(p =>
+    !searchValue ||
+    [p.label, p.plan_key, selectedGroup.name]
+      .join(' ')
+      .toLowerCase()
+      .includes(searchValue)
+  ) ?? []
+
+  const loadItems = useCallback(async (planId: string) => {
+    setItemsLoading(true)
+    setItemsError('')
+    try {
+      const { data, error: rpcError } = await supabase.rpc(
+        'admin_list_digital_stock',
+        { p_plan_id: planId }
+      )
+      if (rpcError) throw rpcError
+      setItems((data ?? []) as StockItem[])
+    } catch (e) {
+      setItems([])
+      setItemsError(getError(e))
+    } finally {
+      setItemsLoading(false)
+    }
+  }, [])
+
+  const openAdd = (p: Plan) => {
+    setPlan(p)
+    setView('add')
+    setType('account')
+    setMode('manual')
     setEmail('')
     setPassword('')
     setShowPassword(false)
-    setRawItems('')
+    setLines('')
     setFormError('')
-    setFormNotice(null)
-    setNotice(null)
+    setNotice('')
   }
 
-  const openManage = (plan: Plan) => {
-    setSelectedPlan(plan)
-    setPanel('manage')
-    setStatusFilter('all')
-    setStockItems([])
-    setStockError('')
-    setNotice(null)
-    void loadStock(plan.id)
+  const openManage = (p: Plan) => {
+    setPlan(p)
+    setView('manage')
+    setItems([])
+    setItemsError('')
+    setFilter('all')
+    void loadItems(p.id)
   }
 
-  const closePanel = () => {
+  const close = () => {
     if (saving || acting) return
-
-    setPanel(null)
-    setSelectedPlan(null)
-    setPendingAction(null)
+    setView(null)
+    setPlan(null)
+    setPending(null)
     setEmail('')
     setPassword('')
-    setRawItems('')
+    setLines('')
     setFormError('')
-    setFormNotice(null)
   }
 
-  const saveStock = async () => {
-    if (!selectedPlan || saving) return
-
+  const save = async () => {
+    if (!plan || saving) return
     setFormError('')
-    setFormNotice(null)
 
-    let payloads: Record<string, string>[] = []
     let originals: string[] = []
+    let payloads: Record<string, string>[] = []
 
-    if (itemType === 'account') {
-      if (!email.trim() || !password) {
-        setFormError(t.invalidAccount)
-        return
+    try {
+      if (type === 'account') {
+        if (!email.trim() || !password) throw new Error(t.invalid)
+        payloads = [{ email: email.trim(), password }]
+      } else {
+        originals = lines.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
+        if (!originals.length) throw new Error(t.invalid)
+        if (originals.length > 100) throw new Error(t.limit)
+        payloads = originals.map(value => payloadFor(value, type))
       }
-
-      payloads = [{
-        email: email.trim(),
-        password,
-      }]
-    } else {
-      originals = rawItems
-        .split(/\r?\n/)
-        .map(item => item.trim())
-        .filter(Boolean)
-
-      if (!originals.length) {
-        setFormError(t.noItems)
-        return
-      }
-
-      if (originals.length > 100) {
-        setFormError(t.maxItems)
-        return
-      }
-
-      try {
-        payloads = originals.map(item =>
-          makePayload(item, itemType)
-        )
-      } catch {
-        setFormError(t.invalidLink)
-        return
-      }
+    } catch (e) {
+      setFormError(getError(e))
+      return
     }
 
     setSaving(true)
-    let added = 0
-    const failedItems: string[] = []
+    let success = 0
+    const failed: string[] = []
     const errors: string[] = []
 
     try {
       for (let i = 0; i < payloads.length; i++) {
         try {
-          const { error } = await supabase.rpc(
+          const { error: rpcError } = await supabase.rpc(
             'admin_add_digital_stock',
             {
-              p_plan_id: selectedPlan.id,
-              p_item_type: itemType,
+              p_plan_id: plan.id,
+              p_item_type: type,
               p_secret_payload: payloads[i],
-              p_delivery_mode: deliveryMode,
+              p_delivery_mode: mode,
             }
           )
-
-          if (error) throw error
-          added++
-        } catch (error) {
-          failedItems.push(originals[i] ?? '')
-          if (errors.length < 2) {
-            errors.push(errorMessage(error))
-          }
-        }
-      }
-
-      if (!failedItems.length) {
-        setNotice({
-          kind: 'success',
-          message: `${t.successAdd} (${added})`,
-        })
-        closePanelAfterSave()
-      } else {
-        setFormNotice({
-          kind: added ? 'warning' : 'error',
-          message:
-            `${added ? t.partial : t.failed}: ` +
-            `${t.added} ${added}, ` +
-            `${t.errors} ${failedItems.length}`,
-        })
-
-        setFormError(errors.join(' | '))
-
-        if (itemType !== 'account') {
-          setRawItems(failedItems.join('\n'))
+          if (rpcError) throw rpcError
+          success++
+        } catch (e) {
+          failed.push(originals[i] ?? '')
+          if (errors.length < 2) errors.push(getError(e))
         }
       }
 
       await refresh()
+
+      if (!failed.length) {
+        setNotice(`${t.success} (${success})`)
+        setView(null)
+        setPlan(null)
+        setEmail('')
+        setPassword('')
+        setLines('')
+      } else {
+        setFormError(
+          `${success ? t.partial : t.failed} — ${success}/${payloads.length}. ` +
+          errors.join(' | ')
+        )
+        if (type !== 'account') setLines(failed.join('\n'))
+      }
+    } catch (e) {
+      setFormError(getError(e))
     } finally {
       setSaving(false)
     }
   }
 
-  const closePanelAfterSave = () => {
-    setPanel(null)
-    setSelectedPlan(null)
-    setEmail('')
-    setPassword('')
-    setRawItems('')
-    setFormError('')
-    setFormNotice(null)
-  }
-
-  const performAction = async () => {
-    if (!pendingAction || !selectedPlan || acting) {
-      return
-    }
-
+  const perform = async () => {
+    if (!pending || !plan || acting) return
     setActing(true)
-    setStockError('')
+    setItemsError('')
 
     try {
-      const { error } = await supabase.rpc(
+      const { error: rpcError } = await supabase.rpc(
         'admin_manage_digital_stock',
         {
-          p_item_id: pendingAction.item.id,
-          p_action: pendingAction.action,
+          p_item_id: pending.item.id,
+          p_action: pending.action,
         }
       )
+      if (rpcError) throw rpcError
 
-      if (error) throw error
+      setPending(null)
+      setNotice(t.success)
 
-      setPendingAction(null)
-
-      setNotice({
-        kind: 'success',
-        message: t.successAction,
-      })
-
-      await Promise.all([
-        loadStock(selectedPlan.id),
-        refresh(),
-      ])
-    } catch (error) {
-      setStockError(errorMessage(error))
+      await Promise.all([loadItems(plan.id), refresh()])
+    } catch (e) {
+      setItemsError(getError(e))
     } finally {
       setActing(false)
     }
   }
 
-  const statCards = [
-    {
-      label: t.available,
-      value: totals.available,
-      bg: 'bg-emerald-50',
-      color: 'text-emerald-700',
-    },
-    {
-      label: t.reserved,
-      value: totals.reserved,
-      bg: 'bg-amber-50',
-      color: 'text-amber-700',
-    },
-    {
-      label: t.delivered,
-      value: totals.delivered,
-      bg: 'bg-blue-50',
-      color: 'text-blue-700',
-    },
-    {
-      label: t.disabled,
-      value: totals.disabled,
-      bg: 'bg-slate-100',
-      color: 'text-slate-700',
-    },
-  ]
+  const visibleItems = items.filter(
+    item => filter === 'all' || item.status === filter
+  )
+
+  const statusColor = (status: StockStatus) => ({
+    available: 'bg-emerald-50 text-emerald-700',
+    reserved: 'bg-amber-50 text-amber-700',
+    delivered: 'bg-blue-50 text-blue-700',
+    disabled: 'bg-slate-100 text-slate-600',
+  }[status])
 
   return (
-    <main
-      dir={isArabic ? 'rtl' : 'ltr'}
-      className="space-y-6 pb-12"
-    >
+    <main dir={rtl ? 'rtl' : 'ltr'} className="space-y-5 pb-12">
       <header className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-black tracking-widest text-blue-600">
               TEO STORE / ADMIN
             </p>
-
-            <h1 className="mt-2 text-2xl font-black text-slate-950 sm:text-3xl">
+            <h1 className="mt-2 text-2xl font-black text-slate-950">
               {t.title}
             </h1>
-
-            <p className="mt-2 text-sm text-slate-500">
-              {t.subtitle}
-            </p>
+            <p className="mt-1 text-sm text-slate-500">{t.subtitle}</p>
           </div>
-
           <button
             type="button"
-            disabled={loading}
             onClick={() => void refresh()}
-            className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 disabled:opacity-50"
+            disabled={loading}
+            className={`${buttonBase} border border-slate-200 text-slate-700`}
           >
             ↻ {t.refresh}
           </button>
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {statCards.map(stat => (
-            <div
-              key={stat.label}
-              className={`rounded-2xl ${stat.bg} p-4`}
-            >
-              <p className="text-xs font-bold text-slate-500">
-                {stat.label}
-              </p>
-
-              <p
-                className={`mt-2 text-3xl font-black ${stat.color}`}
-              >
-                {stat.value}
-              </p>
+          {([
+            ['available', 'bg-emerald-50 text-emerald-700'],
+            ['reserved', 'bg-amber-50 text-amber-700'],
+            ['delivered', 'bg-blue-50 text-blue-700'],
+            ['disabled', 'bg-slate-100 text-slate-700'],
+          ] as const).map(([key, color]) => (
+            <div key={key} className={`rounded-2xl p-4 ${color}`}>
+              <p className="text-xs font-bold opacity-75">{t[key]}</p>
+              <p className="mt-2 text-3xl font-black">{totals[key]}</p>
             </div>
           ))}
         </div>
       </header>
 
-      {pageError && (
-        <div
-          role="alert"
-          className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"
-        >
-          {pageError}
+      {error && (
+        <div role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">
+          {error}
         </div>
       )}
-
       {notice && (
-        <div
-          role="status"
-          className={`rounded-xl border p-4 text-sm font-bold ${
-            notice.kind === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-              : 'border-rose-200 bg-rose-50 text-rose-800'
-          }`}
-        >
-          {notice.message}
+        <div role="status" className="rounded-xl bg-emerald-50 p-4 text-sm font-bold text-emerald-700">
+          ✓ {notice}
         </div>
       )}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <button
+            type="button"
+            onClick={() => setService(null)}
+            className={`rounded-lg px-3 py-2 font-bold ${
+              service === null
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-100 text-slate-600'
+            }`}
+          >
+            {t.services}
+          </button>
+          {service && (
+            <>
+              <span className="text-slate-400">/</span>
+              <span className="font-bold text-slate-900">{service}</span>
+            </>
+          )}
+        </div>
+
         <input
-          value={query}
-          onChange={event => setQuery(event.target.value)}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
           placeholder={t.search}
           aria-label={t.search}
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500"
+          className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500"
         />
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {loading ? (
-          <p className="text-sm text-slate-500">
-            {t.loading}
-          </p>
-        ) : filteredPlans.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            {t.empty}
-          </p>
-        ) : (
-          filteredPlans.map(plan => {
-            const count = countsByPlan.get(plan.id)
-
-            const service =
-              plan.digital_service_groups
-                ?.digital_services?.name ?? ''
-
-            const group =
-              plan.digital_service_groups?.name ?? ''
-
-            return (
-              <article
-                key={plan.id}
-                className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:shadow-md"
-              >
-                <p className="text-xs font-bold text-blue-600">
-                  {[service, group]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </p>
-
-                <h2 className="mt-2 text-lg font-black text-slate-950">
-                  {plan.label}
-                </h2>
-
-                <div className="mt-5 grid grid-cols-2 gap-2">
-                  {[
-                    {
-                      label: t.available,
-                      value: count?.available_count ?? 0,
-                      color: 'text-emerald-700',
-                    },
-                    {
-                      label: t.reserved,
-                      value: count?.reserved_count ?? 0,
-                      color: 'text-amber-700',
-                    },
-                    {
-                      label: t.delivered,
-                      value: count?.delivered_count ?? 0,
-                      color: 'text-blue-700',
-                    },
-                    {
-                      label: t.disabled,
-                      value: count?.disabled_count ?? 0,
-                      color: 'text-slate-700',
-                    },
-                  ].map(item => (
-                    <div
-                      key={item.label}
-                      className="rounded-xl bg-slate-50 p-3"
-                    >
-                      <p className={`text-xl font-black ${item.color}`}>
-                        {item.value}
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-500">
-                        {item.label}
+      {loading ? (
+        <p className="text-sm text-slate-500">{t.loading}</p>
+      ) : !service ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-black text-slate-900">{t.services}</h2>
+          {shownGroups.length === 0 ? (
+            <p className="text-sm text-slate-500">{t.noServices}</p>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {shownGroups.map(group => (
+                <button
+                  key={group.name}
+                  type="button"
+                  onClick={() => {
+                    setService(group.name)
+                    setSearch('')
+                  }}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 text-start shadow-sm transition hover:border-blue-400 hover:shadow-md"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-2xl">
+                      ◈
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="truncate font-black text-slate-900">
+                        {group.name}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        {group.plans.length} {t.serviceCount}
                       </p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-3">
+                    <span className="text-xs font-bold text-emerald-700">
+                      {t.available}
+                    </span>
+                    <span className="text-xl font-black text-emerald-700">
+                      {group.available}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : (
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <button
+                type="button"
+                onClick={() => {
+                  setService(null)
+                  setSearch('')
+                }}
+                className="mb-2 text-sm font-bold text-blue-600"
+              >
+                ← {t.back}
+              </button>
+              <h2 className="text-xl font-black text-slate-900">
+                {service}
+              </h2>
+              <p className="text-xs text-slate-500">{t.packages}</p>
+            </div>
+          </div>
 
-                <div className="mt-5 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openAdd(plan)}
-                    className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700"
+          {shownPlans.length === 0 ? (
+            <p className="text-sm text-slate-500">{t.noPlans}</p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {shownPlans.map(p => {
+                const c = byPlan.get(p.id)
+                return (
+                  <article
+                    key={p.id}
+                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
                   >
-                    + {t.add}
-                  </button>
+                    <h3 className="text-lg font-black text-slate-900">
+                      {p.label}
+                    </h3>
 
-                  <button
-                    type="button"
-                    onClick={() => openManage(plan)}
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
-                  >
-                    ⚙ {t.manage}
-                  </button>
-                </div>
-              </article>
-            )
-          })
-        )}
-      </section>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      {([
+                        ['available', c?.available_count ?? 0],
+                        ['reserved', c?.reserved_count ?? 0],
+                        ['delivered', c?.delivered_count ?? 0],
+                        ['disabled', c?.disabled_count ?? 0],
+                      ] as const).map(([key, value]) => (
+                        <div key={key} className="rounded-xl bg-slate-50 p-3">
+                          <p className="text-xl font-black text-slate-900">
+                            {value}
+                          </p>
+                          <p className="text-xs text-slate-500">{t[key]}</p>
+                        </div>
+                      ))}
+                    </div>
 
-      {panel && selectedPlan && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"
-          role="presentation"
-        >
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openAdd(p)}
+                        className={`${buttonBase} bg-blue-600 text-white hover:bg-blue-700`}
+                      >
+                        + {t.add}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openManage(p)}
+                        className={`${buttonBase} border border-slate-200 text-slate-700 hover:bg-slate-50`}
+                      >
+                        ⚙ {t.manage}
+                      </button>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {view && plan && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 p-3 sm:p-6">
           <section
             role="dialog"
             aria-modal="true"
             aria-labelledby="stock-dialog-title"
-            dir={isArabic ? 'rtl' : 'ltr'}
+            dir={rtl ? 'rtl' : 'ltr'}
             className="flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
           >
-            <header className="flex items-start justify-between gap-4 border-b border-slate-100 p-5 sm:p-6">
+            <header className="flex items-start justify-between gap-3 border-b border-slate-100 p-5">
               <div>
                 <p className="text-xs font-bold text-blue-600">
                   TEO STORE / STOCK
                 </p>
-
-                <h2
-                  id="stock-dialog-title"
-                  className="mt-1 text-xl font-black text-slate-950"
-                >
-                  {panel === 'add'
-                    ? t.addTitle
-                    : t.manageTitle}
+                <h2 id="stock-dialog-title" className="mt-1 text-xl font-black">
+                  {view === 'add' ? t.add : t.manage}
                 </h2>
-
-                <p className="mt-2 text-sm text-slate-500">
-                  {selectedPlan.label}
-                </p>
+                <p className="mt-1 text-sm text-slate-500">{plan.label}</p>
               </div>
-
               <button
                 type="button"
+                onClick={close}
                 disabled={saving || acting}
-                onClick={closePanel}
                 aria-label={t.close}
-                className="rounded-xl bg-slate-100 px-3 py-2 font-bold text-slate-700 disabled:opacity-50"
+                className="rounded-xl bg-slate-100 px-3 py-2 font-bold disabled:opacity-50"
               >
                 ✕
               </button>
             </header>
 
-            <div className="space-y-6 overflow-y-auto p-5 sm:p-6">
-              {panel === 'add' ? (
+            <div className="space-y-5 overflow-y-auto p-5">
+              {view === 'add' ? (
                 <>
                   <div>
-                    <h3 className="mb-3 text-sm font-black text-slate-900">
-                      01 · {t.type}
-                    </h3>
-
+                    <h3 className="mb-3 text-sm font-black">01 · {t.type}</h3>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      {itemTypes.map(type => (
+                      {itemTypes.map(option => (
                         <button
-                          key={type}
+                          key={option}
                           type="button"
                           disabled={saving}
                           onClick={() => {
-                            setItemType(type)
+                            setType(option)
                             setEmail('')
                             setPassword('')
-                            setRawItems('')
+                            setLines('')
                             setFormError('')
-                            setFormNotice(null)
                           }}
                           className={`rounded-xl border p-3 text-sm font-bold ${
-                            itemType === type
+                            type === option
                               ? 'border-blue-600 bg-blue-50 text-blue-700'
                               : 'border-slate-200 text-slate-600'
                           }`}
                         >
-                          {t[type]}
+                          {t[option]}
                         </button>
                       ))}
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="mb-3 text-sm font-black text-slate-900">
-                      02 · {t.stockItems}
-                    </h3>
-
-                    {itemType === 'account' ? (
-                      <div className="space-y-4">
-                        <label className="block text-sm font-bold text-slate-700">
+                    <h3 className="mb-3 text-sm font-black">02 · {t.inventory}</h3>
+                    {type === 'account' ? (
+                      <div className="space-y-3">
+                        <label className="block text-sm font-bold">
                           {t.email}
                           <input
-                            dir="ltr"
                             type="email"
+                            dir="ltr"
                             autoComplete="off"
                             value={email}
                             disabled={saving}
-                            onChange={event =>
-                              setEmail(event.target.value)
-                            }
-                            placeholder="email@example.com"
-                            className="mt-2 w-full rounded-xl border border-slate-200 p-3 font-mono text-sm outline-none focus:border-blue-500"
+                            onChange={e => setEmail(e.target.value)}
+                            className="mt-2 w-full rounded-xl border border-slate-200 p-3 font-mono text-sm"
                           />
                         </label>
-
-                        <label className="block text-sm font-bold text-slate-700">
+                        <label className="block text-sm font-bold">
                           {t.password}
                           <div className="mt-2 flex gap-2">
                             <input
+                              type={showPassword ? 'text' : 'password'}
                               dir="ltr"
-                              type={
-                                showPassword
-                                  ? 'text'
-                                  : 'password'
-                              }
                               autoComplete="off"
                               spellCheck={false}
                               value={password}
                               disabled={saving}
-                              onChange={event =>
-                                setPassword(event.target.value)
-                              }
-                              className="min-w-0 flex-1 rounded-xl border border-slate-200 p-3 font-mono text-sm outline-none focus:border-blue-500"
+                              onChange={e => setPassword(e.target.value)}
+                              className="min-w-0 flex-1 rounded-xl border border-slate-200 p-3 font-mono text-sm"
                             />
-
                             <button
                               type="button"
-                              onClick={() =>
-                                setShowPassword(value => !value)
-                              }
-                              className="rounded-xl border border-slate-200 px-4 text-sm font-bold"
+                              onClick={() => setShowPassword(v => !v)}
+                              className="rounded-xl border border-slate-200 px-4 text-xs font-bold"
                             >
                               {showPassword ? t.hide : t.show}
                             </button>
@@ -989,222 +807,136 @@ export default function AdminDigitalStockPage() {
                           rows={6}
                           autoComplete="off"
                           spellCheck={false}
-                          value={rawItems}
+                          value={lines}
                           disabled={saving}
-                          onChange={event =>
-                            setRawItems(event.target.value)
-                          }
+                          onChange={e => setLines(e.target.value)}
                           placeholder={
-                            itemType === 'link'
+                            type === 'link'
                               ? 'https://example.com/activate'
-                              : 'CODE-001\nCODE-002\nCODE-003'
+                              : 'CODE-001\nCODE-002'
                           }
-                          className="w-full rounded-xl border border-slate-200 p-3 font-mono text-sm outline-none focus:border-blue-500"
+                          className="w-full rounded-xl border border-slate-200 p-3 font-mono text-sm"
                         />
-
-                        <p className="mt-2 text-xs text-slate-500">
-                          {t.onePerLine}
-                        </p>
+                        <p className="mt-2 text-xs text-slate-500">{t.lines}</p>
                       </div>
                     )}
                   </div>
 
                   <div>
-                    <h3 className="mb-3 text-sm font-black text-slate-900">
-                      03 · {t.mode}
-                    </h3>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {(
-                        ['manual', 'automatic'] as DeliveryMode[]
-                      ).map(mode => (
+                    <h3 className="mb-3 text-sm font-black">03 · {t.mode}</h3>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {(['manual', 'automatic'] as DeliveryMode[]).map(m => (
                         <button
-                          key={mode}
+                          key={m}
                           type="button"
                           disabled={saving}
-                          aria-pressed={deliveryMode === mode}
-                          onClick={() => setDeliveryMode(mode)}
-                          className={`rounded-2xl border-2 p-4 text-start ${
-                            deliveryMode === mode
+                          onClick={() => setMode(m)}
+                          aria-pressed={mode === m}
+                          className={`rounded-xl border-2 p-4 text-start ${
+                            mode === m
                               ? 'border-blue-600 bg-blue-50'
-                              : 'border-slate-200 bg-white'
+                              : 'border-slate-200'
                           }`}
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="font-black">
-                              {mode === 'manual'
-                                ? '✋'
-                                : '⚡'}{' '}
-                              {t[mode]}
-                            </span>
-
-                            <span>
-                              {deliveryMode === mode ? '✓' : '○'}
-                            </span>
-                          </div>
-
+                          <p className="font-black">
+                            {m === 'manual' ? '✋' : '⚡'} {t[m]}
+                            {mode === m ? ' ✓' : ''}
+                          </p>
                           <p className="mt-2 text-xs leading-5 text-slate-500">
-                            {mode === 'manual'
-                              ? t.manualHint
-                              : t.automaticHint}
+                            {m === 'manual' ? t.manualHelp : t.automaticHelp}
                           </p>
                         </button>
                       ))}
                     </div>
-
-                    {deliveryMode === 'automatic' && (
-                      <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                    {mode === 'automatic' && (
+                      <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
                         {t.autoWarning}
                       </p>
                     )}
                   </div>
 
-                  {formNotice && (
-                    <div
-                      role="status"
-                      className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"
-                    >
-                      {formNotice.message}
-                    </div>
-                  )}
-
                   {formError && (
-                    <div
-                      role="alert"
-                      className="break-words rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
-                    >
+                    <p role="alert" className="break-words rounded-xl bg-rose-50 p-3 text-sm text-rose-700">
                       {formError}
-                    </div>
+                    </p>
                   )}
-
-                  <p className="rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-600">
+                  <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
                     🔒 {t.security}
                   </p>
                 </>
               ) : (
                 <>
                   <div className="flex flex-wrap gap-2">
-                    {(
-                      [
-                        'all',
-                        'available',
-                        'reserved',
-                        'delivered',
-                        'disabled',
-                      ] as const
-                    ).map(status => (
+                    {(['all', 'available', 'reserved', 'delivered', 'disabled'] as const).map(s => (
                       <button
-                        key={status}
+                        key={s}
                         type="button"
-                        onClick={() => setStatusFilter(status)}
+                        onClick={() => setFilter(s)}
                         className={`rounded-xl px-3 py-2 text-xs font-bold ${
-                          statusFilter === status
+                          filter === s
                             ? 'bg-blue-600 text-white'
                             : 'bg-slate-100 text-slate-600'
                         }`}
                       >
-                        {t[status]}
+                        {s === 'all' ? t.allServices : t[s]}
                       </button>
                     ))}
                   </div>
 
-                  {stockError && (
-                    <div
-                      role="alert"
-                      className="break-words rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
-                    >
-                      {stockError}
-                    </div>
+                  {itemsError && (
+                    <p role="alert" className="break-words rounded-xl bg-rose-50 p-3 text-sm text-rose-700">
+                      {itemsError}
+                    </p>
                   )}
 
-                  {stockLoading ? (
-                    <p className="text-sm text-slate-500">
-                      {t.loading}
-                    </p>
-                  ) : visibleStock.length === 0 ? (
-                    <div className="rounded-2xl bg-slate-50 p-8 text-center text-sm text-slate-500">
+                  {itemsLoading ? (
+                    <p className="text-sm text-slate-500">{t.loading}</p>
+                  ) : visibleItems.length === 0 ? (
+                    <p className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">
                       {t.noStock}
-                    </div>
+                    </p>
                   ) : (
                     <div className="space-y-3">
-                      {visibleStock.map((item, index) => (
-                        <article
-                          key={item.id}
-                          className="rounded-2xl border border-slate-200 p-4"
-                        >
+                      {visibleItems.map((item, index) => (
+                        <article key={item.id} className="rounded-2xl border border-slate-200 p-4">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="text-sm font-black text-slate-900">
-                                {t[item.item_type]} #{index + 1}
+                              <p className="font-black">
+                                {i18n[lang][item.item_type]} #{index + 1}
                               </p>
-
                               <p className="mt-1 font-mono text-xs text-slate-400">
                                 {item.id.slice(0, 8)}
                               </p>
                             </div>
-
-                            <span
-                              className={`rounded-full px-3 py-1 text-xs font-bold ${
-                                item.status === 'available'
-                                  ? 'bg-emerald-50 text-emerald-700'
-                                  : item.status === 'reserved'
-                                  ? 'bg-amber-50 text-amber-700'
-                                  : item.status === 'delivered'
-                                  ? 'bg-blue-50 text-blue-700'
-                                  : 'bg-slate-100 text-slate-600'
-                              }`}
-                            >
+                            <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusColor(item.status)}`}>
                               {t[item.status]}
                             </span>
                           </div>
+                          <p className="mt-3 text-xs text-slate-500">
+                        {i18n[lang][item.item_type]} #{index + 1}
+                            {new Date(item.created_at).toLocaleDateString(
+                              rtl ? 'ar-MR' : 'fr-FR'
+                            )}
+                          </p>
 
-                          <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
-                            <span>
-                              {t.mode}: {t[item.delivery_mode]}
-                            </span>
-
-                            <span>
-                              {t.date}:{' '}
-                              {new Date(
-                                item.created_at
-                              ).toLocaleDateString(
-                                isArabic ? 'ar-MR' : 'fr-FR'
-                              )}
-                            </span>
-                          </div>
-
-                          {(item.status === 'available' ||
-                            item.status === 'disabled') && (
+                          {(item.status === 'available' || item.status === 'disabled') && (
                             <div className="mt-4 flex flex-wrap gap-2">
                               <button
                                 type="button"
                                 disabled={acting}
-                                onClick={() =>
-                                  setPendingAction({
-                                    item,
-                                    action:
-                                      item.status === 'available'
-                                        ? 'disable'
-                                        : 'enable',
-                                  })
-                                }
-                                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 disabled:opacity-50"
+                                onClick={() => setPending({
+                                  item,
+                                  action: item.status === 'available' ? 'disable' : 'enable',
+                                })}
+                                className={`${buttonBase} border border-slate-200 text-slate-700`}
                               >
-                                {item.status === 'available'
-                                  ? t.disable
-                                  : t.enable}
+                                {item.status === 'available' ? t.disable : t.enable}
                               </button>
-
                               <button
                                 type="button"
                                 disabled={acting}
-                                onClick={() =>
-                                  setPendingAction({
-                                    item,
-                                    action: 'delete',
-                                  })
-                                }
-                                className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 disabled:opacity-50"
+                                onClick={() => setPending({ item, action: 'delete' })}
+                                className={`${buttonBase} bg-rose-50 text-rose-700`}
                               >
                                 {t.delete}
                               </button>
@@ -1214,31 +946,29 @@ export default function AdminDigitalStockPage() {
                       ))}
                     </div>
                   )}
-
-                  <p className="rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-600">
-                    🔒 {t.history}
+                  <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
+                    🔒 {t.protected}
                   </p>
                 </>
               )}
             </div>
 
-            <footer className="flex gap-3 border-t border-slate-100 bg-white p-5">
-              {panel === 'add' && (
+            <footer className="flex gap-3 border-t border-slate-100 p-5">
+              {view === 'add' && (
                 <button
                   type="button"
                   disabled={saving}
-                  onClick={() => void saveStock()}
-                  className="flex-1 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
+                  onClick={() => void save()}
+                  className={`${buttonBase} flex-1 bg-blue-600 text-white`}
                 >
                   {saving ? t.saving : t.save}
                 </button>
               )}
-
               <button
                 type="button"
                 disabled={saving || acting}
-                onClick={closePanel}
-                className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 disabled:opacity-50"
+                onClick={close}
+                className={`${buttonBase} border border-slate-200 text-slate-700`}
               >
                 {t.close}
               </button>
@@ -1247,53 +977,41 @@ export default function AdminDigitalStockPage() {
         </div>
       )}
 
-      {pendingAction && (
+      {pending && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/70 p-4">
           <section
             role="alertdialog"
             aria-modal="true"
-            aria-labelledby="stock-confirm-title"
-            dir={isArabic ? 'rtl' : 'ltr'}
+            aria-labelledby="confirm-stock-title"
+            dir={rtl ? 'rtl' : 'ltr'}
             className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"
           >
-            <h2
-              id="stock-confirm-title"
-              className="text-xl font-black text-slate-950"
-            >
-              {pendingAction.action === 'delete'
-                ? t.confirmDelete
-                : pendingAction.action === 'disable'
-                ? t.confirmDisable
-                : t.confirmEnable}
+            <h2 id="confirm-stock-title" className="text-xl font-black">
+              {t.confirm}
             </h2>
-
             <p className="mt-3 text-sm leading-7 text-slate-600">
-              {pendingAction.action === 'delete'
+              {pending.action === 'delete'
                 ? t.deleteWarning
-                : pendingAction.action === 'disable'
+                : pending.action === 'disable'
                 ? t.disableWarning
                 : t.enableWarning}
             </p>
-
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
                 disabled={acting}
-                onClick={() => void performAction()}
-                className={`flex-1 rounded-xl px-4 py-3 text-sm font-bold text-white disabled:opacity-50 ${
-                  pendingAction.action === 'delete'
-                    ? 'bg-rose-600'
-                    : 'bg-blue-600'
+                onClick={() => void perform()}
+                className={`${buttonBase} flex-1 text-white ${
+                  pending.action === 'delete' ? 'bg-rose-600' : 'bg-blue-600'
                 }`}
               >
-                {acting ? t.deleting : t.confirm}
+                {acting ? t.processing : t.confirm}
               </button>
-
               <button
                 type="button"
                 disabled={acting}
-                onClick={() => setPendingAction(null)}
-                className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 disabled:opacity-50"
+                onClick={() => setPending(null)}
+                className={`${buttonBase} border border-slate-200 text-slate-700`}
               >
                 {t.cancel}
               </button>
