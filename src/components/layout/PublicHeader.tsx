@@ -62,6 +62,20 @@ function PublicHeader() {
   const isArabic =
     language === 'ar'
 
+  const [storeLogoUrl, setStoreLogoUrl] = useState('/teo-logo.jpg')
+
+  useEffect(() => {
+    let active = true
+    void supabase.from('app_settings').select('setting_value').eq('setting_key', 'store').maybeSingle().then(({ data }) => {
+      const value = data?.setting_value
+      if (active && value && typeof value === 'object' && !Array.isArray(value)) {
+        const url = (value as Record<string, unknown>).logoUrl
+        if (typeof url === 'string' && (url.startsWith('/') || url.startsWith('https://'))) setStoreLogoUrl(url)
+      }
+    })
+    return () => { active = false }
+  }, [])
+
   const accountMenuRef =
     useRef<HTMLDivElement | null>(
       null,
@@ -1658,9 +1672,7 @@ function PublicHeader() {
                 }}
                 className="flex items-center gap-3"
               >
-                <div className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 font-black text-white">
-                  T
-                </div>
+                <img src={storeLogoUrl} alt="TEO STORE" className="h-11 w-11 rounded-[12px] bg-white object-contain" onError={event => { event.currentTarget.src = '/teo-logo.jpg' }} />
 
                 <div>
                   <p className="text-[17px] font-black text-slate-950">
@@ -1879,9 +1891,7 @@ function PublicHeader() {
                 }}
                 className="flex min-w-0 items-center gap-2.5"
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-gradient-to-br from-blue-600 to-violet-600 text-sm font-black text-white">
-                  T
-                </div>
+                <img src={storeLogoUrl} alt="TEO STORE" className="h-10 w-10 shrink-0 rounded-[12px] bg-white object-contain" onError={event => { event.currentTarget.src = '/teo-logo.jpg' }} />
 
                 <div className="min-w-0">
                   <p className="truncate text-[15px] font-black text-slate-950">
