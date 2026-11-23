@@ -720,6 +720,24 @@ function DigitalProductDetailsPage() {
                   )}
               </div>
             </div>
+            {!isComingSoon && (
+              <section aria-label={isArabic ? 'معلومات الخدمة' : 'Informations du service'} className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2" dir={isArabic ? 'rtl' : 'ltr'}>
+                {[
+                  { label: isArabic ? 'الضمان' : 'Garantie', value: warrantyText, icon: '🛡' },
+                  { label: isArabic ? 'مدة الخدمة' : 'Durée', value: durationText(validityDays), icon: '◷' },
+                  { label: isArabic ? 'التسليم' : 'Livraison', value: deliveryText, icon: '↗' },
+                ].map((item) => (
+                  <div key={item.label} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50/70 px-1.5 py-2 text-center sm:px-3 sm:py-2.5">
+                    <div className="flex items-center justify-center gap-1 text-[10px] font-semibold text-slate-500 sm:text-xs">
+                      <span aria-hidden="true" className="text-blue-600">{item.icon}</span>
+                      <span>{item.label}</span>
+                    </div>
+                    <p className="mt-1 break-words text-[11px] font-extrabold leading-4 text-slate-900 sm:text-sm">{item.value}</p>
+                  </div>
+                ))}
+              </section>
+            )}
+
           </div>
         </Container>
       </section>
@@ -1136,21 +1154,6 @@ function DigitalProductDetailsPage() {
                     </p>
                   </div>
                 )}
-
-              <section aria-label={isArabic ? 'معلومات الخدمة' : 'Informations du service'} className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
-                  <p className="text-xs font-semibold text-slate-500">{isArabic ? 'مدة الضمان' : 'Durée de garantie'}</p>
-                  <p className="mt-2 text-sm font-extrabold text-slate-900">{warrantyText}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold text-slate-500">{isArabic ? 'مدة الخدمة' : 'Durée du service'}</p>
-                  <p className="mt-2 text-sm font-extrabold text-slate-900">{durationText(validityDays)}</p>
-                </div>
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-                  <p className="text-xs font-semibold text-slate-500">{isArabic ? 'وقت التسليم' : 'Délai de livraison'}</p>
-                  <p className="mt-2 text-sm font-extrabold text-slate-900">{deliveryText}</p>
-                </div>
-              </section>
 
               <section id="teo-instructions" className="mt-5 scroll-mt-28 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
                 <h3 className="text-base font-extrabold text-slate-900">{isArabic ? 'تعليمات الاستخدام والتفعيل' : 'Instructions d’utilisation et d’activation'}</h3>

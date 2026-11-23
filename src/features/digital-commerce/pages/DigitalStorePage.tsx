@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 
@@ -117,6 +118,18 @@ function DigitalStorePage() {
     setIsSearchOpen,
   ] = useState(false)
 
+  const searchAreaRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const closeOnOutside = (event: PointerEvent) => {
+      if (!searchAreaRef.current?.contains(event.target as Node)) {
+        setIsSearchOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', closeOnOutside)
+    return () => document.removeEventListener('pointerdown', closeOnOutside)
+  }, [])
+
   const [
     storeRating,
     setStoreRating,
@@ -164,7 +177,7 @@ function DigitalStorePage() {
     )
 
     setIsSearchOpen(
-      true,
+      false,
     )
 
     window.scrollTo({
@@ -394,7 +407,7 @@ function DigitalStorePage() {
   const hasQuery =
     searchQuery
       .trim()
-      .length > 0
+      .length >= 2
 
   const handleSearchChange =
     (
@@ -405,7 +418,7 @@ function DigitalStorePage() {
       )
 
       setIsSearchOpen(
-        true,
+        value.trim().length >= 2,
       )
     }
 
@@ -427,6 +440,7 @@ function DigitalStorePage() {
   const handleSearchSubmit =
     () => {
       if (
+        searchQuery.trim().length < 2 ||
         results.length ===
         0
       ) {
@@ -608,7 +622,7 @@ function DigitalStorePage() {
                 : 'Découvrez l’IA, le gaming, le streaming, le design, les logiciels, les cartes cadeaux, les services sociaux et l’eSIM au même endroit.'}
             </p>
 
-            <div className="relative mt-6 max-w-2xl">
+            <div ref={searchAreaRef} className="relative mt-6 max-w-2xl">
               <div className="relative">
                 <svg
                   viewBox="0 0 24 24"
@@ -649,7 +663,7 @@ function DigitalStorePage() {
                   }
                   onFocus={() =>
                     setIsSearchOpen(
-                      true,
+                      searchQuery.trim().length >= 2,
                     )
                   }
                   onKeyDown={(
