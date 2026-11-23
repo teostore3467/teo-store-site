@@ -62,20 +62,6 @@ function PublicHeader() {
   const isArabic =
     language === 'ar'
 
-  const [storeLogoUrl, setStoreLogoUrl] = useState('/teo-logo.jpg')
-
-  useEffect(() => {
-    let active = true
-    void supabase.from('app_settings').select('setting_value').eq('setting_key', 'store').maybeSingle().then(({ data }) => {
-      const value = data?.setting_value
-      if (active && value && typeof value === 'object' && !Array.isArray(value)) {
-        const url = (value as Record<string, unknown>).logoUrl
-        if (typeof url === 'string' && (url.startsWith('/') || url.startsWith('https://'))) setStoreLogoUrl(url)
-      }
-    })
-    return () => { active = false }
-  }, [])
-
   const accountMenuRef =
     useRef<HTMLDivElement | null>(
       null,
@@ -180,6 +166,68 @@ function PublicHeader() {
     useState<LiveToast | null>(
       null,
     )
+
+  // Public branding is controlled from ADMIN > Paramètres > Boutique.
+  const [storeBranding, setStoreBranding] = useState({
+    logoUrl: '',
+    storeName: 'TEO STORE',
+  })
+
+  useEffect(() => {
+    let active = true
+    const loadBranding = async () => {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('setting_value')
+        .eq('setting_key', 'store')
+        .maybeSingle()
+
+      if (!active || error) return
+      const value = data?.setting_value
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return
+      const settings = value as Record<string, unknown>
+      setStoreBranding({
+        logoUrl: typeof settings.logoUrl === 'string' ? settings.logoUrl : '',
+        storeName: typeof settings.storeName === 'string' && settings.storeName.trim()
+          ? settings.storeName.trim() : 'TEO STORE',
+      })
+    }
+
+    void loadBranding()
+    const channel = supabase
+      .channel('public-header-branding')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'app_settings',
+        filter: 'setting_key=eq.store',
+      }, () => { void loadBranding() })
+      .subscribe()
+
+    const onFocus = () => { void loadBranding() }
+    window.addEventListener('focus', onFocus)
+    return () => {
+      active = false
+      window.removeEventListener('focus', onFocus)
+      void supabase.removeChannel(channel)
+    }
+  }, [])
+
+  const brandLogo = (size: 'desktop' | 'mobile') => (
+    <div className={size === 'desktop'
+      ? 'flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-50'
+      : 'flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-50'}>
+      {storeBranding.logoUrl ? (
+        <img
+          src={storeBranding.logoUrl}
+          alt={storeBranding.storeName}
+          className="h-full w-full object-contain"
+          loading="eager"
+          onError={(event) => { event.currentTarget.style.display = 'none' }}
+        />
+      ) : (
+        <span className="text-2xl font-black text-blue-700">T</span>
+      )}
+    </div>
+  )
 
   const getStorageKey =
     useCallback(
@@ -1672,11 +1720,11 @@ function PublicHeader() {
                 }}
                 className="flex items-center gap-3"
               >
-                <img src={storeLogoUrl} alt="TEO STORE" className="h-11 w-11 rounded-[12px] bg-white object-contain" onError={event => { event.currentTarget.src = '/teo-logo.jpg' }} />
+                {brandLogo('desktop')}
 
                 <div>
                   <p className="text-[17px] font-black text-slate-950">
-                    TEO STORE
+                    {storeBranding.storeName}
                   </p>
 
                   <p className="text-xs font-bold uppercase text-slate-400">
@@ -1891,11 +1939,11 @@ function PublicHeader() {
                 }}
                 className="flex min-w-0 items-center gap-2.5"
               >
-                <img src={storeLogoUrl} alt="TEO STORE" className="h-10 w-10 shrink-0 rounded-[12px] bg-white object-contain" onError={event => { event.currentTarget.src = '/teo-logo.jpg' }} />
+                {brandLogo('mobile')}
 
                 <div className="min-w-0">
                   <p className="truncate text-[15px] font-black text-slate-950">
-                    TEO STORE
+                    {storeBranding.storeName}
                   </p>
 
                   <p className="truncate text-xs text-slate-400">
