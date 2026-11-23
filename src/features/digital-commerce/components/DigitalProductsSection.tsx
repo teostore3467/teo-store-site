@@ -106,7 +106,7 @@ function ProductRail({ services, serviceLogos }: { services: ServiceCatalogItem[
   }
 
   return (
-    <div className="relative">
+    <div className="relative min-w-0 max-w-full overflow-hidden">
       <div className="mb-3 flex items-center justify-end gap-2">
         <span className="me-auto text-[11px] font-medium text-slate-500">{isArabic ? 'اسحب لاستكشاف المنتجات' : 'Glissez pour explorer les produits'}</span>
         <button type="button" onClick={() => scrollCards(-1)} disabled={!canScrollBack} aria-label={isArabic ? 'المنتجات السابقة' : 'Produits précédents'} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-blue-300 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-30"><ChevronLeft size={18}/></button>
@@ -116,7 +116,7 @@ function ProductRail({ services, serviceLogos }: { services: ServiceCatalogItem[
         ref={railRef}
         dir="ltr"
         onScroll={updateArrows}
-        className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent] sm:gap-4"
+        className="flex w-full max-w-full snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-3 touch-pan-x [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent] sm:gap-4"
       >
       {services.map((service) => {
         const prices = getAvailablePrices(service)
@@ -146,7 +146,7 @@ function ProductRail({ services, serviceLogos }: { services: ServiceCatalogItem[
             type="button"
             data-product-card="true"
             onClick={() => navigate(`/services-numeriques/${encodeURIComponent(service.slug)}`)}
-            className={`group block w-[164px] shrink-0 snap-start cursor-pointer sm:w-[190px] lg:w-[205px] xl:w-[210px] ${isArabic ? 'text-right' : 'text-left'}`}
+            className={`group block w-[min(43vw,190px)] shrink-0 snap-start cursor-pointer sm:w-[190px] lg:w-[205px] xl:w-[210px] ${isArabic ? 'text-right' : 'text-left'}`}
           >
             <article dir={isArabic ? 'rtl' : 'ltr'} className="h-full overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_6px_20px_rgba(15,23,42,0.04)] transition duration-300 group-hover:-translate-y-1 group-hover:border-blue-200 group-hover:shadow-[0_18px_40px_rgba(15,23,42,0.09)] lg:rounded-[22px]">
               <div className={`relative flex aspect-[1.22/1] items-center justify-center overflow-hidden bg-gradient-to-br ${getTone(service.slug)}`}>
@@ -163,8 +163,8 @@ function ProductRail({ services, serviceLogos }: { services: ServiceCatalogItem[
                 )}
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/30 to-transparent" />
               </div>
-              <div className="p-3 sm:p-4">
-                <h3 className="line-clamp-2 min-h-[40px] text-sm font-black leading-5 text-slate-950 transition group-hover:text-blue-600 lg:min-h-[44px] lg:text-[15px]">{service.name}</h3>
+              <div className="min-w-0 p-3 sm:p-4">
+                <h3 className="line-clamp-2 break-words min-h-[40px] text-sm font-black leading-5 text-slate-950 transition group-hover:text-blue-600 lg:min-h-[44px] lg:text-[15px]">{service.name}</h3>
                 <p className="mt-1 line-clamp-2 min-h-[40px] text-xs leading-5 text-slate-500">{service.description || (isArabic ? 'خدمة رقمية من TEO STORE' : 'Service numérique TEO STORE')}</p>
                 <div className="mt-3 border-t border-slate-100 pt-3">
                   <div className="flex items-end justify-between gap-2">

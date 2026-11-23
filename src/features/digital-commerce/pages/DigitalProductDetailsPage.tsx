@@ -15,13 +15,13 @@ import { useLanguage } from '../../../i18n/LanguageContext'
 import ServiceLogo from '../components/ServiceLogo'
 
 import type {
-  ServiceCatalogItem,
   ServiceGroup,
 } from '../data/serviceCatalog'
 
 import {
   fetchPublicServiceBySlug,
   fetchPublicServiceReviews,
+  type PublicServiceCatalogItem,
   type DigitalServiceReview,
 } from '../data/supabaseServiceCatalog'
 
@@ -55,7 +55,7 @@ function DigitalProductDetailsPage() {
     service,
     setService,
   ] =
-    useState<ServiceCatalogItem | null>(
+    useState<PublicServiceCatalogItem | null>(
       null,
     )
 
@@ -345,6 +345,28 @@ function DigitalProductDetailsPage() {
         'available',
     ) ??
     selectedGroup?.plans[0]
+
+  // Read the same plan/service fields configured in ADMIN. Plan values override service defaults.
+  const deliveryMinutes = selectedPlan?.delivery_minutes ?? service.delivery_minutes ?? null
+  const validityDays = selectedPlan?.validity_days ?? service.validity_days ?? null
+  const warrantyDays = selectedPlan?.warranty_days ?? service.warranty_days ?? null
+  const fullWarranty = selectedPlan?.warranty_full_subscription ?? service.warranty_full_subscription ?? false
+  const durationText = (days: number | null) => {
+    if (days === null || !Number.isFinite(days) || days <= 0) return isArabic ? 'غير محددة' : 'Non précisée'
+    if (days % 365 === 0) return isArabic ? `${days / 365} سنة` : `${days / 365} an(s)`
+    if (days % 30 === 0) return isArabic ? `${days / 30} شهر` : `${days / 30} mois`
+    return isArabic ? `${days} يوم` : `${days} jours`
+  }
+  const deliveryText = deliveryMinutes === null || !Number.isFinite(deliveryMinutes) || deliveryMinutes < 0
+    ? (isArabic ? 'يحدد عند الطلب' : 'À confirmer')
+    : deliveryMinutes === 0
+      ? (isArabic ? 'فوري' : 'Immédiate')
+      : deliveryMinutes < 60
+        ? (isArabic ? `خلال ${deliveryMinutes} دقيقة` : `Sous ${deliveryMinutes} min`)
+        : (isArabic ? `خلال ${Math.ceil(deliveryMinutes / 60)} ساعة` : `Sous ${Math.ceil(deliveryMinutes / 60)} h`)
+  const warrantyText = fullWarranty
+    ? (isArabic ? 'طوال مدة الخدمة' : 'Toute la durée du service')
+    : durationText(warrantyDays)
 
   const localizedServiceName =
     getLocalizedServiceName(
@@ -702,6 +724,25 @@ function DigitalProductDetailsPage() {
         </Container>
       </section>
 
+      {/* Premium compact section navigation: manual, no automatic carousel */}
+      {!isComingSoon && (
+        <div className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
+          <Container className="py-2">
+            <nav aria-label={isArabic ? 'أقسام الخدمة' : 'Sections du service'} className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <a href="#teo-formules" className="shrink-0 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500">
+                {isArabic ? 'الخطط والأسعار' : 'Formules et prix'}
+              </a>
+              <a href="#teo-instructions" className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
+                {isArabic ? 'التعليمات' : 'Instructions'}
+              </a>
+              <a href="#teo-reviews" className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
+                {isArabic ? `التقييمات (${validReviews.length})` : `Avis (${validReviews.length})`}
+              </a>
+            </nav>
+          </Container>
+        </div>
+      )}
+
       {isComingSoon ? (
         <section className="py-6 sm:py-9 lg:py-10">
           <Container>
@@ -745,7 +786,7 @@ function DigitalProductDetailsPage() {
           </Container>
         </section>
       ) : (
-        <section className="py-6 sm:py-9 lg:py-10">
+        <section id="teo-formules" className="scroll-mt-20 py-5 sm:py-7 lg:py-8">
           <Container>
             <div className="mx-auto max-w-5xl">
               {isServiceOutOfStock && (
@@ -1096,30 +1137,31 @@ function DigitalProductDetailsPage() {
                   </div>
                 )}
 
-              {selectedGroup &&
-                getLocalizedFulfillmentInstructions(
-                  service.slug,
-                  selectedGroup,
-                  language,
-                ) && (
-                  <div className="mt-3 rounded-[16px] border border-blue-100 bg-blue-50/60 p-4">
-                    <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-700">
-                      {isArabic
-                        ? 'معلومات'
-                        : 'Informations'}
-                    </p>
+              <section aria-label={isArabic ? 'معلومات الخدمة' : 'Informations du service'} className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+                  <p className="text-xs font-semibold text-slate-500">{isArabic ? 'مدة الضمان' : 'Durée de garantie'}</p>
+                  <p className="mt-2 text-sm font-extrabold text-slate-900">{warrantyText}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold text-slate-500">{isArabic ? 'مدة الخدمة' : 'Durée du service'}</p>
+                  <p className="mt-2 text-sm font-extrabold text-slate-900">{durationText(validityDays)}</p>
+                </div>
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                  <p className="text-xs font-semibold text-slate-500">{isArabic ? 'وقت التسليم' : 'Délai de livraison'}</p>
+                  <p className="mt-2 text-sm font-extrabold text-slate-900">{deliveryText}</p>
+                </div>
+              </section>
 
-                    <p className="mt-1 text-sm leading-6 text-slate-600">
-                      {getLocalizedFulfillmentInstructions(
-                        service.slug,
-                        selectedGroup,
-                        language,
-                      )}
-                    </p>
-                  </div>
-                )}
+              <section id="teo-instructions" className="mt-5 scroll-mt-28 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
+                <h3 className="text-base font-extrabold text-slate-900">{isArabic ? 'تعليمات الاستخدام والتفعيل' : 'Instructions d’utilisation et d’activation'}</h3>
+                <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-slate-700">
+                  {selectedGroup
+                    ? (getLocalizedFulfillmentInstructions(service.slug, selectedGroup, language) || (isArabic ? 'لا توجد تعليمات خاصة بهذه الباقة حاليًا. ستظهر هنا عند إضافتها من لوحة الإدارة.' : 'Aucune instruction particulière pour cette formule. Elles apparaîtront ici après ajout dans ADMIN.'))
+                    : (isArabic ? 'اختر الباقة لعرض تعليماتها.' : 'Sélectionnez une formule pour voir ses instructions.')}
+                </p>
+              </section>
 
-              <section className="mt-6 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
+              <section id="teo-reviews" className="mt-5 scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 p-5 sm:p-6">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
