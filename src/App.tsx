@@ -19,6 +19,7 @@ import AdminOrdersPage from './features/admin/pages/AdminOrdersPage'
 import AdminPaymentsPage from './features/admin/pages/AdminPaymentsPage'
 import AdminPlansPage from './features/admin/pages/AdminPlansPage'
 import AdminServiceEditPage from './features/admin/pages/AdminServiceEditPage'
+import AdminDigitalStockPage from './features/admin/pages/AdminDigitalStockPage'
 import AdminServicesPage from './features/admin/pages/AdminServicesPage'
 import AdminSettingsPage from './features/admin/pages/AdminSettingsPage'
 import AdminStoreReviewsPage from './features/admin/pages/AdminStoreReviewsPage'
@@ -44,6 +45,18 @@ function App() {
           element={<AdminLoginPage />}
         />
 
+        <Routes>
+          <Route
+            path="/admin"
+            element={<AdminLayout />}
+          />
+
+          <Route
+          path="stock"
+          element={<AdminDigitalStockPage />} />
+
+        </Routes>
+
         {/* Admin dashboard */}
         <Route element={<AdminProtectedRoute />}>
           <Route path="/admin" element={<AdminLayout />}>
@@ -60,6 +73,11 @@ function App() {
             <Route
               path="services/:serviceSlug"
               element={<AdminServiceEditPage />}
+            />
+
+            <Route
+              path="stock"
+              element={<AdminDigitalStockPage />}
             />
 
             <Route
