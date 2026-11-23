@@ -1,29 +1,35 @@
 import { Route, Routes } from 'react-router-dom'
 
+// Public layout
 import PublicFooter from './components/layout/PublicFooter'
 import PublicHeader from './components/layout/PublicHeader'
 import ScrollToTop from './components/layout/ScrollToTop'
 
+// Authentication
 import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
 import LoginPage from './features/auth/pages/LoginPage'
 import ProfilePage from './features/auth/pages/ProfilePage'
 import RegisterPage from './features/auth/pages/RegisterPage'
 import ResetPasswordPage from './features/auth/pages/ResetPasswordPage'
 
+// Admin protection and layout
 import AdminProtectedRoute from './features/admin/components/AdminProtectedRoute'
 import AdminLayout from './features/admin/layout/AdminLayout'
+
+// Admin pages
 import AdminDashboardPage from './features/admin/pages/AdminDashboardPage'
+import AdminDigitalStockPage from './features/admin/pages/AdminDigitalStockPage'
 import AdminEsimPage from './features/admin/pages/AdminEsimPage'
 import AdminLoginPage from './features/admin/pages/AdminLoginPage'
 import AdminOrdersPage from './features/admin/pages/AdminOrdersPage'
 import AdminPaymentsPage from './features/admin/pages/AdminPaymentsPage'
 import AdminPlansPage from './features/admin/pages/AdminPlansPage'
 import AdminServiceEditPage from './features/admin/pages/AdminServiceEditPage'
-import AdminDigitalStockPage from './features/admin/pages/AdminDigitalStockPage'
 import AdminServicesPage from './features/admin/pages/AdminServicesPage'
 import AdminSettingsPage from './features/admin/pages/AdminSettingsPage'
 import AdminStoreReviewsPage from './features/admin/pages/AdminStoreReviewsPage'
 
+// Digital commerce
 import DigitalCheckoutPage from './features/digital-commerce/pages/DigitalCheckoutPage'
 import DigitalOrderStatusPage from './features/digital-commerce/pages/DigitalOrderStatusPage'
 import DigitalProductDetailsPage from './features/digital-commerce/pages/DigitalProductDetailsPage'
@@ -31,6 +37,7 @@ import DigitalStorePage from './features/digital-commerce/pages/DigitalStorePage
 import EsimCheckoutPage from './features/digital-commerce/pages/EsimCheckoutPage'
 import EsimCountryPage from './features/digital-commerce/pages/EsimCountryPage'
 
+// Home
 import HomePage from './features/home/pages/HomePage'
 
 function App() {
@@ -39,25 +46,13 @@ function App() {
       <ScrollToTop />
 
       <Routes>
-        {/* Admin login */}
+        {/* ADMIN LOGIN */}
         <Route
           path="/admin/login"
           element={<AdminLoginPage />}
         />
 
-        <Routes>
-          <Route
-            path="/admin"
-            element={<AdminLayout />}
-          />
-
-          <Route
-          path="stock"
-          element={<AdminDigitalStockPage />} />
-
-        </Routes>
-
-        {/* Admin dashboard */}
+        {/* PROTECTED ADMIN */}
         <Route element={<AdminProtectedRoute />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route
@@ -75,6 +70,7 @@ function App() {
               element={<AdminServiceEditPage />}
             />
 
+            {/* DIGITAL STOCK MANAGEMENT */}
             <Route
               path="stock"
               element={<AdminDigitalStockPage />}
@@ -112,7 +108,7 @@ function App() {
           </Route>
         </Route>
 
-        {/* Public website - Digital services only */}
+        {/* PUBLIC WEBSITE */}
         <Route
           path="*"
           element={
@@ -128,11 +124,6 @@ function App() {
                 <Route
                   path="/profil"
                   element={<ProfilePage />}
-                />
-
-                <Route
-                  path="/esim/:countrySlug/commande"
-                  element={<EsimCheckoutPage />}
                 />
 
                 <Route
@@ -158,6 +149,11 @@ function App() {
                 <Route
                   path="/esim/:countrySlug"
                   element={<EsimCountryPage />}
+                />
+
+                <Route
+                  path="/esim/:countrySlug/commande"
+                  element={<EsimCheckoutPage />}
                 />
 
                 <Route
