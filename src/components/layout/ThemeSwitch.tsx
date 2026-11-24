@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import './theme-switch.css'
+import './Theme-switch.css'
 
 const key = 'teo-theme'
 function readTheme(): boolean {
