@@ -1,3 +1,6 @@
+import SupportCenter from './features/support/SupportCenter'
+import AdminContent from './features/support/AdminContent'
+import StoreContent from './features/support/StoreContent'
 import { Route, Routes } from 'react-router-dom'
 
 // Public layout
@@ -55,6 +58,8 @@ function App() {
         {/* PROTECTED ADMIN */}
         <Route element={<AdminProtectedRoute />}>
           <Route path="/admin" element={<AdminLayout />}>
+            <Route path="support" element={<SupportCenter admin />} />
+            <Route path="footer" element={<AdminContent />} />
             <Route
               index
               element={<AdminDashboardPage />}
@@ -116,6 +121,8 @@ function App() {
               <PublicHeader />
 
               <Routes>
+                <Route path="/assistance" element={<SupportCenter />} />
+                <Route path="/information/:slug" element={<StoreContent />} />
                 <Route
                   path="/"
                   element={<HomePage />}
