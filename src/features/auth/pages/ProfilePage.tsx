@@ -2702,21 +2702,6 @@ function ProfilePage() {
                   </div>
                 </div>
               </section>) : <p>{isArabic ? "تعذر تحميل نقاط الولاء" : "Points de fidélité indisponibles"}</p>
-  const rowArrow =
-    (
-      <span
-        className={
-          isArabic
-            ? 'rotate-180 text-slate-300'
-            : 'text-slate-300'
-        }
-      >
-        <Icon
-          name="arrow"
-        />
-      </span>
-    )
-
   return (
     <main
       dir={
@@ -2724,9 +2709,9 @@ function ProfilePage() {
           ? 'rtl'
           : 'ltr'
       }
-      className="teo-profile min-h-screen bg-[#f6f7fb] pb-8"
+      className="teo-profile min-h-screen bg-[#f6f7fb] pb-28"
     >
-      <style>{`html[data-teo-theme="dark"] .teo-profile {background:#0b1220;color:#e2e8f0} html[data-teo-theme="dark"] .teo-profile .bg-white {background:#111c2e} html[data-teo-theme="dark"] .teo-profile .bg-slate-50,html[data-teo-theme="dark"] .teo-profile .bg-slate-100 {background:#1e293b} html[data-teo-theme="dark"] .teo-profile :is(.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600){color:#e2e8f0} html[data-teo-theme="dark"] .teo-profile :is(.text-slate-500,.text-slate-400){color:#aab8ca} html[data-teo-theme="dark"] .teo-profile :is(.border-slate-100,.border-slate-200,.border-slate-300){border-color:#334155} html[data-teo-theme="dark"] .teo-profile :is(.bg-blue-50,.bg-amber-50,.bg-rose-50,.bg-orange-50,.bg-emerald-50,.bg-violet-50,.bg-indigo-50,.bg-cyan-50,.bg-sky-50){background:#243247} html[data-teo-theme="dark"] .teo-profile :is(.text-blue-950,.text-blue-900,.text-blue-700,.text-amber-950,.text-amber-900,.text-amber-700,.text-rose-700,.text-orange-700,.text-emerald-700,.text-indigo-700,.text-violet-700){color:#dbeafe}`}</style>
+      <style>{`html[data-teo-theme="dark"] .teo-profile {background:#0b1220;color:#e2e8f0} html[data-teo-theme="dark"] .teo-profile .bg-white {background:#111c2e} html[data-teo-theme="dark"] .teo-profile .bg-slate-50,html[data-teo-theme="dark"] .teo-profile .bg-slate-100 {background:#1e293b} html[data-teo-theme="dark"] .teo-profile :is(.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600){color:#e2e8f0} html[data-teo-theme="dark"] .teo-profile :is(.text-slate-500,.text-slate-500){color:#aab8ca} html[data-teo-theme="dark"] .teo-profile :is(.border-slate-100,.border-slate-200,.border-slate-300){border-color:#334155} html[data-teo-theme="dark"] .teo-profile :is(.bg-blue-50,.bg-amber-50,.bg-rose-50,.bg-orange-50,.bg-emerald-50,.bg-violet-50,.bg-indigo-50,.bg-cyan-50,.bg-sky-50){background:#243247} html[data-teo-theme="dark"] .teo-profile :is(.text-blue-950,.text-blue-900,.text-blue-700,.text-amber-950,.text-amber-900,.text-amber-700,.text-rose-700,.text-orange-700,.text-emerald-700,.text-indigo-700,.text-violet-700){color:#dbeafe}`}</style>
       <div className="border-b border-slate-200 bg-white">
         <Container>
           <div className="mx-auto flex min-h-[72px] max-w-5xl items-center justify-between gap-3">
@@ -2796,10 +2781,10 @@ function ProfilePage() {
       </div>
 
       <Container className="py-4 sm:py-6">
-        <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <nav aria-label={isArabic ? 'أقسام الحساب' : 'Navigation du compte'} className="flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-3 lg:sticky lg:top-24 lg:flex-col lg:self-start">
-            {menu.map(item => <button key={item.id} type="button" aria-current={activeSection === item.id ? 'page' : undefined} onClick={() => openSection(item.id)} className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold ${activeSection === item.id ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-slate-50'}`}><Icon name={item.icon}/>{isArabic ? item.ar : item.fr}{item.id === 'notifications' && unreadNotifications.length > 0 && <span className="rounded-full bg-rose-500 px-2 text-white">{unreadNotifications.length}</span>}</button>)}
-            <button type="button" onClick={() => void handleSignOut()} className="flex shrink-0 items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-rose-600"><Icon name="logout"/>{isArabic ? 'تسجيل الخروج' : 'Déconnexion'}</button>
+        <div className="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+          <nav aria-label={isArabic ? 'أقسام الحساب' : 'Navigation du compte'} className={`${activeSection === 'home' ? 'hidden lg:flex' : 'grid grid-cols-3 sm:grid-cols-5 lg:flex'} gap-1 rounded-2xl border border-slate-200 bg-white p-2 lg:flex-col lg:self-start`}>
+            {menu.map(item => <button key={item.id} type="button" aria-current={activeSection === item.id ? 'page' : undefined} onClick={() => openSection(item.id)} className={`relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-center text-[11px] font-bold lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:py-3 lg:text-start lg:text-sm ${activeSection === item.id ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-slate-50'}`}><Icon name={item.icon}/><span>{isArabic ? item.ar : item.fr}</span>{item.id === 'notifications' && unreadNotifications.length > 0 && <span className="rounded-full bg-rose-500 px-2 text-white">{unreadNotifications.length}</span>}</button>)}
+            <button type="button" onClick={() => void handleSignOut()} className="flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[11px] font-bold text-rose-600 lg:flex-row lg:gap-3 lg:px-3 lg:py-3 lg:text-sm"><Icon name="logout"/>{isArabic ? 'تسجيل الخروج' : 'Déconnexion'}</button>
           </nav><div className="min-w-0">
           {errorMessage && (
             <div className="mb-4 rounded-[18px] border border-rose-100 bg-rose-50 p-4">
@@ -2813,10 +2798,10 @@ function ProfilePage() {
 
           {activeSection ===
             'home' && (
-            <div className="space-y-4">
-              <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)] sm:p-6">
+            <div className="grid gap-4 xl:grid-cols-2 [&>*:nth-child(n+3)]:xl:col-span-2">
+              <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] sm:p-5">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xl font-black uppercase text-white">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xl font-black uppercase text-white">
                     {
                       firstLetter
                     }
@@ -2841,7 +2826,7 @@ function ProfilePage() {
                     {user.phone && (
                       <p
                         dir="ltr"
-                        className="mt-1 truncate text-left text-xs font-semibold text-slate-400"
+                        className="mt-1 truncate text-left text-xs font-semibold text-slate-500"
                       >
                         {
                           user.phone
@@ -2851,7 +2836,7 @@ function ProfilePage() {
                   </div>
                 </div>
 
-                <div className="mt-5 grid grid-cols-3 divide-x divide-slate-100 overflow-hidden rounded-[18px] border border-slate-100 bg-slate-50">
+                <div className="mt-3 grid grid-cols-3 divide-x divide-slate-100 overflow-hidden rounded-[18px] border border-slate-100 bg-slate-50">
                   <button
                     type="button"
                     onClick={() =>
@@ -2859,7 +2844,7 @@ function ProfilePage() {
                         'orders',
                       )
                     }
-                    className="px-2 py-4 text-center"
+                    className="px-2 py-2 text-center"
                   >
                     <p
                       dir="ltr"
@@ -2870,7 +2855,7 @@ function ProfilePage() {
                       }
                     </p>
 
-                    <p className="mt-1 text-[10px] font-bold text-slate-400 sm:text-xs">
+                    <p className="mt-1 text-[10px] font-bold text-slate-500 sm:text-xs">
                       {isArabic
                         ? 'الطلبات'
                         : 'Commandes'}
@@ -2884,7 +2869,7 @@ function ProfilePage() {
                         'notifications',
                       )
                     }
-                    className="px-2 py-4 text-center"
+                    className="px-2 py-2 text-center"
                   >
                     <p
                       dir="ltr"
@@ -2895,7 +2880,7 @@ function ProfilePage() {
                       }
                     </p>
 
-                    <p className="mt-1 text-[10px] font-bold text-slate-400 sm:text-xs">
+                    <p className="mt-1 text-[10px] font-bold text-slate-500 sm:text-xs">
                       {isArabic
                         ? 'جديدة'
                         : 'Nouvelles'}
@@ -2906,10 +2891,10 @@ function ProfilePage() {
                     type="button"
                     onClick={() =>
                       openSection(
-                        'reviews',
+                        'orders',
                       )
                     }
-                    className="px-2 py-4 text-center"
+                    className="px-2 py-2 text-center"
                   >
                     <p
                       dir="ltr"
@@ -2920,7 +2905,7 @@ function ProfilePage() {
                       }
                     </p>
 
-                    <p className="mt-1 text-[10px] font-bold text-slate-400 sm:text-xs">
+                    <p className="mt-1 text-[10px] font-bold text-slate-500 sm:text-xs">
                       {isArabic
                         ? 'مكتملة'
                         : 'Terminées'}
@@ -2929,7 +2914,12 @@ function ProfilePage() {
                 </div>
               </section>
 
-              {loyaltyCard}
+              {loyaltySummary && <section className="rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-4 text-white">
+                <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 text-sm font-bold"><Icon name="star"/>{isArabic ? 'نقاط الولاء' : 'Mes points fidélité'}</span><span className="text-2xl font-black" dir="ltr">{loyaltyPoints}</span></div>
+                <div className="mt-2 flex items-center justify-between gap-2 text-xs"><span>{isArabic ? 'القيمة المتاحة' : 'Valeur disponible'}</span><strong>{formatLoyaltyValue(loyaltyUsableValue)}</strong></div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20" role="progressbar" aria-label={isArabic ? 'تقدم الولاء' : 'Progression fidélité'} aria-valuenow={loyaltyProgressPoints} aria-valuemin={0} aria-valuemax={100}><div className="h-full rounded-full bg-white" style={{width: `${loyaltyProgressPercent}%`}}/></div>
+                <div className="mt-2 flex items-center justify-between gap-2 text-xs"><span>{loyaltyProgressPoints}/100</span><button type="button" onClick={() => openSection('loyalty')} className="rounded-lg bg-white/15 px-3 py-2 font-bold">{isArabic ? 'التفاصيل' : 'Voir les détails'}</button></div>
+              </section>}
 
               {(
                 pendingReviewOrders.length >
@@ -2976,235 +2966,20 @@ function ProfilePage() {
                 </section>
               )}
 
-              <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-                <button
-                  type="button"
-                  onClick={() =>
-                    openSection(
-                      'orders',
-                    )
-                  }
-                  className="flex min-h-[76px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start transition hover:bg-slate-50 sm:px-5"
-                >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-blue-50 text-blue-600">
-                    <Icon
-                      name="orders"
-                    />
-                  </span>
-
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-black text-slate-950 sm:text-base">
-                      {isArabic
-                        ? 'طلباتي'
-                        : 'Mes commandes'}
-                    </span>
-
-                    <span className="mt-1 block text-xs text-slate-400">
-                      {latestOrder
-                        ? isArabic
-                          ? `${orders.length} طلب — آخر طلب ${latestOrder.order_number}`
-                          : `${orders.length} commandes — dernière ${latestOrder.order_number}`
-                        : isArabic
-                          ? 'لم تقم بأي طلب بعد'
-                          : 'Aucune commande pour le moment'}
-                    </span>
-                  </span>
-
-                  {
-                    rowArrow
-                  }
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    openSection(
-                      'notifications',
-                    )
-                  }
-                  className="flex min-h-[76px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start transition hover:bg-slate-50 sm:px-5"
-                >
-                  <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-violet-50 text-violet-600">
-                    <Icon
-                      name="bell"
-                    />
-
-                    {unreadNotifications.length >
-                      0 && (
-                      <span
-                        dir="ltr"
-                        className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-black text-white"
-                      >
-                        {unreadNotifications.length >
-                        99
-                          ? '99+'
-                          : unreadNotifications.length}
-                      </span>
-                    )}
-                  </span>
-
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-black text-slate-950 sm:text-base">
-                      {isArabic
-                        ? 'إشعاراتي'
-                        : 'Mes notifications'}
-                    </span>
-
-                    <span className="mt-1 block text-xs text-slate-400">
-                      {unreadNotifications.length >
-                      0
-                        ? isArabic
-                          ? `${unreadNotifications.length} إشعارات جديدة`
-                          : `${unreadNotifications.length} nouvelles notifications`
-                        : isArabic
-                          ? 'لا توجد إشعارات جديدة'
-                          : 'Aucune nouvelle notification'}
-                    </span>
-                  </span>
-
-                  {
-                    rowArrow
-                  }
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    openSection(
-                      'reviews',
-                    )
-                  }
-                  className="flex min-h-[76px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start transition hover:bg-slate-50 sm:px-5"
-                >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-amber-50 text-amber-500">
-                    <Icon
-                      name="star"
-                    />
-                  </span>
-
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-black text-slate-950 sm:text-base">
-                      {isArabic
-                        ? 'تقييماتي'
-                        : 'Mes avis'}
-                    </span>
-
-                    <span className="mt-1 block text-xs text-slate-400">
-                      {isArabic
-                        ? 'تقييم الخدمات وتجربتك مع TEO STORE'
-                        : 'Avis produits et expérience TEO STORE'}
-                    </span>
-                  </span>
-
-                  {
-                    rowArrow
-                  }
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    openSection(
-                      'account',
-                    )
-                  }
-                  className="flex min-h-[76px] w-full items-center gap-3 px-4 text-start transition hover:bg-slate-50 sm:px-5"
-                >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-emerald-50 text-emerald-600">
-                    <Icon
-                      name="user"
-                    />
-                  </span>
-
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-black text-slate-950 sm:text-base">
-                      {isArabic
-                        ? 'معلومات حسابي'
-                        : 'Mes informations'}
-                    </span>
-
-                    <span className="mt-1 block truncate text-xs text-slate-400">
-                      {user.phone ||
-                        user.email}
-                    </span>
-                  </span>
-
-                  {
-                    rowArrow
-                  }
-                </button>
+              <section className="lg:hidden">
+                <h2 className="mb-3 text-sm font-black text-slate-950">{isArabic ? 'أقسام حسابي' : 'Mon espace'}</h2>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {menu.filter(item => item.id !== 'home').map(item => <button key={item.id} type="button" onClick={() => openSection(item.id)} className="relative flex min-h-[84px] min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-2 text-center text-xs font-bold text-slate-700"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Icon name={item.icon}/></span>{isArabic ? item.ar : item.fr}{item.id === 'notifications' && unreadNotifications.length > 0 && <span className="absolute end-1 top-1 rounded-full bg-rose-500 px-1.5 text-[10px] text-white">{unreadNotifications.length}</span>}</button>)}
+                  <button type="button" onClick={() => void handleSignOut()} className="flex min-h-[84px] flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-2 text-xs font-bold text-rose-600"><Icon name="logout"/>{isArabic ? 'تسجيل الخروج' : 'Déconnexion'}</button>
+                </div>
               </section>
-
-              <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-                <button
-                  type="button"
-                  onClick={() =>
-                    openSection(
-                      'support',
-                    )
-                  }
-                  className="flex min-h-[76px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start transition hover:bg-slate-50 sm:px-5"
-                >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-cyan-50 text-cyan-600">
-                    <Icon
-                      name="support"
-                    />
-                  </span>
-
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-black text-slate-950 sm:text-base">
-                      {isArabic
-                        ? 'خدمة العملاء'
-                        : 'Service client'}
-                    </span>
-
-                    <span className="mt-1 block text-xs text-slate-400">
-                      {isArabic
-                        ? 'مساعدة داخل الموقع'
-                        : 'Assistance sur le site'}
-                    </span>
-                  </span>
-
-                  {
-                    rowArrow
-                  }
-                </button>
-
-                <Link
-                  to="/services-numeriques"
-                  className="flex min-h-[76px] items-center gap-3 px-4 text-start transition hover:bg-slate-50 sm:px-5"
-                >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-indigo-50 text-indigo-600">
-                    <Icon
-                      name="store"
-                    />
-                  </span>
-
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-black text-slate-950 sm:text-base">
-                      {isArabic
-                        ? 'استكشاف الخدمات'
-                        : 'Explorer les services'}
-                    </span>
-
-                    <span className="mt-1 block text-xs text-slate-400">
-                      {isArabic
-                        ? 'الخدمات الرقمية وeSIM'
-                        : 'Services numériques et eSIM'}
-                    </span>
-                  </span>
-
-                  {
-                    rowArrow
-                  }
-                </Link>
-              </section>
+              <Link to="/services-numeriques" className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm font-bold text-blue-600"><Icon name="store"/>{isArabic ? 'استكشاف الخدمات' : 'Explorer les services'}</Link>
 
               {latestOrder && (
                 <section className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
                         {isArabic
                           ? 'آخر طلب'
                           : 'Dernière commande'}
@@ -3273,7 +3048,7 @@ function ProfilePage() {
                       : 'Toutes vos commandes'}
                   </p>
 
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-slate-500">
                     {isArabic
                       ? 'تابع الدفع والتجهيز والتسليم من هنا.'
                       : 'Suivez le paiement, la préparation et la livraison numérique de vos commandes.'}
@@ -3360,7 +3135,7 @@ function ProfilePage() {
 
                             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
                               <div className="rounded-[14px] bg-slate-50 p-3">
-                                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                                <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">
                                   {isArabic
                                     ? 'المبلغ'
                                     : 'Montant'}
@@ -3378,7 +3153,7 @@ function ProfilePage() {
                               </div>
 
                               <div className="rounded-[14px] bg-slate-50 p-3">
-                                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                                <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">
                                   {isArabic
                                     ? 'الدفع'
                                     : 'Paiement'}
@@ -3391,7 +3166,7 @@ function ProfilePage() {
                               </div>
 
                               <div className="col-span-2 rounded-[14px] bg-slate-50 p-3 sm:col-span-1">
-                                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                                <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">
                                   {isArabic
                                     ? 'التاريخ'
                                     : 'Date'}
@@ -3485,7 +3260,7 @@ function ProfilePage() {
                       : 'Dernières mises à jour'}
                   </p>
 
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-slate-500">
                     {isArabic
                       ? `${unreadNotifications.length} غير مقروءة`
                       : `${unreadNotifications.length} non lues`}
@@ -3568,7 +3343,7 @@ function ProfilePage() {
 
                             <span
                               dir="ltr"
-                              className="mt-2 block text-left text-[10px] text-slate-400"
+                              className="mt-2 block text-left text-[10px] text-slate-500"
                             >
                               {formatDate(
                                 notification.created_at,
@@ -3728,7 +3503,7 @@ function ProfilePage() {
 
                   <span
                     dir="ltr"
-                    className="text-xs font-black text-slate-400"
+                    className="text-xs font-black text-slate-500"
                   >
                     {
                       storeReviews.length
@@ -3788,7 +3563,7 @@ function ProfilePage() {
                       )}
                   </div>
                 ) : (
-                  <p className="mt-4 text-xs text-slate-400">
+                  <p className="mt-4 text-xs text-slate-500">
                     {isArabic
                       ? `يتبقى ${ordersUntilNextStoreReview} طلبات مكتملة حتى التقييم القادم.`
                       : `Il reste ${ordersUntilNextStoreReview} commandes terminées avant le prochain avis.`}
@@ -3806,7 +3581,7 @@ function ProfilePage() {
 
                   <span
                     dir="ltr"
-                    className="text-xs font-black text-slate-400"
+                    className="text-xs font-black text-slate-500"
                   >
                     {
                       reviews.length
@@ -3858,7 +3633,7 @@ function ProfilePage() {
 
                           <p
                             dir="ltr"
-                            className="mt-2 text-left text-[10px] text-slate-400"
+                            className="mt-2 text-left text-[10px] text-slate-500"
                           >
                             {formatDate(
                               review.created_at,
@@ -3869,7 +3644,7 @@ function ProfilePage() {
                     )}
                   </div>
                 ) : (
-                  <p className="mt-4 text-xs text-slate-400">
+                  <p className="mt-4 text-xs text-slate-500">
                     {isArabic
                       ? 'لم ترسل أي تقييم للخدمات بعد.'
                       : 'Vous n’avez encore publié aucun avis produit.'}
@@ -3884,7 +3659,7 @@ function ProfilePage() {
             <section className="space-y-4">
               <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xl font-black uppercase text-white">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xl font-black uppercase text-white">
                     {
                       firstLetter
                     }
@@ -3897,7 +3672,7 @@ function ProfilePage() {
                       }
                     </p>
 
-                    <p className="mt-1 text-xs text-slate-400">
+                    <p className="mt-1 text-xs text-slate-500">
                       {isArabic
                         ? 'حساب TEO STORE'
                         : 'Compte TEO STORE'}
@@ -3907,7 +3682,7 @@ function ProfilePage() {
 
                 <div className="mt-5 divide-y divide-slate-100 border-t border-slate-100">
                   <div className="py-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
                       {isArabic
                         ? 'الاسم'
                         : 'Nom'}
@@ -3921,7 +3696,7 @@ function ProfilePage() {
                   </div>
 
                   <div className="py-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
                       {isArabic
                         ? 'البريد الإلكتروني'
                         : 'E-mail'}
@@ -3937,7 +3712,7 @@ function ProfilePage() {
                   </div>
 
                   <div className="py-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
                       {isArabic
                         ? 'الهاتف'
                         : 'Téléphone'}
@@ -3969,7 +3744,7 @@ function ProfilePage() {
                         : 'Langue'}
                     </span>
 
-                    <span className="mt-1 block text-xs text-slate-400">
+                    <span className="mt-1 block text-xs text-slate-500">
                       {isArabic
                         ? 'العربية'
                         : 'Français'}
@@ -3991,7 +3766,7 @@ function ProfilePage() {
                         : 'Politique de confidentialité'}
                     </span>
 
-                    <span className="mt-1 block text-xs text-slate-400">
+                    <span className="mt-1 block text-xs text-slate-500">
                       {isArabic
                         ? 'سنربط الصفحة القانونية عند تجهيزها.'
                         : 'La page juridique sera reliée lorsqu’elle sera prête.'}
