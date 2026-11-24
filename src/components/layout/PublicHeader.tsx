@@ -9,7 +9,6 @@ import {
 
 import {
   Link,
-  NavLink,
   useNavigate,
 } from 'react-router-dom'
 
@@ -1883,49 +1882,13 @@ function PublicHeader() {
               </div>
             </div>
 
-            <div className="border-t border-slate-100">
-              <nav className="flex min-h-[48px] items-center justify-center gap-2">
-                <NavLink
-                  to="/"
-                  end
-                  className={({
-                    isActive,
-                  }) =>
-                    [
-                      'rounded-[12px] px-4 py-2.5 text-sm font-black',
-                      isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-slate-600',
-                    ].join(
-                      ' ',
-                    )
-                  }
-                >
-                  {isArabic
-                    ? 'الرئيسية'
-                    : 'Accueil'}
-                </NavLink>
-
-                <NavLink
-                  to="/services-numeriques"
-                  className={({
-                    isActive,
-                  }) =>
-                    [
-                      'rounded-[12px] px-4 py-2.5 text-sm font-black',
-                      isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-slate-600',
-                    ].join(
-                      ' ',
-                    )
-                  }
-                >
-                  {isArabic
-                    ? 'الخدمات الرقمية'
-                    : 'Services numériques'}
-                </NavLink>
-              </nav>
+            <div className="flex flex-wrap items-center justify-center gap-4 border-t border-slate-100 py-2 text-sm font-semibold">
+              <Link to="/services-numeriques">{isArabic ? 'جميع الخدمات' : 'Catalogue'}</Link>
+              <Link to="/services-numeriques?category=ai">{isArabic ? 'الذكاء الاصطناعي' : 'IA'}</Link>
+              <Link to="/services-numeriques?category=gaming">Gaming</Link>
+              <Link to="/services-numeriques?category=streaming">Streaming</Link>
+              <Link to="/services-numeriques?category=gift-cards">{isArabic ? 'بطاقات الهدايا' : 'Cartes cadeaux'}</Link>
+              <Link to="/actualites">TEO NEWS</Link>
             </div>
           </div>
 
@@ -2063,7 +2026,7 @@ function PublicHeader() {
             <Container className="py-3">
               <nav className="grid gap-2">
                 <Link
-                  to="/"
+                  to="/actualites"
                   onClick={() =>
                     setIsMenuOpen(
                       false,
@@ -2072,8 +2035,8 @@ function PublicHeader() {
                   className="rounded-[14px] border border-slate-200 px-4 py-3 text-sm font-black text-slate-800"
                 >
                   {isArabic
-                    ? 'الرئيسية'
-                    : 'Accueil'}
+                    ? 'الأخبار'
+                    : 'TEO NEWS'}
                 </Link>
 
                 <Link

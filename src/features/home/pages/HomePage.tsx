@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, BadgeCheck, Bot, Clock3, CreditCard, Gamepad2, Gift, PackageCheck, Search, ShoppingBag, Sparkles, Truck, MessageCircle, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Clock3, ShoppingBag, Sparkles, MessageCircle } from 'lucide-react'
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 import { supabase } from '../../../lib/supabase'
-import FAQSection from '../components/FAQSection'
+import { NewsPublic } from '../../news/News'
+import DigitalCategoriesSection from '../../digital-commerce/components/DigitalCategoriesSection'
 import FeaturedDigitalSection from '../components/FeaturedDigitalSection'
 
 type PreorderItem = {
@@ -110,24 +111,7 @@ function PreorderShowcase({ ar }: { ar: boolean }) {
 function HomePage() {
   const { language, t } = useLanguage()
   const ar = language === 'ar'
-  const [signedIn, setSignedIn] = useState(false)
-  useEffect(() => {
-    let mounted = true
-    void supabase.auth.getUser().then(({ data }) => {
-      if (mounted) setSignedIn(Boolean(data.user))
-    })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) setSignedIn(Boolean(session?.user))
-    })
-    return () => { mounted = false; subscription.unsubscribe() }
-  }, [])
   const Arrow = ar ? ArrowLeft : ArrowRight
-  const categories = [
-    { icon: Bot, ar: 'الذكاء الاصطناعي', fr: 'Intelligence artificielle', tint: 'bg-violet-50 text-violet-700' },
-    { icon: Gift, ar: 'بطاقات رقمية', fr: 'Cartes numériques', tint: 'bg-rose-50 text-rose-700' },
-    { icon: CreditCard, ar: 'اشتراكات', fr: 'Abonnements', tint: 'bg-blue-50 text-blue-700' },
-    { icon: Gamepad2, ar: 'شحن الألعاب', fr: 'Gaming', tint: 'bg-amber-50 text-amber-700' },
-  ]
   return (
     <main dir={ar ? 'rtl' : 'ltr'} className="min-h-screen bg-[#f8fafd] text-slate-900">
       <section className="border-b border-slate-100 bg-white">
@@ -140,25 +124,15 @@ function HomePage() {
               <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100/85">{ar ? 'خدمات رقمية ومنتجات مختارة، بأسعار واضحة وطلبات سهلة المتابعة.' : 'Services numériques et produits sélectionnés, prix clairs et commandes faciles à suivre.'}</p>
               <div className="mt-3 flex flex-wrap gap-2.5">
                 <Link to="/services-numeriques" className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500"><ShoppingBag size={16}/>{t.home.exploreServices}<Arrow size={14}/></Link>
-                <Link to={signedIn ? "/profil" : "/connexion?redirect=%2Fprofil"} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-xs font-bold text-white hover:bg-white/15"><PackageCheck size={16}/>{t.common.myAccount}</Link>
               </div>
             </div>
           </div>
         </Container>
       </section>
-      <section className="bg-white py-6 sm:py-7">
-        <Container>
-          <div className="mb-3 flex items-center justify-between"><h2 className="text-base font-extrabold sm:text-lg">{ar ? 'استكشف الأقسام' : 'Explorer les catégories'}</h2><Link to="/services-numeriques" className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700">{ar ? 'الكل' : 'Tout voir'}<Arrow size={14}/></Link></div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            {categories.map(category => <Link key={category.fr} to="/services-numeriques" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-blue-300 hover:bg-blue-50/40"><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${category.tint}`}><category.icon size={20} strokeWidth={2.1}/></span><span className="text-xs font-bold sm:text-sm">{ar ? category.ar : category.fr}</span></Link>)}
-          </div>
-        </Container>
-      </section>
-      <div className="border-y border-slate-100 bg-[#f8fafd] py-4"><Container className="grid grid-cols-3 gap-2 text-center text-[10px] font-semibold text-slate-600 sm:text-xs"><span className="flex items-center justify-center gap-1.5"><ShieldCheck size={15} className="text-blue-600"/>{ar ? 'معلومات واضحة' : 'Informations claires'}</span><span className="flex items-center justify-center gap-1.5"><Truck size={15} className="text-blue-600"/>{ar ? 'خيارات تسليم' : 'Options de livraison'}</span><span className="flex items-center justify-center gap-1.5"><BadgeCheck size={15} className="text-blue-600"/>{ar ? 'تتبع الطلبات' : 'Suivi des commandes'}</span></Container></div>
-      <PreorderShowcase ar={ar}/>
+      <DigitalCategoriesSection />
       <FeaturedDigitalSection />
-      <section className="bg-white py-8 sm:py-10"><Container><div className="rounded-2xl border border-slate-200 bg-[#f8fafd] p-5 sm:p-7"><h2 className="text-lg font-extrabold">{ar ? 'كيف تطلب؟' : 'Comment commander ?'}</h2><div className="mt-4 grid gap-3 sm:grid-cols-3">{[{icon:Search,ar:'اختر المنتج',fr:'Choisissez votre produit'},{icon:CreditCard,ar:'أكمل الطلب والدفع',fr:'Finalisez votre commande'},{icon:PackageCheck,ar:'تابع حالة الطلب',fr:'Suivez votre commande'}].map((step,index)=><div key={index} className="flex items-center gap-3 rounded-xl bg-white p-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><step.icon size={18}/></span><div><span className="text-[10px] font-bold text-blue-600">0{index+1}</span><p className="text-xs font-bold text-slate-800">{ar ? step.ar : step.fr}</p></div></div>)}</div></div></Container></section>
-      <FAQSection />
+      <NewsPublic home />
+      <PreorderShowcase ar={ar}/>
     </main>
   )
 }

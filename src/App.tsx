@@ -1,3 +1,4 @@
+import { AdminNews, NewsPublic } from './features/news/News'
 import SupportCenter from './features/support/SupportCenter'
 import AdminContent from './features/support/AdminContent'
 import StoreContent from './features/support/StoreContent'
@@ -58,6 +59,7 @@ function App() {
         {/* PROTECTED ADMIN */}
         <Route element={<AdminProtectedRoute />}>
           <Route path="/admin" element={<AdminLayout />}>
+            <Route path="news" element={<AdminNews />} />
             <Route path="support" element={<SupportCenter admin />} />
             <Route path="footer" element={<AdminContent />} />
             <Route
@@ -121,6 +123,8 @@ function App() {
               <PublicHeader />
 
               <Routes>
+                <Route path="/actualites" element={<NewsPublic />} />
+                <Route path="/actualites/:id" element={<NewsPublic />} />
                 <Route path="/assistance" element={<SupportCenter />} />
                 <Route path="/information/:slug" element={<StoreContent />} />
                 <Route

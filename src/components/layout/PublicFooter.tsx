@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Headphones, MessageCircle, Mail, Home, ShoppingBag, UserCircle, PackageSearch, Globe, X, ChevronUp, ChevronDown, ShieldCheck, ArrowUp, CircleHelp } from 'lucide-react'
+import { Headphones, MessageCircle, Mail, PackageSearch, Globe, X, ChevronUp, ChevronDown, ArrowUp } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { supabase } from '../../lib/supabase'
 import Container from './Container'
@@ -72,30 +72,29 @@ export default function PublicFooter() {
   const emailHref = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? `mailto:${email}` : ''
   
   const chatPath = "/assistance"
-  const chatReady = true
+  const chatReady = obj(content.settings.support).chatEnabled !== false
   const [showTop, setShowTop] = useState(false)
   useEffect(() => { const update = () => setShowTop(window.scrollY > 500); update(); window.addEventListener('scroll', update, { passive: true }); return () => window.removeEventListener('scroll', update) }, [])
   const general = obj(content.settings.general), supportConfig = obj(content.settings.support)
   const faq = content.faq.map(q=>({question:str(ar?q.question_ar:q.question_fr),answer:str(ar?q.answer_ar:q.answer_fr)}))
-  const policies = content.pages.map(q=>({label:str(ar?q.title_ar:q.title_fr),to:'/information/'+str(q.slug)}))
-  const links = [
-    { icon: Home, label: t('الرئيسية', 'Accueil'), to: '/' },
-    { icon: ShoppingBag, label: t('الخدمات الرقمية', 'Services numériques'), to: '/services-numeriques' },
-    { icon: UserCircle, label: t('حسابي', 'Mon compte'), to: '/profil' },
-    { icon: PackageSearch, label: t('متابعة الطلبات', 'Suivi des commandes'), to: '/profil' },
-  ]
   const [expanded, setExpanded] = useState<string[]>([])
   const toggle = (key: string) => setExpanded(old => old.includes(key) ? old.filter(x => x !== key) : [...old, key])
-  const groups = [
-    { key: 'store', icon: ShoppingBag, title: t('اكتشف المتجر','Découvrir la boutique'), items: links.slice(0,2) },
-    { key: 'account', icon: UserCircle, title: t('حساب الزبون','Espace client'), items: links.slice(2) },
-    { key: 'policies', icon: ShieldCheck, title: t('السياسات والضمان','Politiques et garanties'), items: policies.map(p => ({...p, icon: ShieldCheck})) },
-  ].filter(g => g.items.length)
-  const dynamicGroups = content.sections.map(s=>({key:str(s.section_key),icon:ShieldCheck,title:str(ar?s.title_ar:s.title_fr),items:content.links.filter(l=>l.section_id===s.id).flatMap(l=>{const target=str(l.target),kind=str(l.link_type);const actions:Record<string,string>={chat:'/assistance',conversations:'/assistance',order_support:'/assistance?category=order',warranty_support:'/assistance?category=warranty'};const to=kind==='page'&&content.pages.some(p=>p.slug===target)?'/information/'+target:kind==='action'?actions[target]:kind==='internal'&&['/','/profil','/services-numeriques','/assistance'].includes(target)?target:'';return to?[{icon:ShieldCheck,label:str(ar?l.label_ar:l.label_fr),to}]:[]})})).filter(g=>g.items.length)
+  const seen = new Set<string>()
+  const items = content.links.flatMap(l=>{
+    const target=str(l.target),kind=str(l.link_type)
+    if(!content.sections.some(s=>s.id===l.section_id))return []
+    const to=kind==='page'&&content.pages.some(p=>p.slug===target)?'/information/'+target:kind==='action'&&target==='faq'&&faq.length?'/information/faq':kind==='external'?safeUrl(target):kind==='internal'&&target==='/actualites'?target:''
+    if(!to||seen.has(to))return [];seen.add(to)
+    return [{label:str(ar?l.label_ar:l.label_fr),to}]
+  })
+  const legal=items.filter(x=>['about','terms','privacy','warranty','refund'].some(k=>x.to==='/information/'+k))
+  const useful=items.filter(x=>!legal.includes(x))
+  if(!seen.has('/actualites'))useful.push({label:'TEO NEWS',to:'/actualites'})
+  const groups=[{key:'legal',title:t('معلومات وسياسات','Informations'),items:legal},{key:'useful',title:t('روابط مفيدة','Liens utiles'),items:useful}].filter(g=>g.items.length)
 
   return <footer dir={ar ? 'rtl' : 'ltr'} style={{background:'#0b1120',color:'#f8fafc'}}>
     <Container>
-      <div className="grid gap-6 py-8 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-6 py-8 md:grid-cols-3">
         <section>
           <Link to="/" className="inline-flex items-center gap-3" style={{color:'#fff'}}>
             {logo && !logoFailed ? <img src={logo} alt="" onError={()=>setLogoFailed(true)} className="h-10 max-w-32 object-contain" style={{background:'transparent',border:0,boxShadow:'none'}}/> : <span className="text-3xl font-black">T</span>}
@@ -104,17 +103,11 @@ export default function PublicFooter() {
           <p className="mt-3 text-sm leading-7" style={{color:'#aabbd2'}}>{str(ar ? obj(content.settings.general).descriptionAr : obj(content.settings.general).descriptionFr) || str(ar ? store.sloganAr : store.sloganFr) || t('خدمات رقمية بسيطة وسريعة','Services numériques simples et rapides')}</p>
           <div className="mt-4 flex flex-wrap gap-3">{general.showSocials!==false && socials.map(({label,icon:Icon,href,color})=><a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={label} className="flex h-10 w-10 items-center justify-center rounded-full hover:opacity-80" style={{background:color,color:'#fff'}}><Icon size={19}/></a>)}</div>
         </section>
-        {[...groups,...dynamicGroups].map(({key,icon:Icon,title,items})=><section key={key} className="border-t pt-3 md:border-0 md:pt-0" style={{borderColor:'#263349'}}>
-          <button type="button" className="flex min-h-11 w-full items-center gap-2 text-sm font-bold md:hidden" aria-expanded={expanded.includes(key)} onClick={()=>toggle(key)}><Icon size={18} color="#60a5fa"/>{title}<span className="ms-auto">{expanded.includes(key)?<ChevronUp size={17}/>:<ChevronDown size={17}/>}</span></button>
-          <h2 className="mb-3 hidden items-center gap-2 text-sm font-bold md:flex"><Icon size={18} color="#60a5fa"/>{title}</h2>
-          <nav aria-label={title} className={`${expanded.includes(key)?'grid':'hidden'} gap-1 md:grid`}>{items.map(({icon:ItemIcon,label,to})=><Link key={label} to={to} className="flex min-h-10 items-center gap-2 text-sm hover:underline" style={{color:'#cbd5e1'}}><ItemIcon size={16} color="#93c5fd"/>{label}</Link>)}</nav>
+        {groups.map(({key,title,items})=><section key={key} className="border-t pt-3 md:border-0 md:pt-0" style={{borderColor:'#263349'}}>
+          <button type="button" className="flex min-h-11 w-full items-center gap-2 text-sm font-bold md:hidden" aria-expanded={expanded.includes(key)} onClick={()=>toggle(key)}>{title}<span className="ms-auto">{expanded.includes(key)?<ChevronUp size={17}/>:<ChevronDown size={17}/>}</span></button>
+          <h2 className="mb-3 hidden text-sm font-bold md:block">{title}</h2>
+          <nav className={`${expanded.includes(key)?'grid':'hidden'} gap-1 md:grid`}>{items.map(({label,to})=>to.startsWith('/')?<Link key={to} to={to} className="py-1.5 text-sm hover:underline" style={{color:'#cbd5e1'}}>{label}</Link>:<a key={to} href={to} target="_blank" rel="noopener noreferrer" className="py-1.5 text-sm" style={{color:'#cbd5e1'}}>{label}</a>)}</nav>
         </section>)}
-        <section className="border-t pt-4 md:border-0 md:pt-0" style={{borderColor:'#263349'}}>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold"><Headphones size={18} color="#60a5fa"/>{t('مركز المساعدة','Centre d’aide')}</h2>
-          <button type="button" onClick={()=>setSupportOpen(true)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold" style={{background:'#2563eb',color:'#fff'}}><MessageCircle size={18}/>{t('خدمة الزبناء','Service client')}</button>
-          {supportConfig.emailEnabled!==false && emailHref && <a href={emailHref} className="mt-3 flex min-h-10 items-center gap-2 text-sm hover:underline" style={{color:'#cbd5e1'}}><Mail size={16}/>{t('البريد الإلكتروني','E-mail')}</a>}
-          {faq.length>0 && <button type="button" onClick={()=>setSupportOpen(true)} className="flex min-h-10 items-center gap-2 text-sm"><CircleHelp size={16}/>{t('الأسئلة الشائعة','Questions fréquentes')}</button>}
-        </section>
       </div>
       {general.showPayments!==false && visiblePayments.length>0 && <section className="border-t py-5" style={{borderColor:'#263349'}}><h2 className="mb-4 text-center text-xs font-semibold" style={{color:'#aabbd2'}}>{t('طرق الدفع المتاحة','Moyens de paiement')}</h2><div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4">{visiblePayments.map(payment=><PaymentLogo key={`${payment.name}:${payment.logo}`} name={payment.name} url={safeUrl(payment.logo)}/>)}</div></section>}
       <div className="flex flex-wrap items-center justify-center gap-3 border-t py-4 text-xs md:justify-between" style={{borderColor:'#263349',color:'#aabbd2'}}><span>© {new Date().getFullYear()} {name} — {t('جميع الحقوق محفوظة','Tous droits réservés')}</span>{general.showLanguage!==false&&<button onClick={toggleLanguage}>{ar?"Français":"العربية"}</button>}<span className="flex items-center gap-1"><Globe size={14}/>{t('موريتانيا · أوقية جديدة','Mauritanie · MRU')}</span></div>

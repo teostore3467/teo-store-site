@@ -714,16 +714,16 @@ function DigitalProductDetailsPage() {
               </div>
             </div>
             {!isComingSoon && (
-              <section aria-label={isArabic ? 'معلومات الخدمة' : 'Informations du service'} className="mt-4 space-y-2" dir={isArabic ? 'rtl' : 'ltr'}>
+              <section aria-label={isArabic ? 'معلومات الخدمة' : 'Informations du service'} className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4" dir={isArabic ? 'rtl' : 'ltr'}>
                 {[
                   { label: isArabic ? 'مدة التسليم' : 'Délai de livraison', value: deliveryMinutes !== null ? deliveryText : '', Icon: Zap },
                   { label: isArabic ? 'مدة الاشتراك' : 'Durée de l’abonnement', value: validityDays !== null && validityDays > 0 ? durationText(validityDays) : '', Icon: CalendarDays },
                   { label: isArabic ? 'طريقة الاستلام' : 'Mode de réception', value: selectedGroup && selectedGroup.fulfillment.type !== 'coming_soon' ? getLocalizedFulfillmentLabel(selectedGroup.fulfillment.type, language) : '', Icon: KeyRound },
                   { label: isArabic ? 'الضمان' : 'Garantie', value: fullWarranty || (warrantyDays !== null && warrantyDays > 0) ? warrantyText : '', Icon: ShieldCheck },
                 ].filter(item => item.value).map(({label,value,Icon}) => (
-                  <div key={label} className="flex items-center justify-between gap-3 rounded-xl bg-slate-100 px-3 py-3 text-sm sm:px-4">
+                  <div key={label} className="flex flex-col items-start gap-2 rounded-xl bg-slate-100 px-3 py-3 text-sm sm:px-4">
                     <span className="flex min-w-0 items-center gap-2 text-slate-700"><Icon size={19} className="shrink-0 text-blue-600" aria-hidden="true"/>{label}</span>
-                    <span className="min-w-0 break-words text-end font-semibold text-slate-900">{value}</span>
+                    <span className="min-w-0 break-words font-semibold text-slate-900">{value}</span>
                   </div>
                 ))}
               </section>
