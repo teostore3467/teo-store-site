@@ -738,13 +738,13 @@ function DigitalProductDetailsPage() {
         <div className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
           <Container className="py-2">
             <nav aria-label={isArabic ? 'أقسام الخدمة' : 'Sections du service'} className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <a href="#teo-formules" className="shrink-0 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500">
+              <a href="#teo-formules" onClick={event => { event.preventDefault(); const target = document.getElementById('teo-formules'); if (!target) return; if (target instanceof HTMLDetailsElement) target.open = true; const header = document.querySelector('header'); window.scrollTo({ top: Math.max(0, target.getBoundingClientRect().top + window.scrollY - (header?.getBoundingClientRect().height ?? 140) - 65), behavior: 'smooth' }); }} className="shrink-0 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500">
                 {isArabic ? 'الخطط والأسعار' : 'Formules et prix'}
               </a>
-              <a href="#teo-instructions" className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
+              <a href="#teo-instructions" onClick={event => { event.preventDefault(); const target = document.getElementById('teo-instructions'); if (!target) return; if (target instanceof HTMLDetailsElement) target.open = true; const header = document.querySelector('header'); window.scrollTo({ top: Math.max(0, target.getBoundingClientRect().top + window.scrollY - (header?.getBoundingClientRect().height ?? 140) - 65), behavior: 'smooth' }); }} className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
                 {isArabic ? 'التعليمات' : 'Instructions'}
               </a>
-              <a href="#teo-reviews" className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
+              <a href="#teo-reviews" onClick={event => { event.preventDefault(); const target = document.getElementById('teo-reviews'); if (!target) return; if (target instanceof HTMLDetailsElement) target.open = true; const header = document.querySelector('header'); window.scrollTo({ top: Math.max(0, target.getBoundingClientRect().top + window.scrollY - (header?.getBoundingClientRect().height ?? 140) - 65), behavior: 'smooth' }); }} className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
                 {isArabic ? `التقييمات (${validReviews.length})` : `Avis (${validReviews.length})`}
               </a>
             </nav>

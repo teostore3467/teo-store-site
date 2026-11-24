@@ -1,3 +1,5 @@
+import { useLiveCatalog } from '../utils/useLiveCatalog'
+import { Link } from 'react-router-dom'
 import {
   useEffect,
   useMemo,
@@ -25,47 +27,10 @@ import {
 
 import { searchServices } from '../utils/searchServices'
 
-const categorySearchTerms: Record<
-  string,
-  {
-    fr: string
-    ar: string
-  }
-> = {
-  ai: {
-    fr: 'Intelligence artificielle',
-    ar: 'الذكاء الاصطناعي',
-  },
-
-  gaming: {
-    fr: 'Gaming',
-    ar: 'الألعاب',
-  },
-
-  streaming: {
-    fr: 'Streaming',
-    ar: 'البث',
-  },
-
-  design: {
-    fr: 'Design',
-    ar: 'التصميم',
-  },
-
-  software: {
-    fr: 'Logiciels',
-    ar: 'البرامج',
-  },
-
-  'gift-cards': {
-    fr: 'Gift Cards',
-    ar: 'بطاقات الهدايا',
-  },
-
-  social: {
-    fr: 'Social',
-    ar: 'الخدمات الاجتماعية',
-  },
+const categoryNames: Record<string, string[]> = {
+  ai: ['IA & Productivité'], gaming: ['Gaming', 'Jeux & Codes'], streaming: ['Streaming'],
+  design: ['Design & Création'], software: ['Logiciels & Sécurité'],
+  'gift-cards': ['Gift Cards'], social: ['Social & Premium'],
 }
 
 type StoreReviewSummary = {
@@ -158,37 +123,18 @@ function DigitalStorePage() {
       'category',
     )
 
+  const queryParam = searchParams.get('q') ?? ''
+  const { catalog, loading: catalogLoading } = useLiveCatalog()
+  const filteredServices = useMemo(() => {
+    const categories = categoryParam ? categoryNames[categoryParam] : undefined
+    const items = categories ? catalog.filter(service => categories.includes(service.category)) : catalog
+    return queryParam.trim() ? searchServices(queryParam, items.length, items).map(result => result.service) : items
+  }, [catalog, categoryParam, queryParam])
   useEffect(() => {
-    if (!categoryParam) {
-      return
-    }
-
-    const category =
-      categorySearchTerms[
-        categoryParam
-      ]
-
-    if (!category) {
-      return
-    }
-
-    setSearchQuery(
-      category[language],
-    )
-
-    setIsSearchOpen(
-      false,
-    )
-
-    window.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: 'smooth',
-    })
-  }, [
-    categoryParam,
-    language,
-  ])
+    setSearchQuery(queryParam)
+    setIsSearchOpen(false)
+    window.scrollTo({ top: 0, left: 0 })
+  }, [categoryParam, queryParam])
 
   useEffect(() => {
     let mounted = true
@@ -399,9 +345,10 @@ function DigitalStorePage() {
       return searchServices(
         searchQuery,
         8,
+        catalog,
       )
     }, [
-      searchQuery,
+      searchQuery, catalog,
     ])
 
   const hasQuery =
@@ -437,22 +384,11 @@ function DigitalStorePage() {
       )
     }
 
-  const handleSearchSubmit =
-    () => {
-      if (
-        searchQuery.trim().length < 2 ||
-        results.length ===
-        0
-      ) {
-        return
-      }
-
-      handleServiceSelect(
-        results[0]
-          .service
-          .slug,
-      )
-    }
+  const handleSearchSubmit = () => {
+    const q = searchQuery.trim()
+    setIsSearchOpen(false)
+    navigate(q ? `/services-numeriques?q=${encodeURIComponent(q)}` : '/services-numeriques')
+  }
 
   const normalizedStoreRating =
     Math.max(
@@ -569,6 +505,16 @@ function DigitalStorePage() {
         return ''
       }
     }
+
+  if (categoryParam || queryParam) return (
+    <main className="min-h-[60vh] py-8" dir={isArabic ? 'rtl' : 'ltr'}>
+      <Container>
+        <Link to="/services-numeriques" className="text-sm font-bold text-blue-600">{isArabic ? 'جميع الخدمات' : 'Tout le catalogue'}</Link>
+        <h1 className="my-5 text-2xl font-black">{queryParam ? `${isArabic ? 'نتائج البحث' : 'Résultats de recherche'} : ${queryParam}` : (categoryNames[categoryParam ?? ''] ?? []).map(name => getLocalizedCategory(name, language)).join(' / ')}</h1>
+        {catalogLoading ? <p>{isArabic ? 'جار التحميل...' : 'Chargement...'}</p> : filteredServices.length === 0 ? <p>{isArabic ? 'لا توجد نتائج متاحة' : 'Aucun résultat disponible'}</p> : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{filteredServices.map(service => <Link key={service.slug} to={`/services-numeriques/${service.slug}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-blue-500"><p className="text-xs text-slate-500">{getLocalizedCategory(service.category, language)}</p><h2 className="mt-2 font-bold text-slate-950">{getLocalizedServiceName(service, language)}</h2><p className="mt-4 text-sm font-bold text-blue-600">{isArabic ? 'عرض الخدمة' : 'Voir le service'} →</p></Link>)}</div>}
+      </Container>
+    </main>
+  )
 
   return (
     <main className="bg-[#f7f9fc]">

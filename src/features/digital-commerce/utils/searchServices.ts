@@ -22,6 +22,10 @@ function normalizeSearchText(value: string) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u064B-\u065F\u0670]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ـ/g, '')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -44,120 +48,50 @@ function getServiceSearchText(
   addSearchValue(values, service.name)
   addSearchValue(values, service.category)
 
-  addSearchValue(
-    values,
-    getLocalizedServiceName(
-      service,
-      'fr',
-    ),
-  )
+  for (const language of ['fr', 'ar'] as const) {
+    addSearchValue(
+      values,
+      getLocalizedServiceName(service, language),
+    )
 
-  addSearchValue(
-    values,
-    getLocalizedServiceName(
-      service,
-      'ar',
-    ),
-  )
+    addSearchValue(
+      values,
+      getLocalizedServiceDescription(service, language),
+    )
 
-  addSearchValue(
-    values,
-    getLocalizedServiceDescription(
-      service,
-      'fr',
-    ),
-  )
-
-  addSearchValue(
-    values,
-    getLocalizedServiceDescription(
-      service,
-      'ar',
-    ),
-  )
-
-  addSearchValue(
-    values,
-    getLocalizedCategory(
-      service.category,
-      'fr',
-    ),
-  )
-
-  addSearchValue(
-    values,
-    getLocalizedCategory(
-      service.category,
-      'ar',
-    ),
-  )
+    addSearchValue(
+      values,
+      getLocalizedCategory(service.category, language),
+    )
+  }
 
   service.groups.forEach((group) => {
     addSearchValue(values, group.id)
     addSearchValue(values, group.name)
-    addSearchValue(
-      values,
-      group.shortName,
-    )
+    addSearchValue(values, group.shortName)
 
-    addSearchValue(
-      values,
-      getLocalizedGroupName(
-        group,
-        'fr',
-      ),
-    )
+    for (const language of ['fr', 'ar'] as const) {
+      addSearchValue(
+        values,
+        getLocalizedGroupName(group, language),
+      )
 
-    addSearchValue(
-      values,
-      getLocalizedGroupName(
-        group,
-        'ar',
-      ),
-    )
-
-    addSearchValue(
-      values,
-      getLocalizedGroupShortName(
-        group,
-        'fr',
-      ),
-    )
-
-    addSearchValue(
-      values,
-      getLocalizedGroupShortName(
-        group,
-        'ar',
-      ),
-    )
+      addSearchValue(
+        values,
+        getLocalizedGroupShortName(group, language),
+      )
+    }
 
     group.plans.forEach((plan) => {
-      addSearchValue(
-        values,
-        plan.id,
-      )
+      addSearchValue(values, plan.id)
+      addSearchValue(values, plan.label)
 
-      addSearchValue(
-        values,
-        plan.label,
-      )
-
-      addSearchValue(
-        values,
-        getLocalizedPlanLabel(
-          plan,
-          'fr',
-        ),
-      )
-
-      addSearchValue(
-        values,
-        getLocalizedPlanLabel(
-          plan,
-          'ar',
-        ),
-      )
+      for (const language of ['fr', 'ar'] as const) {
+        addSearchValue(
+          values,
+          getLocalizedPlanLabel(plan, language),
+        )
+      }
     })
   })
 
@@ -166,33 +100,43 @@ function getServiceSearchText(
 
 export function searchServices(
   query: string,
-  limit = 8,
+  limitOrCatalog: number | readonly ServiceCatalogItem[] = 8,
+  catalogOrLimit?: readonly ServiceCatalogItem[] | number,
 ): ServiceSearchResult[] {
-  const normalizedQuery =
-    normalizeSearchText(query)
+  const normalizedQuery = normalizeSearchText(query)
 
   if (!normalizedQuery) {
     return []
   }
 
-  return serviceCatalog
-    .map((service) => {
-      const searchText =
-        normalizeSearchText(
-          getServiceSearchText(
-            service,
-          ),
-        )
+  const catalog =
+    typeof limitOrCatalog !== 'number'
+      ? limitOrCatalog
+      : typeof catalogOrLimit !== 'number' &&
+          catalogOrLimit !== undefined
+        ? catalogOrLimit
+        : serviceCatalog
 
-      return {
-        service,
-        matchedText: searchText,
-      }
-    })
+  const limit =
+    typeof limitOrCatalog === 'number'
+      ? limitOrCatalog
+      : typeof catalogOrLimit === 'number'
+        ? catalogOrLimit
+        : 8
+
+  const words = normalizedQuery.split(' ')
+
+  return catalog
+    .map((service) => ({
+      service,
+      matchedText: normalizeSearchText(
+        getServiceSearchText(service),
+      ),
+    }))
     .filter(({ matchedText }) =>
-      matchedText.includes(
-        normalizedQuery,
+      words.every((word) =>
+        matchedText.includes(word),
       ),
     )
-    .slice(0, limit)
+    .slice(0, Math.max(0, limit))
 }

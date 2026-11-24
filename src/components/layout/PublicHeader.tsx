@@ -1,3 +1,4 @@
+import { useLiveCatalog } from '../../features/digital-commerce/utils/useLiveCatalog'
 import ThemeSwitch from './ThemeSwitch'
 import {
   useCallback,
@@ -1059,15 +1060,17 @@ function PublicHeader() {
       )
     }
 
+  const { catalog, loading: catalogLoading } = useLiveCatalog()
   const results =
     useMemo(
       () =>
         searchServices(
           searchQuery,
           6,
+          catalog,
         ),
       [
-        searchQuery,
+        searchQuery, catalog,
       ],
     )
 
@@ -1121,21 +1124,14 @@ function PublicHeader() {
       )
     }
 
-  const handleSearchSubmit =
-    () => {
-      if (
-        results.length ===
-        0
-      ) {
-        return
-      }
-
-      handleServiceSelect(
-        results[0]
-          .service
-          .slug,
-      )
-    }
+  const handleSearchSubmit = () => {
+    const q = searchQuery.trim()
+    if (!q) return
+    setIsSearchOpen(false)
+    setIsMenuOpen(false)
+    setSearchQuery('')
+    navigate(`/services-numeriques?q=${encodeURIComponent(q)}`)
+  }
 
   const handleLogout =
     async () => {
@@ -1241,7 +1237,7 @@ function PublicHeader() {
           }
           className="absolute left-0 right-0 top-[calc(100%+8px)] z-[120] overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-xl"
         >
-          {results.length >
+          {catalogLoading ? <p className="p-4 text-sm">{isArabic ? 'جار التحميل...' : 'Chargement...'}</p> : results.length >
           0 ? (
             <div className="p-2">
               {results.map(
@@ -1299,6 +1295,7 @@ function PublicHeader() {
               </p>
             </div>
           )}
+          <button type="button" onClick={handleSearchSubmit} className="w-full border-t p-3 text-sm font-bold text-blue-600">{isArabic ? 'عرض جميع النتائج' : 'Voir tous les résultats'}</button>
         </div>
       )
     }
