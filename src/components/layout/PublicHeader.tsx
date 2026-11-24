@@ -171,6 +171,7 @@ function PublicHeader() {
   // Public branding is controlled from ADMIN > Paramètres > Boutique.
   const [storeBranding, setStoreBranding] = useState({
     logoUrl: '',
+    logoDarkUrl: '',
     storeName: 'TEO STORE',
   })
 
@@ -189,6 +190,7 @@ function PublicHeader() {
       const settings = value as Record<string, unknown>
       setStoreBranding({
         logoUrl: typeof settings.logoUrl === 'string' ? settings.logoUrl : '',
+        logoDarkUrl: typeof settings.logoDarkUrl === 'string' ? settings.logoDarkUrl : '',
         storeName: typeof settings.storeName === 'string' && settings.storeName.trim()
           ? settings.storeName.trim() : 'TEO STORE',
       })
@@ -212,20 +214,25 @@ function PublicHeader() {
     }
   }, [])
 
+  const [darkBranding, setDarkBranding] = useState(() => document.documentElement.dataset.teoTheme === 'dark')
+  useEffect(() => {
+    const sync = () => setDarkBranding(document.documentElement.dataset.teoTheme === 'dark')
+    const observer = new MutationObserver(sync)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-teo-theme'] })
+    sync()
+    return () => observer.disconnect()
+  }, [])
+  const activeLogo = darkBranding ? (storeBranding.logoDarkUrl || storeBranding.logoUrl) : storeBranding.logoUrl
+  const [failedLogo, setFailedLogo] = useState('')
   const brandLogo = (size: 'desktop' | 'mobile') => (
-    <div className={size === 'desktop'
-      ? 'flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-50'
-      : 'flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-50'}>
-      {storeBranding.logoUrl ? (
-        <img
-          src={storeBranding.logoUrl}
-          alt={storeBranding.storeName}
-          className="h-full w-full object-contain"
-          loading="eager"
-          onError={(event) => { event.currentTarget.style.display = 'none' }}
-        />
+    <div className={`flex ${size === 'desktop' ? 'h-12 w-12' : 'h-11 w-11'} shrink-0 items-center justify-center`} style={{ background: 'transparent', border: 0, boxShadow: 'none' }}>
+      {activeLogo && failedLogo !== activeLogo ? (
+        <img key={activeLogo} src={activeLogo} alt={storeBranding.storeName}
+          className="h-full w-full object-contain" loading="eager"
+          style={{ background: 'transparent', border: 0, boxShadow: 'none' }}
+          onError={() => setFailedLogo(activeLogo)} />
       ) : (
-        <span className="text-2xl font-black text-blue-700">T</span>
+        <span className="text-2xl font-black" style={{ color: darkBranding ? '#ffffff' : '#1d4ed8' }}>T</span>
       )}
     </div>
   )

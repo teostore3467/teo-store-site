@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Headphones, MessageCircle, Mail, Phone, Home, ShoppingBag, UserCircle, PackageSearch, Globe, X } from 'lucide-react'
+import { Headphones, MessageCircle, Mail, Home, ShoppingBag, UserCircle, PackageSearch, Globe, X, ChevronUp, ChevronDown, ShieldCheck, ArrowUp, CircleHelp } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { supabase } from '../../lib/supabase'
 import Container from './Container'
@@ -18,7 +18,6 @@ function TikTok({ size = 18 }: { size?: number }) {
 
 const obj = (v: unknown): Record<string, unknown> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {}
 const str = (v: unknown) => typeof v === 'string' ? v.trim() : ''
-const phoneNumber = (v: unknown) => { const n = str(v).replace(/\D/g, ''); return /^\d{8}$/.test(n) ? `222${n}` : n }
 
 export default function PublicFooter() {
   const { language } = useLanguage()
@@ -38,12 +37,12 @@ export default function PublicFooter() {
     let alive = true
     async function load() {
       const [s, p] = await Promise.all([
-        supabase.from('app_settings').select('setting_key,setting_value').in('setting_key', ['store', 'support', 'support_whatsapp', 'footer_public']),
-        supabase.from('payment_methods').select('name').eq('is_active', true).order('sort_order', { ascending: true }),
+        supabase.from('app_settings').select('setting_key,setting_value').in('setting_key', ['store', 'support', 'footer_public']),
+        supabase.from('payment_methods').select('name,image_path').eq('is_active', true).order('sort_order', { ascending: true }),
       ])
       if (!alive) return
       if (!s.error) setSettings(Object.fromEntries((s.data ?? []).map(row => [row.setting_key, row.setting_value])))
-      if (!p.error) setPayments((p.data ?? []).map(row => ({name: str(row.name), logo: ''})).filter(row => row.name))
+      if (!p.error) setPayments((p.data ?? []).map(row => ({name: str(row.name), logo: str(row.image_path) ? supabase.storage.from('payment-methods').getPublicUrl(str(row.image_path)).data.publicUrl : ''})).filter(row => row.name))
     }
     void load()
     const channel = supabase.channel('public-footer-settings')
@@ -53,9 +52,8 @@ export default function PublicFooter() {
     window.addEventListener('focus', refresh)
     return () => { alive = false; window.removeEventListener('focus', refresh); void supabase.removeChannel(channel) }
   }, [])
-  const store = obj(settings.store), support = obj(settings.support), wa = obj(settings.support_whatsapp)
+  const store = obj(settings.store), support = obj(settings.support)
   const footer = obj(settings.footer_public)
-  const paymentLogos = obj(footer.paymentLogos)
   const hiddenPayments = obj(footer.hiddenPayments)
   const safeUrl = (value: unknown) => { try { const u = new URL(str(value)); return u.protocol === 'https:' ? u.href : '' } catch { return '' } }
   const socials = [
@@ -65,58 +63,75 @@ export default function PublicFooter() {
   ].filter(item => item.href)
   const visiblePayments = payments.filter(p => hiddenPayments[p.name] !== true)
   const name = str(store.storeName) || 'TEO STORE'
-  const logo = str(store.logoUrl)
+  const logo = safeUrl(store.logoFooterUrl) || safeUrl(store.logoDarkUrl)
   useEffect(() => { setLogoFailed(false) }, [logo])
-  const whatsapp = phoneNumber(wa.number ?? support.whatsapp)
-  const phone = phoneNumber(support.phone)
   const email = str(support.email)
-  const contacts = [
-    ...(wa.active === true && /^\d{8,15}$/.test(whatsapp) ? [{ icon: MessageCircle, label: 'WhatsApp', href: `https://wa.me/${whatsapp}?text=${encodeURIComponent(str(ar ? wa.messageAr : wa.messageFr) || t('مرحبًا، أحتاج إلى المساعدة.', 'Bonjour, j’ai besoin d’aide.'))}`, external: true }] : []),
-    ...(/^\d{8,15}$/.test(phone) ? [{ icon: Phone, label: t('اتصل بنا', 'Téléphone'), href: `tel:+${phone}`, external: false }] : []),
-    ...(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? [{ icon: Mail, label: t('البريد الإلكتروني', 'E-mail'), href: `mailto:${email}`, external: false }] : []),
-  ]
+  const emailHref = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? `mailto:${email}` : ''
+  const internalPath = (v: unknown) => { const p = str(v); return /^\/(?!\/)[a-zA-Z0-9/_-]+$/.test(p) ? p : '' }
+  const chatPath = internalPath(footer.chatPath)
+  const chatReady = footer.chatEnabled === true && !!chatPath
+  const [showTop, setShowTop] = useState(false)
+  useEffect(() => { const update = () => setShowTop(window.scrollY > 500); update(); window.addEventListener('scroll', update, { passive: true }); return () => window.removeEventListener('scroll', update) }, [])
+  const faq = Array.isArray(footer.faq) ? footer.faq.map(obj).map(q => ({ question: str(ar ? q.questionAr : q.questionFr), answer: str(ar ? q.answerAr : q.answerFr) })).filter(q => q.question && q.answer) : []
+  const policies = Array.isArray(footer.policies) ? footer.policies.map(obj).map(q => ({ label: str(ar ? q.labelAr : q.labelFr), to: internalPath(q.path) })).filter(q => q.label && q.to && q.to !== chatPath && !/whatsapp/i.test(q.to)) : []
   const links = [
     { icon: Home, label: t('الرئيسية', 'Accueil'), to: '/' },
     { icon: ShoppingBag, label: t('الخدمات الرقمية', 'Services numériques'), to: '/services-numeriques' },
     { icon: UserCircle, label: t('حسابي', 'Mon compte'), to: '/profil' },
     { icon: PackageSearch, label: t('متابعة الطلبات', 'Suivi des commandes'), to: '/profil' },
   ]
-  return <footer dir={ar ? 'rtl' : 'ltr'} style={{ background: 'linear-gradient(135deg,#07101f,#14254a)', color: '#f8fafc' }}>
-    {visiblePayments.length > 0 && <div style={{background:'#f1f5f9',color:'#334155'}}><Container><section className="py-3 text-center"><h2 className="mb-2 text-xs font-semibold">{t('طرق الدفع المتاحة','Moyens de paiement')}</h2><div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">{visiblePayments.map((payment,index) => { const url = safeUrl(paymentLogos[payment.name]); return <span key={`${payment.name}-${index}`} className="inline-flex h-8 min-w-12 max-w-24 items-center justify-center text-xs font-semibold">{url ? <img src={url} alt={payment.name} className="max-h-7 max-w-20 object-contain" loading="lazy" onError={e => {e.currentTarget.style.display='none'; const next=e.currentTarget.nextElementSibling; if(next instanceof HTMLElement) next.hidden=false}} /> : null}<span hidden={!!url}>{payment.name}</span></span> })}</div></section></Container></div>}
+  const [expanded, setExpanded] = useState<string[]>([])
+  const toggle = (key: string) => setExpanded(old => old.includes(key) ? old.filter(x => x !== key) : [...old, key])
+  const groups = [
+    { key: 'store', icon: ShoppingBag, title: t('اكتشف المتجر','Découvrir la boutique'), items: links.slice(0,2) },
+    { key: 'account', icon: UserCircle, title: t('حساب الزبون','Espace client'), items: links.slice(2) },
+    { key: 'policies', icon: ShieldCheck, title: t('السياسات والضمان','Politiques et garanties'), items: policies.map(p => ({...p, icon: ShieldCheck})) },
+  ].filter(g => g.items.length)
+  return <footer dir={ar ? 'rtl' : 'ltr'} style={{background:'#0b1120',color:'#f8fafc'}}>
     <Container>
-      <div className="grid gap-4 py-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-10">
+      <div className="grid gap-6 py-8 md:grid-cols-2 xl:grid-cols-4">
         <section>
           <Link to="/" className="inline-flex items-center gap-3" style={{color:'#fff'}}>
-            {logo && !logoFailed ? <img src={logo} alt={name} onError={() => setLogoFailed(true)} className="h-10 max-w-32 object-contain" /> : <span className="flex h-11 w-11 items-center justify-center rounded-xl text-xl font-black" style={{background:'#2563eb',color:'#fff'}}>T</span>}
+            {logo && !logoFailed ? <img src={logo} alt="" onError={()=>setLogoFailed(true)} className="h-10 max-w-32 object-contain" style={{background:'transparent',border:0,boxShadow:'none'}}/> : <span className="text-3xl font-black">T</span>}
             <span className="text-lg font-black">{name}</span>
           </Link>
-          <p className="mt-3 text-sm leading-7" style={{color:'#cbd5e1'}}>{str(ar ? store.sloganAr : store.sloganFr) || t('متجرك للخدمات والاشتراكات الرقمية.', 'Votre boutique de services et abonnements numériques.')}</p>
+          <p className="mt-3 text-sm leading-7" style={{color:'#aabbd2'}}>{str(ar ? store.sloganAr : store.sloganFr) || t('خدمات رقمية بسيطة وسريعة','Services numériques simples et rapides')}</p>
+          <div className="mt-4 flex flex-wrap gap-3">{socials.map(({label,icon:Icon,href,color})=><a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={label} className="flex h-10 w-10 items-center justify-center rounded-full hover:opacity-80" style={{background:color,color:'#fff'}}><Icon size={19}/></a>)}</div>
         </section>
-        <details className="group" open>
-          <summary className="mb-2 cursor-pointer text-sm font-bold" style={{color:'#fff'}}>{t('روابط سريعة', 'Liens rapides')}</summary>
-          <nav className="grid grid-cols-2 gap-2 sm:grid-cols-1" aria-label={t('روابط المتجر','Liens de la boutique')}>
-            {links.map(({icon: Icon,label,to}) => <Link key={label} to={to} className="flex min-h-10 items-center gap-2 rounded-lg text-sm hover:underline" style={{color:'#cbd5e1'}}><Icon size={17} style={{color:'#93c5fd'}} aria-hidden="true"/>{label}</Link>)}
-          </nav>
-        </details>
-        <details className="group" open>
-          <summary className="mb-2 cursor-pointer text-sm font-bold" style={{color:'#fff'}}>{t('خدمة الزبناء', 'Service client')}</summary>
-          <div className="grid grid-cols-2 gap-2">
-            {contacts.map(({icon: Icon,label,href,external}) => <a key={label} href={href} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined} className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border p-2 text-center text-xs font-semibold hover:underline" style={{background:'#ffffff0a',borderColor:'#ffffff26',color:'#e2e8f0'}}><Icon size={23} style={{color:label === 'WhatsApp' ? '#4ade80' : '#93c5fd'}} aria-hidden="true"/>{label}</a>)}
-          </div>
-          {!contacts.length && <p className="text-sm" style={{color:'#cbd5e1'}}>{t('وسائل التواصل غير متاحة حاليًا.', 'Les coordonnées ne sont pas disponibles actuellement.')}</p>}
-        </details>
+        {groups.map(({key,icon:Icon,title,items})=><section key={key} className="border-t pt-3 md:border-0 md:pt-0" style={{borderColor:'#263349'}}>
+          <button type="button" className="flex min-h-11 w-full items-center gap-2 text-sm font-bold md:hidden" aria-expanded={expanded.includes(key)} onClick={()=>toggle(key)}><Icon size={18} color="#60a5fa"/>{title}<span className="ms-auto">{expanded.includes(key)?<ChevronUp size={17}/>:<ChevronDown size={17}/>}</span></button>
+          <h2 className="mb-3 hidden items-center gap-2 text-sm font-bold md:flex"><Icon size={18} color="#60a5fa"/>{title}</h2>
+          <nav aria-label={title} className={`${expanded.includes(key)?'grid':'hidden'} gap-1 md:grid`}>{items.map(({icon:ItemIcon,label,to})=><Link key={label} to={to} className="flex min-h-10 items-center gap-2 text-sm hover:underline" style={{color:'#cbd5e1'}}><ItemIcon size={16} color="#93c5fd"/>{label}</Link>)}</nav>
+        </section>)}
+        <section className="border-t pt-4 md:border-0 md:pt-0" style={{borderColor:'#263349'}}>
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold"><Headphones size={18} color="#60a5fa"/>{t('مركز المساعدة','Centre d’aide')}</h2>
+          <button type="button" onClick={()=>setSupportOpen(true)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold" style={{background:'#2563eb',color:'#fff'}}><MessageCircle size={18}/>{t('خدمة الزبناء','Service client')}</button>
+          {emailHref && <a href={emailHref} className="mt-3 flex min-h-10 items-center gap-2 text-sm hover:underline" style={{color:'#cbd5e1'}}><Mail size={16}/>{t('البريد الإلكتروني','E-mail')}</a>}
+          {faq.length>0 && <button type="button" onClick={()=>setSupportOpen(true)} className="flex min-h-10 items-center gap-2 text-sm"><CircleHelp size={16}/>{t('الأسئلة الشائعة','Questions fréquentes')}</button>}
+        </section>
       </div>
-      {socials.length > 0 && <div className="flex flex-wrap items-center justify-center gap-3 border-t py-4" style={{borderColor:'#ffffff26'}}><span className="text-xs" style={{color:'#cbd5e1'}}>{t('تابعونا','Suivez-nous')}</span>{socials.map(({label,icon:Icon,href,color}) => <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={label} className="flex h-9 w-9 items-center justify-center rounded-full" style={{background:color,color:'#fff'}}><Icon size={18}/></a>)}</div>}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t py-4 text-xs" style={{borderColor:'#ffffff26',color:'#cbd5e1'}}><span>© {new Date().getFullYear()} {name} — {t('جميع الحقوق محفوظة','Tous droits réservés')}</span><span className="flex items-center gap-1"><Globe size={14} aria-hidden="true"/>{t('موريتانيا · أوقية جديدة','Mauritanie · MRU')}</span></div>
+      {visiblePayments.length>0 && <section className="border-t py-5" style={{borderColor:'#263349'}}><h2 className="mb-4 text-center text-xs font-semibold" style={{color:'#aabbd2'}}>{t('طرق الدفع المتاحة','Moyens de paiement')}</h2><div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4">{visiblePayments.map(payment=><PaymentLogo key={`${payment.name}:${payment.logo}`} name={payment.name} url={safeUrl(payment.logo)}/>)}</div></section>}
+      <div className="flex flex-wrap items-center justify-center gap-3 border-t py-4 text-xs md:justify-between" style={{borderColor:'#263349',color:'#aabbd2'}}><span>© {new Date().getFullYear()} {name} — {t('جميع الحقوق محفوظة','Tous droits réservés')}</span><span className="flex items-center gap-1"><Globe size={14}/>{t('موريتانيا · أوقية جديدة','Mauritanie · MRU')}</span></div>
     </Container>
-    {contacts.length > 0 && <div className="fixed z-50 flex flex-col items-end gap-3" style={{insetInlineEnd:16,bottom:'calc(84px + env(safe-area-inset-bottom, 0px))'}}>
-      {supportOpen && <section id="teo-support-menu" aria-label={t('خدمة الزبناء','Service client')} className="w-72 max-w-[calc(100vw-32px)] overflow-hidden rounded-2xl border shadow-2xl" style={{background:'#0f172a',borderColor:'#334155',color:'#f8fafc'}}>
-        <div className="flex items-center justify-between gap-2 p-4" style={{background:'#1d4ed8',color:'#fff'}}><span className="flex items-center gap-2 font-bold"><Headphones size={21}/>{t('خدمة الزبناء','Service client')}</span><button type="button" onClick={() => setSupportOpen(false)} aria-label={t('إغلاق','Fermer')} className="rounded-lg p-2"><X size={20}/></button></div>
-        <div className="space-y-2 p-3"><p className="text-sm" style={{color:'#cbd5e1'}}>{t('كيف يمكننا مساعدتك؟','Comment pouvons-nous vous aider ?')}</p>
-        {contacts.map(({icon: Icon,label,href,external}) => <a key={label} href={href} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined} className="flex min-h-12 items-center gap-3 rounded-xl border px-3 py-2 text-sm font-semibold hover:underline" style={{background:'#1e293b',borderColor:'#334155',color:'#f8fafc'}}><Icon size={21} style={{color:label === 'WhatsApp' ? '#4ade80' : '#93c5fd'}}/>{label}</a>)}
+    <div className="fixed z-40 flex flex-col items-end gap-2" style={{insetInlineEnd:16,bottom:'calc(96px + env(safe-area-inset-bottom, 0px))'}}>
+      {supportOpen && <section id="teo-support-menu" aria-label={t('خدمة الزبناء','Service client')} className="w-80 max-w-[calc(100vw-32px)] overflow-auto rounded-2xl border shadow-2xl" style={{maxHeight:'min(65dvh, 520px)',background:'#0f172a',borderColor:'#334155',color:'#f8fafc'}}>
+        <div className="flex items-center justify-between gap-2 p-4" style={{background:'#1d4ed8',color:'#fff'}}><span className="flex items-center gap-2 font-bold"><Headphones size={21}/>{t('خدمة الزبناء','Service client')}</span><button type="button" onClick={()=>setSupportOpen(false)} aria-label={t('إغلاق','Fermer')} className="p-2"><X size={20}/></button></div>
+        <div className="space-y-3 p-4"><p className="text-sm">{t('كيف يمكننا مساعدتك؟','Comment pouvons-nous vous aider ?')}</p>
+          {chatReady && <Link to={chatPath} onClick={()=>setSupportOpen(false)} className="flex min-h-12 items-center gap-3 rounded-xl px-3 font-semibold" style={{background:'#2563eb',color:'#fff'}}><MessageCircle size={20}/>{t('محادثاتي وبدء محادثة','Mes conversations / Nouveau message')}</Link>}
+          <Link to="/profil" onClick={()=>setSupportOpen(false)} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm" style={{background:'#1e293b',color:'#fff'}}><PackageSearch size={20}/>{t('متابعة طلباتي','Suivre mes commandes')}</Link>
+          {emailHref && <a href={emailHref} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm" style={{background:'#1e293b',color:'#fff'}}><Mail size={20}/>{t('راسلنا بالبريد الإلكتروني','Nous écrire par e-mail')}</a>}
+          {!chatReady && <p className="text-xs leading-6" style={{color:'#aabbd2'}}>{t('المحادثة المباشرة غير متاحة حاليًا.','La messagerie directe n’est pas disponible actuellement.')}</p>}
+          {str(ar ? footer.supportHoursAr : footer.supportHoursFr) && <p className="text-xs" style={{color:'#aabbd2'}}>{str(ar ? footer.supportHoursAr : footer.supportHoursFr)}</p>}
+          {faq.map((q,i)=><details key={i} className="rounded-lg p-3" style={{background:'#1e293b'}}><summary className="cursor-pointer text-sm font-semibold">{q.question}</summary><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{q.answer}</p></details>)}
         </div>
       </section>}
-      <button type="button" aria-expanded={supportOpen} aria-controls={supportOpen ? 'teo-support-menu' : undefined} aria-label={t('خدمة الزبناء','Service client')} onClick={() => setSupportOpen(v => !v)} className="flex h-14 w-14 items-center justify-center rounded-full shadow-xl" style={{background:'#2563eb',color:'#fff'}}>{supportOpen ? <X size={25}/> : <Headphones size={27}/>}</button>
-    </div>}
+      {!supportOpen && showTop && <button type="button" aria-label={t('العودة إلى الأعلى','Retour en haut')} onClick={()=>window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})} className="flex h-10 w-10 items-center justify-center rounded-full shadow-lg" style={{background:'#1e293b',color:'#fff'}}><ArrowUp size={19}/></button>}
+      <button type="button" aria-expanded={supportOpen} aria-controls={supportOpen?'teo-support-menu':undefined} aria-label={t('خدمة الزبناء','Service client')} onClick={()=>setSupportOpen(v=>!v)} className="flex h-12 w-12 items-center justify-center rounded-full shadow-xl" style={{background:'#2563eb',color:'#fff'}}>{supportOpen?<X size={23}/>:<Headphones size={24}/>}</button>
+    </div>
   </footer>
+}
+
+function PaymentLogo({name,url}:{name:string;url:string}) {
+  const [failed,setFailed]=useState(false)
+  return <span className="inline-flex h-8 items-center justify-center" title={name} style={{background:'transparent'}}>{url&&!failed?<img src={url} alt={name} loading="lazy" onError={()=>setFailed(true)} className="max-h-7 max-w-20 object-contain" style={{background:'transparent',border:0,boxShadow:'none'}}/>:<span className="text-xs font-semibold" style={{color:'#cbd5e1'}}>{name}</span>}</span>
 }
