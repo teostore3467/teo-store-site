@@ -63,6 +63,8 @@ function AdminLayout() {
       { label: 'eSIM', description: 'Pays et forfaits', to: '/admin/esim', icon: <Icon name="esim"/> },
     ]},
     { label: 'Système', items: [
+      { label: 'Messagerie', description: 'Support client', to: '/admin/support', icon: <Icon name="settings"/> },
+      { label: 'Footer & contenu', description: 'Pages et FAQ', to: '/admin/footer', icon: <Icon name="settings"/> },
       { label: 'Paramètres', description: 'Configuration du magasin', to: '/admin/settings', icon: <Icon name="settings"/> },
     ]},
   ], [newReviewsCount])
