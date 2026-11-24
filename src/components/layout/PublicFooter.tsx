@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Headphones, MessageCircle, Mail, PackageSearch, Globe, X, ChevronUp, ChevronDown, ArrowUp } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { supabase } from '../../lib/supabase'
@@ -21,6 +21,7 @@ const str = (v: unknown) => typeof v === 'string' ? v.trim() : ''
 
 export default function PublicFooter() {
   const { language, toggleLanguage } = useLanguage()
+  const { pathname } = useLocation()
   const ar = language === 'ar'
   const t = (a: string, f: string) => ar ? a : f
   const [content,setContent]=useState<{pages:Record<string,unknown>[];faq:Record<string,unknown>[];sections:Record<string,unknown>[];links:Record<string,unknown>[];settings:Record<string,unknown>}>({pages:[],faq:[],sections:[],links:[],settings:{}})
@@ -72,7 +73,7 @@ export default function PublicFooter() {
   const emailHref = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? `mailto:${email}` : ''
   
   const chatPath = "/assistance"
-  const chatReady = obj(content.settings.support).chatEnabled !== false
+  const chatReady = obj(content.settings.support).chatEnabled === true
   const [showTop, setShowTop] = useState(false)
   useEffect(() => { const update = () => setShowTop(window.scrollY > 500); update(); window.addEventListener('scroll', update, { passive: true }); return () => window.removeEventListener('scroll', update) }, [])
   const general = obj(content.settings.general), supportConfig = obj(content.settings.support)
@@ -90,7 +91,26 @@ export default function PublicFooter() {
   const legal=items.filter(x=>['about','terms','privacy','warranty','refund'].some(k=>x.to==='/information/'+k))
   const useful=items.filter(x=>!legal.includes(x))
   const groups=[{key:'legal',title:t('معلومات وسياسات','Informations'),items:legal},{key:'useful',title:t('روابط مفيدة','Liens utiles'),items:useful}].filter(g=>g.items.length)
-
+  const enabled = supportConfig.enabled === true
+  const [now,setNow] = useState(Date.now())
+  useEffect(()=>{const timer=window.setInterval(()=>setNow(Date.now()),30000);return()=>window.clearInterval(timer)},[])
+  useEffect(()=>{setSupportOpen(false)},[pathname,enabled])
+  const withinHours = (()=>{
+    try {
+      const parts = new Intl.DateTimeFormat('en-GB',{timeZone:str(supportConfig.timezone)||'Africa/Nouakchott',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(now))
+      const part=(key:string)=>parts.find(p=>p.type===key)?.value||''
+      const day=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(part('weekday'))
+      const days=Array.isArray(supportConfig.workingDays)?supportConfig.workingDays:[0,1,2,3,4,5,6]
+      const start=str(supportConfig.openingTime),end=str(supportConfig.closingTime),time=part('hour')+':'+part('minute')
+      if(!/^\d{2}:\d{2}$/.test(start)||!/^\d{2}:\d{2}$/.test(end))return days.includes(day)
+      return start<=end ? days.includes(day)&&time>=start&&time<end : (days.includes(day)&&time>=start)||(days.includes((day+6)%7)&&time<end)
+    }catch{return false}
+  })()
+  const online=enabled&&supportConfig.online===true&&withinHours
+  const purchasePage=/^\/services-numeriques\/[^/]+/.test(pathname)||pathname.startsWith('/commande')
+  const hideFloating=purchasePage||pathname.startsWith('/assistance')
+  const [dark,setDark]=useState(()=>document.documentElement.dataset.teoTheme==='dark')
+  useEffect(()=>{const sync=()=>setDark(document.documentElement.dataset.teoTheme==='dark');const observer=new MutationObserver(sync);observer.observe(document.documentElement,{attributes:true,attributeFilter:['data-teo-theme']});return()=>observer.disconnect()},[])
   return <footer dir={ar ? 'rtl' : 'ltr'} style={{background:'#0b1120',color:'#f8fafc'}}>
     <Container>
       <div className="grid gap-6 py-8 md:grid-cols-3">
@@ -107,24 +127,25 @@ export default function PublicFooter() {
           <h2 className="mb-3 hidden text-sm font-bold md:block">{title}</h2>
           <nav className={`${expanded.includes(key)?'grid':'hidden'} gap-1 md:grid`}>{items.map(({label,to})=>to.startsWith('/')?<Link key={to} to={to} className="py-1.5 text-sm hover:underline" style={{color:'#cbd5e1'}}>{label}</Link>:<a key={to} href={to} target="_blank" rel="noopener noreferrer" className="py-1.5 text-sm" style={{color:'#cbd5e1'}}>{label}</a>)}</nav>
         </section>)}
+        {enabled && hideFloating && <Link to="/assistance" className="flex items-center gap-2 text-sm font-bold"><Headphones size={18}/>{t('مركز المساعدة','Centre d’aide')}</Link>}
       </div>
       {general.showPayments!==false && visiblePayments.length>0 && <section className="border-t py-5" style={{borderColor:'#263349'}}><h2 className="mb-4 text-center text-xs font-semibold" style={{color:'#aabbd2'}}>{t('طرق الدفع المتاحة','Moyens de paiement')}</h2><div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4">{visiblePayments.map(payment=><PaymentLogo key={`${payment.name}:${payment.logo}`} name={payment.name} url={safeUrl(payment.logo)}/>)}</div></section>}
-      <div className="flex flex-wrap items-center justify-center gap-3 border-t py-4 text-xs md:justify-between" style={{borderColor:'#263349',color:'#aabbd2'}}><span>© {new Date().getFullYear()} {name} — {t('جميع الحقوق محفوظة','Tous droits réservés')}</span>{general.showLanguage!==false&&<button onClick={toggleLanguage}>{ar?"Français":"العربية"}</button>}<span className="flex items-center gap-1"><Globe size={14}/>{t('موريتانيا · أوقية جديدة','Mauritanie · MRU')}</span></div>
+      <div className="flex flex-wrap items-center justify-center gap-3 border-t py-4 text-xs md:justify-between" style={{borderColor:'#263349',color:'#aabbd2'}}><span>©️ {new Date().getFullYear()} {name} — {t('جميع الحقوق محفوظة','Tous droits réservés')}</span>{general.showLanguage!==false&&<button onClick={toggleLanguage}>{ar?"Français":"العربية"}</button>}<span className="flex items-center gap-1"><Globe size={14}/>{t('موريتانيا · أوقية جديدة','Mauritanie · MRU')}</span></div>
     </Container>
-    <div className="fixed z-40 flex flex-col items-end gap-2" style={{insetInlineEnd:16,bottom:'calc(96px + env(safe-area-inset-bottom, 0px))'}}>
-      {supportOpen && <section id="teo-support-menu" aria-label={t('خدمة الزبناء','Service client')} className="w-80 max-w-[calc(100vw-32px)] overflow-auto rounded-2xl border shadow-2xl" style={{maxHeight:'min(65dvh, 520px)',background:'#0f172a',borderColor:'#334155',color:'#f8fafc'}}>
+    <div className={`fixed z-40 flex flex-col items-end gap-2 ${hideFloating ? 'hidden' : ''}`} style={{insetInlineEnd:12,bottom:'calc(16px + env(safe-area-inset-bottom, 0px))'}}>
+      {enabled && supportOpen && <section id="teo-support-menu" aria-label={t('خدمة الزبناء','Service client')} className="w-80 max-w-[calc(100vw-32px)] overflow-auto rounded-2xl border shadow-2xl" style={{maxHeight:'min(65dvh, 520px)',background:dark?'#0f172a':'#ffffff',borderColor:dark?'#334155':'#e2e8f0',color:dark?'#f8fafc':'#0f172a'}}>
         <div className="flex items-center justify-between gap-2 p-4" style={{background:'#1d4ed8',color:'#fff'}}><span className="flex items-center gap-2 font-bold"><Headphones size={21}/>{t('خدمة الزبناء','Service client')}</span><button type="button" onClick={()=>setSupportOpen(false)} aria-label={t('إغلاق','Fermer')} className="p-2"><X size={20}/></button></div>
         <div className="space-y-3 p-4"><p className="text-sm">{str(ar?supportConfig.welcomeAr:supportConfig.welcomeFr)||t('كيف يمكننا مساعدتك؟','Comment pouvons-nous vous aider ?')}</p>
-          <p className="text-xs">{supportConfig.online===true?t("الدعم متصل","Support en ligne"):t("الدعم غير متصل — يمكنك ترك رسالة","Support hors ligne — laissez un message")} · {str(supportConfig.openingTime)}–{str(supportConfig.closingTime)}</p>{chatReady && <Link to={chatPath} onClick={()=>setSupportOpen(false)} className="flex min-h-12 items-center gap-3 rounded-xl px-3 font-semibold" style={{background:'#2563eb',color:'#fff'}}><MessageCircle size={20}/>{t('محادثاتي وبدء محادثة','Mes conversations / Nouveau message')}</Link>}
-          <Link to="/assistance?category=warranty" onClick={()=>setSupportOpen(false)} className="block rounded-xl p-3 text-sm" style={{background:"#1e293b"}}>{t("طلب الضمان","Demande de garantie")}</Link><Link to="/assistance?category=order" onClick={()=>setSupportOpen(false)} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm" style={{background:'#1e293b',color:'#fff'}}><PackageSearch size={20}/>{t('متابعة طلباتي','Suivre mes commandes')}</Link>
-          {supportConfig.emailEnabled!==false && emailHref && <a href={emailHref} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm" style={{background:'#1e293b',color:'#fff'}}><Mail size={20}/>{t('راسلنا بالبريد الإلكتروني','Nous écrire par e-mail')}</a>}
+          <p className="text-xs">{online?t("الدعم متصل","Support en ligne"):t("الدعم غير متصل — يمكنك ترك رسالة","Support hors ligne — laissez un message")} · {str(supportConfig.openingTime)}–{str(supportConfig.closingTime)}</p>{chatReady && <Link to={chatPath} onClick={()=>setSupportOpen(false)} className="flex min-h-12 items-center gap-3 rounded-xl px-3 font-semibold" style={{background:'#2563eb',color:'#fff'}}><MessageCircle size={20}/>{t('محادثاتي وبدء محادثة','Mes conversations / Nouveau message')}</Link>}
+          {chatReady && <><Link to="/assistance?category=warranty" onClick={()=>setSupportOpen(false)} className="block rounded-xl p-3 text-sm" style={{background:dark?"#1e293b":"#f1f5f9"}}>{t("طلب الضمان","Demande de garantie")}</Link><Link to="/assistance?category=order" onClick={()=>setSupportOpen(false)} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm" style={{background:dark?'#1e293b':'#f1f5f9',color:dark?'#fff':'#0f172a'}}><PackageSearch size={20}/>{t('متابعة طلباتي','Suivre mes commandes')}</Link></>}
+          {supportConfig.emailEnabled===true && emailHref && <a href={emailHref} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm" style={{background:dark?'#1e293b':'#f1f5f9',color:dark?'#fff':'#0f172a'}}><Mail size={20}/>{t('راسلنا بالبريد الإلكتروني','Nous écrire par e-mail')}</a>}
           {!chatReady && <p className="text-xs leading-6" style={{color:'#aabbd2'}}>{t('المحادثة المباشرة غير متاحة حاليًا.','La messagerie directe n’est pas disponible actuellement.')}</p>}
           {str(ar ? footer.supportHoursAr : footer.supportHoursFr) && <p className="text-xs" style={{color:'#aabbd2'}}>{str(ar ? footer.supportHoursAr : footer.supportHoursFr)}</p>}
-          {faq.map((q,i)=><details key={i} className="rounded-lg p-3" style={{background:'#1e293b'}}><summary className="cursor-pointer text-sm font-semibold">{q.question}</summary><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{q.answer}</p></details>)}
+          {faq.map((q,i)=><details key={i} className="rounded-lg p-3" style={{background:dark?'#1e293b':'#f1f5f9'}}><summary className="cursor-pointer text-sm font-semibold">{q.question}</summary><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{q.answer}</p></details>)}
         </div>
       </section>}
-      {general.showBackToTop!==false && !supportOpen && showTop && <button type="button" aria-label={t('العودة إلى الأعلى','Retour en haut')} onClick={()=>window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})} className="flex h-10 w-10 items-center justify-center rounded-full shadow-lg" style={{background:'#1e293b',color:'#fff'}}><ArrowUp size={19}/></button>}
-      <button type="button" aria-expanded={supportOpen} aria-controls={supportOpen?'teo-support-menu':undefined} aria-label={t('خدمة الزبناء','Service client')} onClick={()=>setSupportOpen(v=>!v)} className="flex h-12 w-12 items-center justify-center rounded-full shadow-xl" style={{background:'#2563eb',color:'#fff'}}>{supportOpen?<X size={23}/>:<Headphones size={24}/>} {unread>0&&<span className="absolute -top-2 -end-2 rounded-full bg-red-600 px-2 text-xs">{unread}</span>}</button>
+      {general.showBackToTop!==false && !supportOpen && showTop && <button type="button" aria-label={t('العودة إلى الأعلى','Retour en haut')} onClick={()=>window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})} className="flex h-10 w-10 items-center justify-center rounded-full shadow-lg" style={{background:dark?'#1e293b':'#f1f5f9',color:dark?'#fff':'#0f172a'}}><ArrowUp size={19}/></button>}
+      {enabled && <button type="button" aria-expanded={supportOpen} aria-controls={supportOpen?'teo-support-menu':undefined} aria-label={t('خدمة الزبناء','Service client')} onClick={()=>setSupportOpen(v=>!v)} className="relative flex h-11 w-11 items-center justify-center rounded-full shadow-xl sm:h-12 sm:w-12" style={{background:'#2563eb',color:'#fff'}}>{supportOpen?<X size={23}/>:<Headphones size={24}/>} {unread>0&&<span className="absolute -top-2 -end-2 rounded-full bg-red-600 px-2 text-xs">{unread>99?'99+':unread}</span>}</button>}
     </div>
   </footer>
 }
