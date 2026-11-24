@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { supabase } from '../../../lib/supabase'
 
 type SettingsTab = 'store' | 'preorders' | 'payments' | 'orders' | 'reviews' | 'maintenance'
-type StoreSettings = { storeName: string; sloganFr: string; sloganAr: string; currency: string; country: string; logoUrl: string }
+type StoreSettings = { storeName: string; sloganFr: string; sloganAr: string; currency: string; country: string; logoUrl: string; logoDarkUrl: string; logoFooterUrl: string }
 type PreorderItem = { id: string; titleAr: string; titleFr: string; imageUrl: string; price: number; deliveryMinDays: number; deliveryMaxDays: number; whatsappNumber: string; referenceCode: string; visible: boolean }
 type PreorderSettings = { enabled: boolean; titleAr: string; titleFr: string; whatsappNumber: string; items: PreorderItem[] }
 const defaultPreorderItem = (n: number): PreorderItem => ({ id: `teo-featured-${n}`, titleAr: '', titleFr: '', imageUrl: '', price: 0, deliveryMinDays: 4, deliveryMaxDays: 17, whatsappNumber: '', referenceCode: `TEO-${n}`, visible: false })
@@ -41,7 +41,7 @@ type MaintenanceSettings = { enabled: boolean; messageFr: string; messageAr: str
 type AppSettingsRow = { setting_key: string; setting_value: Record<string, unknown> | null; updated_at: string | null }
 type ToastState = { type: 'success' | 'error' | 'info'; title: string; message?: string }
 
-const defaultStoreSettings: StoreSettings = { storeName: 'TEO STORE', sloganFr: 'Services numériques simples et rapides', sloganAr: 'خدمات رقمية بسيطة وسريعة', currency: 'MRU', country: 'Mauritanie', logoUrl: '' }
+const defaultStoreSettings: StoreSettings = { storeName: 'TEO STORE', sloganFr: 'Services numériques simples et rapides', sloganAr: 'خدمات رقمية بسيطة وسريعة', currency: 'MRU', country: 'Mauritanie', logoUrl: '', logoDarkUrl: '', logoFooterUrl: '' }
 const defaultSupportSettings: SupportSettings = { phone: '', whatsapp: '34342869', whatsappActive: true, email: '', supportMessageFr: 'Bonjour TEO STORE, j’ai besoin d’aide.', supportMessageAr: 'مرحبًا TEO STORE، أحتاج إلى المساعدة.' }
 const defaultPayments: PaymentSettings[] = (['bankily', 'masrvi', 'sedad'] as const).map(id => ({ id, name: id === 'bankily' ? 'Bankily' : id === 'masrvi' ? 'Masrvi' : 'Sedad', number: '37109097', active: true, instructionsFr: 'Effectuez le paiement puis envoyez la preuve.', instructionsAr: 'قم بالدفع ثم أرسل إثبات العملية.' }))
 const defaultOrderSettings: OrderSettings = { estimatedProcessingMinutes: 30, allowDisputes: true, disputeWindowHours: 72, customerConfirmationRequired: true, paymentReviewMessageFr: 'Votre paiement est en cours de vérification.', paymentReviewMessageAr: 'عملية الدفع قيد التحقق.', processingMessageFr: 'Votre commande est en cours de préparation.', processingMessageAr: 'طلبك قيد التجهيز.' }
@@ -64,6 +64,7 @@ function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('store')
   const [showSaveDetails, setShowSaveDetails] = useState(false)
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings)
+  const [footerSettings, setFooterSettings] = useState<Record<string, unknown>>({})
   const [preorderSettings, setPreorderSettings] = useState<PreorderSettings>(defaultPreorderSettings)
   const [uploadingPreorder, setUploadingPreorder] = useState<number | null>(null)
   const [supportSettings, setSupportSettings] = useState<SupportSettings>(defaultSupportSettings)
@@ -117,6 +118,7 @@ function AdminSettingsPage() {
     if (!force && (dirtyRef.current || savingRef.current)) { if (initial) setIsLoading(false); return }
     const rows = (data ?? []) as AppSettingsRow[]
     const findValue = (key: string) => rows.find(row => row.setting_key === key)?.setting_value
+    setFooterSettings(asObject(findValue('footer_public')))
     setStoreSettings(mergeKnown(defaultStoreSettings, findValue('store')))
     setPreorderSettings(parsePreorderSettings(findValue('preorder_featured')))
     const support = mergeKnown(defaultSupportSettings, findValue('support'))
@@ -149,7 +151,7 @@ function AdminSettingsPage() {
     }
   }, [loadSettings])
 
-  const handleLogoUpload = async (file: File | undefined) => {
+  const handleLogoUpload = async (file: File | undefined, field: 'logoUrl' | 'logoDarkUrl' | 'logoFooterUrl' = 'logoUrl') => {
     if (!file) return
     if (!['image/png', 'image/webp'].includes(file.type)) {
       showToast({ type: 'error', title: 'Format non accepté', message: 'Utilisez un PNG ou WebP transparent.' })
@@ -168,7 +170,7 @@ function AdminSettingsPage() {
       const { error } = await supabase.storage.from('store-branding').upload(path, file, { contentType: file.type, upsert: false, cacheControl: '3600' })
       if (error) throw error
       const { data } = supabase.storage.from('store-branding').getPublicUrl(path)
-      changeStore({ logoUrl: data.publicUrl })
+      changeStore({ [field]: data.publicUrl })
       showToast({ type: 'success', title: 'Logo importé', message: 'Cliquez sur Enregistrer pour publier le nouveau logo.' })
     } catch (error) {
       showToast({ type: 'error', title: 'Import impossible', message: error instanceof Error ? error.message : 'Erreur inconnue' })
@@ -231,11 +233,13 @@ function AdminSettingsPage() {
         showToast({ type: 'error', title: 'WhatsApp requis' }); return
       }
     }
+    if (isUploadingLogo) { showToast({ type: 'info', title: 'Importation en cours' }); return }
     savingRef.current = true
     setIsSaving(true)
     loadSequenceRef.current += 1
     const entries: Array<[string, Record<string, unknown>]> = [
       ['store', { ...storeSettings }],
+      ['footer_public', { ...footerSettings }],
       ['preorder_featured', { ...preorderSettings, whatsappNumber: normalizeWhatsapp(preorderSettings.whatsappNumber || supportSettings.whatsapp), items: preorderSettings.items.map(item => ({ ...item, whatsappNumber: item.whatsappNumber ? normalizeWhatsapp(item.whatsappNumber) : '' })) }],
       ['support', { phone: supportSettings.phone, whatsapp: supportSettings.whatsapp, email: supportSettings.email, supportMessageFr: supportSettings.supportMessageFr, supportMessageAr: supportSettings.supportMessageAr }],
       ['support_whatsapp', { active: supportSettings.whatsappActive, number, messageFr: supportSettings.supportMessageFr, messageAr: supportSettings.supportMessageAr }],
@@ -315,7 +319,7 @@ function AdminSettingsPage() {
       </aside>
       <main className="min-w-0">
         <div className="mb-4 rounded-[18px] border border-slate-200 bg-white px-5 py-4 shadow-sm"><p className="text-xs font-black uppercase tracking-widest text-blue-600">Section {tabs.findIndex(tab => tab.id === activeTab) + 1} / {tabs.length}</p><h2 className="mt-1 text-xl font-black text-slate-950">{tabs.find(tab => tab.id === activeTab)?.label}</h2><p className="mt-1 text-sm text-slate-500">{tabs.find(tab => tab.id === activeTab)?.description}</p></div>
-      {activeTab === 'store' && <div className="space-y-4"><SettingsCard title="Identité de TEO STORE" description="Informations générales visibles sur TEO STORE."><div className="grid gap-4 sm:grid-cols-2"><TextField label="Nom de la plateforme" value={storeSettings.storeName} onChange={value => changeStore({ storeName: value })} /><TextField label="Devise" value={storeSettings.currency} onChange={value => changeStore({ currency: value })} /><TextField label="Pays" value={storeSettings.country} onChange={value => changeStore({ country: value })} /><div /><TextAreaField label="Slogan français" value={storeSettings.sloganFr} onChange={value => changeStore({ sloganFr: value })} /><TextAreaField label="Slogan arabe" dir="rtl" value={storeSettings.sloganAr} onChange={value => changeStore({ sloganAr: value })} /></div></SettingsCard><SettingsCard title="Logo du magasin / شعار المتجر" description="Importez un PNG ou WebP transparent depuis votre appareil (maximum 2 Mo)."><div className="flex flex-wrap items-center gap-5"><div className="flex h-24 w-40 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-3">{storeSettings.logoUrl ? <img src={storeSettings.logoUrl} alt="Logo TEO STORE" className="max-h-full max-w-full object-contain" /> : <span className="text-sm font-black text-slate-400">TEO STORE</span>}</div><div className="space-y-3"><label className="inline-flex cursor-pointer items-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700">{isUploadingLogo ? 'Importation...' : 'Choisir un logo / رفع الشعار'}<input type="file" accept="image/png,image/webp" className="sr-only" disabled={isUploadingLogo} onChange={event => { void handleLogoUpload(event.target.files?.[0]); event.currentTarget.value = '' }} /></label>{storeSettings.logoUrl && <button type="button" onClick={() => changeStore({ logoUrl: '' })} className="block text-sm font-semibold text-rose-600">Supprimer le logo</button>}<p className="text-xs text-slate-500">Après l’import, cliquez sur Enregistrer en haut de la page.</p></div></div></SettingsCard><SettingsCard title="Support client" description="Coordonnées utilisées pour aider les clients." action={<Toggle checked={supportSettings.whatsappActive} label={supportSettings.whatsappActive ? 'WhatsApp actif' : 'WhatsApp inactif'} onChange={checked => changeSupport({ whatsappActive: checked })} />}><div className="grid gap-4 sm:grid-cols-2"><TextField label="Téléphone" value={supportSettings.phone} onChange={value => changeSupport({ phone: value })} /><div><TextField label="WhatsApp" value={supportSettings.whatsapp} onChange={value => changeSupport({ whatsapp: value })} /><p className="mt-2 text-xs text-slate-400">Saisissez 8 chiffres. L’indicatif 222 est ajouté lors de l’enregistrement.</p></div><TextField label="E-mail" type="email" value={supportSettings.email} onChange={value => changeSupport({ email: value })} /><div /><TextAreaField label="Message WhatsApp français" value={supportSettings.supportMessageFr} onChange={value => changeSupport({ supportMessageFr: value })} /><TextAreaField label="Message WhatsApp arabe" dir="rtl" value={supportSettings.supportMessageAr} onChange={value => changeSupport({ supportMessageAr: value })} /></div></SettingsCard></div>}
+      {activeTab === 'store' && <div className="space-y-4"><SettingsCard title="Identité de TEO STORE" description="Informations générales visibles sur TEO STORE."><div className="grid gap-4 sm:grid-cols-2"><TextField label="Nom de la plateforme" value={storeSettings.storeName} onChange={value => changeStore({ storeName: value })} /><TextField label="Devise" value={storeSettings.currency} onChange={value => changeStore({ currency: value })} /><TextField label="Pays" value={storeSettings.country} onChange={value => changeStore({ country: value })} /><div /><TextAreaField label="Slogan français" value={storeSettings.sloganFr} onChange={value => changeStore({ sloganFr: value })} /><TextAreaField label="Slogan arabe" dir="rtl" value={storeSettings.sloganAr} onChange={value => changeStore({ sloganAr: value })} /></div></SettingsCard><SettingsCard title="Identité visuelle / الهوية البصرية" description="PNG ou WebP transparent, maximum 2 Mo par image."><div className="grid gap-4 md:grid-cols-3">{([{ field: 'logoUrl', title: 'Header — Clair / نهاري', bg: '#ffffff' }, { field: 'logoDarkUrl', title: 'Header — Sombre / ليلي', bg: '#111827' }, { field: 'logoFooterUrl', title: 'Footer / أسفل الموقع', bg: '#0b1428' }] as const).map(({ field, title, bg }) => <div key={field} className="space-y-3 rounded-xl border border-slate-200 p-3"><p className="text-sm font-bold">{title}</p><div className="flex h-24 items-center justify-center rounded-lg p-3" style={{ background: bg }}>{storeSettings[field] ? <img src={storeSettings[field]} alt={title} className="max-h-full max-w-full object-contain" style={{ background: 'transparent' }} /> : <span className="text-xs" style={{ color: field === 'logoUrl' ? '#64748b' : '#cbd5e1' }}>Aucun logo</span>}</div><label className="inline-flex cursor-pointer rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white">{isUploadingLogo ? 'Importation...' : 'Choisir / رفع'}<input type="file" accept="image/png,image/webp" className="sr-only" disabled={isUploadingLogo || isSaving} onChange={event => { void handleLogoUpload(event.target.files?.[0], field); event.currentTarget.value = '' }} /></label>{storeSettings[field] && <button type="button" disabled={isUploadingLogo || isSaving} onClick={() => changeStore({ [field]: '' })} className="block text-sm text-rose-600">Supprimer / إزالة</button>}</div>)}</div><p className="mt-3 text-xs text-slate-500">Cliquez sur Enregistrer après l’import.</p></SettingsCard><SettingsCard title="Réseaux sociaux / التواصل الاجتماعي" description="Liens HTTPS. Laissez vide pour masquer une icône."><div className="grid gap-4 sm:grid-cols-3">{(['facebook', 'tiktok', 'instagram'] as const).map(key => <TextField key={key} label={key === 'facebook' ? 'Facebook' : key === 'tiktok' ? 'TikTok' : 'Instagram'} value={typeof footerSettings[key] === 'string' ? String(footerSettings[key]) : ''} onChange={value => { markDirty(); setFooterSettings(current => ({ ...current, [key]: value.trim() })) }} />)}</div></SettingsCard><SettingsCard title="Support client" description="Coordonnées utilisées pour aider les clients." action={<Toggle checked={supportSettings.whatsappActive} label={supportSettings.whatsappActive ? 'WhatsApp actif' : 'WhatsApp inactif'} onChange={checked => changeSupport({ whatsappActive: checked })} />}><div className="grid gap-4 sm:grid-cols-2"><TextField label="Téléphone" value={supportSettings.phone} onChange={value => changeSupport({ phone: value })} /><div><TextField label="WhatsApp" value={supportSettings.whatsapp} onChange={value => changeSupport({ whatsapp: value })} /><p className="mt-2 text-xs text-slate-400">Saisissez 8 chiffres. L’indicatif 222 est ajouté lors de l’enregistrement.</p></div><TextField label="E-mail" type="email" value={supportSettings.email} onChange={value => changeSupport({ email: value })} /><div /><TextAreaField label="Message WhatsApp français" value={supportSettings.supportMessageFr} onChange={value => changeSupport({ supportMessageFr: value })} /><TextAreaField label="Message WhatsApp arabe" dir="rtl" value={supportSettings.supportMessageAr} onChange={value => changeSupport({ supportMessageAr: value })} /></div></SettingsCard></div>}
       {activeTab === 'preorders' && <div className="space-y-4">
         <SettingsCard title="Sélection Premium — TEO STORE" description="Choisissez jusqu’à deux produits sur commande. Une carte sans image ou désactivée est automatiquement masquée sur l’accueil." action={<Toggle checked={preorderSettings.enabled} label={preorderSettings.enabled ? 'Section visible' : 'Section masquée'} onChange={enabled => changePreorder({ enabled })} />}>
           <div className="grid gap-4 sm:grid-cols-2">
