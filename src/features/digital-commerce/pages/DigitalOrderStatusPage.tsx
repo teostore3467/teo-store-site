@@ -325,8 +325,8 @@ function DigitalOrderStatusPage() {
     null
 
   const resolvedOrderNumber =
-    state?.orderNumber ??
     orderNumber ??
+    state?.orderNumber ??
     ''
 
   const [
@@ -514,6 +514,7 @@ function DigitalOrderStatusPage() {
         if (
           !resolvedOrderNumber
         ) {
+          setIsLoading(false)
           return
         }
 
@@ -755,9 +756,8 @@ function DigitalOrderStatusPage() {
         order:
           DigitalOrderRow,
       ) => {
-        setIsLoadingPaymentReceiver(
-          true,
-        )
+        setPaymentReceiverNumber('')
+        setIsLoadingPaymentReceiver(true)
 
         try {
           if (
@@ -811,42 +811,25 @@ function DigitalOrderStatusPage() {
             }
           }
 
-          const storedNumber =
-            readString(
-              digitalOrder
-                ?.customer_values
-                ?.paymentReceiverNumber ??
-              order.customer_values
-                ?.paymentReceiverNumber,
-            ).trim()
-
-          if (
-            storedNumber.length >
-            0
-          ) {
-            setPaymentReceiverNumber(
-              storedNumber,
-            )
-
-            return
-          }
-
-          setPaymentReceiverNumber(
-            '',
-          )
+          setPaymentReceiverNumber('')
         } finally {
           setIsLoadingPaymentReceiver(
             false,
           )
         }
       },
-      [
-        digitalOrder
-          ?.customer_values,
-      ],
+      [],
     )
 
   useEffect(() => {
+    setDigitalOrder(null)
+    setIsLoading(true)
+    setShowPassword(false)
+    setReview(null)
+    setDisputeOpen(false)
+    setPaymentCompletionOpen(false)
+    setCompletionProofFile(null)
+    setPaymentReceiverNumber('')
     let mounted =
       true
 
@@ -1060,21 +1043,18 @@ function DigitalOrderStatusPage() {
         status ===
           'disputed'
       ) {
-        return 5
+        return 4
       }
 
       if (
         status ===
         'completed'
       ) {
-        return review
-          ? 7
-          : 6
+        return 7
       }
 
-      return 0
+      return -1
     }, [
-      review,
       status,
     ])
 
@@ -1311,14 +1291,14 @@ function DigitalOrderStatusPage() {
     async () => {
       if (
         !digitalOrder ||
+        digitalOrder.status !== 'fulfillment_sent' ||
         isConfirmingReceipt
       ) {
         return
       }
 
-      setIsConfirmingReceipt(
-        true,
-      )
+      if (!window.confirm(isArabic ? 'هل تأكدت من استلام الخدمة وعملها؟' : 'Confirmez-vous avoir reçu et vérifié le service ?')) return
+      setIsConfirmingReceipt(true)
 
       const {
         error,
@@ -1377,6 +1357,7 @@ function DigitalOrderStatusPage() {
     async () => {
       if (
         !digitalOrder ||
+        digitalOrder.status !== 'fulfillment_sent' ||
         !selectedDisputeCode ||
         isSubmittingDispute
       ) {
@@ -1575,6 +1556,9 @@ function DigitalOrderStatusPage() {
     async () => {
       if (
         !digitalOrder ||
+        digitalOrder.status !== 'payment_partial' ||
+        paymentCompletionSubmitted ||
+        !paymentReceiverNumber ||
         !completionSenderNumber
           .trim() ||
         !completionProofFile ||
@@ -1659,7 +1643,9 @@ function DigitalOrderStatusPage() {
         uploadedPath =
           proofPath
 
+        uploadedPath = null
         const {
+          status: completionStatus,
           error:
             completionError,
         } =
@@ -1680,6 +1666,7 @@ function DigitalOrderStatusPage() {
         if (
           completionError
         ) {
+          if (completionStatus >= 400 && completionStatus < 500 && completionStatus !== 408) uploadedPath = proofPath
           throw completionError
         }
 
@@ -1765,6 +1752,8 @@ function DigitalOrderStatusPage() {
     async () => {
       if (
         !digitalOrder ||
+        digitalOrder.status !== 'completed' ||
+        Boolean(review) ||
         selectedRating <
           1 ||
         selectedRating >
@@ -1864,7 +1853,21 @@ function DigitalOrderStatusPage() {
     isLoading
   ) {
     return (
-      <main className="min-h-screen bg-[#f7f9fc]">
+      <main className="teo-order-status min-h-screen bg-[#f7f9fc]">
+<style>{`
+html[data-teo-theme="dark"] .teo-order-status {background:#0b1220;color:#e2e8f0;color-scheme:dark}
+html[data-teo-theme="dark"] .teo-order-status .bg-white {background-color:#111c2e}
+html[data-teo-theme="dark"] .teo-order-status .bg-slate-50,html[data-teo-theme="dark"] .teo-order-status .bg-slate-100 {background-color:#1e293b}
+html[data-teo-theme="dark"] .teo-order-status .border-slate-200 {border-color:#334155}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-slate-950,.text-slate-800,.text-slate-700,.text-slate-600) {color:#e2e8f0}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-slate-400,.text-slate-500,.text-slate-300) {color:#a8b8ce}
+html[data-teo-theme="dark"] .teo-order-status :is(.bg-blue-50,.bg-violet-50,.bg-emerald-50,.bg-amber-50,.bg-orange-50,.bg-rose-50) {background-color:#1e293b}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-blue-950,.text-blue-700,.text-blue-800,.text-violet-700) {color:#bfdbfe}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-emerald-950,.text-emerald-900,.text-emerald-800,.text-emerald-700) {color:#a7f3d0}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-amber-950,.text-amber-800,.text-orange-950,.text-orange-800,.text-orange-700) {color:#fde68a}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-rose-950,.text-rose-800,.text-rose-600) {color:#fda4af}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-blue-600,.text-blue-500) {color:#93c5fd}
+`}</style>
         <Container className="flex min-h-[70vh] items-center justify-center py-10">
           <div className="text-center">
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
@@ -1885,7 +1888,21 @@ function DigitalOrderStatusPage() {
     !digitalOrder
   ) {
     return (
-      <main className="min-h-screen bg-[#f7f9fc] py-10">
+      <main className="teo-order-status min-h-screen bg-[#f7f9fc] py-10">
+<style>{`
+html[data-teo-theme="dark"] .teo-order-status {background:#0b1220;color:#e2e8f0;color-scheme:dark}
+html[data-teo-theme="dark"] .teo-order-status .bg-white {background-color:#111c2e}
+html[data-teo-theme="dark"] .teo-order-status .bg-slate-50,html[data-teo-theme="dark"] .teo-order-status .bg-slate-100 {background-color:#1e293b}
+html[data-teo-theme="dark"] .teo-order-status .border-slate-200 {border-color:#334155}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-slate-950,.text-slate-800,.text-slate-700,.text-slate-600) {color:#e2e8f0}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-slate-400,.text-slate-500,.text-slate-300) {color:#a8b8ce}
+html[data-teo-theme="dark"] .teo-order-status :is(.bg-blue-50,.bg-violet-50,.bg-emerald-50,.bg-amber-50,.bg-orange-50,.bg-rose-50) {background-color:#1e293b}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-blue-950,.text-blue-700,.text-blue-800,.text-violet-700) {color:#bfdbfe}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-emerald-950,.text-emerald-900,.text-emerald-800,.text-emerald-700) {color:#a7f3d0}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-amber-950,.text-amber-800,.text-orange-950,.text-orange-800,.text-orange-700) {color:#fde68a}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-rose-950,.text-rose-800,.text-rose-600) {color:#fda4af}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-blue-600,.text-blue-500) {color:#93c5fd}
+`}</style>
         <Container>
           <div className="mx-auto max-w-xl rounded-[24px] border border-slate-200 bg-white p-8 text-center shadow-sm">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[16px] bg-rose-50 text-lg font-black text-rose-600">
@@ -1970,8 +1987,22 @@ function DigitalOrderStatusPage() {
           ? 'rtl'
           : 'ltr'
       }
-      className="min-h-screen bg-[#f7f9fc] py-5 sm:py-8"
+      className="teo-order-status min-h-screen bg-[#f7f9fc] py-5 sm:py-8"
     >
+<style>{`
+html[data-teo-theme="dark"] .teo-order-status {background:#0b1220;color:#e2e8f0;color-scheme:dark}
+html[data-teo-theme="dark"] .teo-order-status .bg-white {background-color:#111c2e}
+html[data-teo-theme="dark"] .teo-order-status .bg-slate-50,html[data-teo-theme="dark"] .teo-order-status .bg-slate-100 {background-color:#1e293b}
+html[data-teo-theme="dark"] .teo-order-status .border-slate-200 {border-color:#334155}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-slate-950,.text-slate-800,.text-slate-700,.text-slate-600) {color:#e2e8f0}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-slate-400,.text-slate-500,.text-slate-300) {color:#a8b8ce}
+html[data-teo-theme="dark"] .teo-order-status :is(.bg-blue-50,.bg-violet-50,.bg-emerald-50,.bg-amber-50,.bg-orange-50,.bg-rose-50) {background-color:#1e293b}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-blue-950,.text-blue-700,.text-blue-800,.text-violet-700) {color:#bfdbfe}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-emerald-950,.text-emerald-900,.text-emerald-800,.text-emerald-700) {color:#a7f3d0}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-amber-950,.text-amber-800,.text-orange-950,.text-orange-800,.text-orange-700) {color:#fde68a}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-rose-950,.text-rose-800,.text-rose-600) {color:#fda4af}
+html[data-teo-theme="dark"] .teo-order-status :is(.text-blue-600,.text-blue-500) {color:#93c5fd}
+`}</style>
       {toast && (
         <div className="fixed inset-x-3 top-3 z-[250] sm:left-auto sm:right-4 sm:w-full sm:max-w-sm">
           <div
@@ -2050,6 +2081,7 @@ function DigitalOrderStatusPage() {
                 </button>
               </div>
 
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-white/80"><span>{formatDate(digitalOrder.created_at)}</span><button type="button" className="rounded-lg border border-white/20 px-3 py-2" onClick={() => void handleCopy(digitalOrder.order_number)}>{isArabic ? 'نسخ رقم الطلب' : 'Copier le numéro'}</button></div>
               <div className="mt-6 rounded-[18px] border border-white/10 bg-white/[0.05] p-4">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-xs font-black uppercase tracking-wide text-white/40">
@@ -2108,88 +2140,26 @@ function DigitalOrderStatusPage() {
             </div>
           </section>
 
-          <section className="mt-4 overflow-hidden rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-            <div className="overflow-x-auto">
-              <div className="flex min-w-[650px] items-start justify-between gap-2">
-                {pipelineSteps.map(
-                  (
-                    step,
-                    index,
-                  ) => {
-                    const active =
-                      pipelineRank >=
-                      index
-
-                    return (
-                      <div
-                        key={
-                          step.fr
-                        }
-                        className="flex flex-1 items-start"
-                      >
-                        <div className="flex min-w-0 flex-1 flex-col items-center">
-                          <div
-                            className={[
-                              'flex h-8 w-8 items-center justify-center rounded-full text-xs font-black',
-
-                              active
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-slate-100 text-slate-400',
-                            ].join(
-                              ' ',
-                            )}
-                          >
-                            {active
-                              ? '✓'
-                              : index +
-                                1}
-                          </div>
-
-                          <p
-                            className={[
-                              'mt-2 text-center text-[10px] font-black',
-
-                              active
-                                ? 'text-slate-800'
-                                : 'text-slate-300',
-                            ].join(
-                              ' ',
-                            )}
-                          >
-                            {
-                              step[
-                                language
-                              ]
-                            }
-                          </p>
-                        </div>
-
-                        {index <
-                          pipelineSteps.length -
-                            1 && (
-                          <div
-                            className={[
-                              'mt-4 h-0.5 flex-1',
-
-                              pipelineRank >
-                              index
-                                ? 'bg-blue-600'
-                                : 'bg-slate-100',
-                            ].join(
-                              ' ',
-                            )}
-                          />
-                        )}
-                      </div>
-                    )
-                  },
-                )}
-              </div>
-            </div>
+          <section className="mt-4 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <h2 className="text-base font-black text-slate-950">{isArabic ? 'مراحل الطلب' : 'Suivi de commande'}</h2>
+            {pipelineRank < 0 ? <p className="mt-3 text-sm text-slate-500">{isArabic ? 'توقفت معالجة الطلب.' : 'Le traitement de la commande est arrêté.'}</p> : (
+              <ol className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+                {pipelineSteps.map((step, index) => {
+                  const done = index < pipelineRank || (status === 'completed' && index <= 6) || (index === 7 && Boolean(review)) || (index === 4 && pipelineRank === 4)
+                  const current = (index === pipelineRank || (status === 'fulfillment_sent' && index === 5)) && !done
+                  return <li key={step.fr} aria-current={current ? 'step' : undefined} className={`flex min-w-0 items-center gap-2 rounded-xl border p-2 lg:flex-col lg:text-center ${done ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : current ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black ${done ? 'bg-emerald-600 text-white' : current ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'}`}>{done ? '✓' : index + 1}</span>
+                    <span className="text-xs font-bold break-words">{step[language]}</span>
+                  </li>
+                })}
+              </ol>
+            )}
           </section>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_320px]">
             <div className="min-w-0 space-y-4">
+              {status === 'payment_confirmed' && <section className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-5"><h2 className="text-lg font-black text-emerald-950">{isArabic ? 'تم تأكيد الدفع' : 'Paiement confirmé'}</h2><p className="mt-2 text-sm text-emerald-800">{isArabic ? 'تم التحقق من الدفع. انتظر تجهيز الخدمة.' : 'Votre paiement est validé. Le service sera préparé.'}</p></section>}
+              {(status === 'cancelled' || status === 'refunded') && <section className="rounded-[20px] border border-rose-200 bg-rose-50 p-5"><h2 className="text-lg font-black text-rose-950">{status === 'refunded' ? (isArabic ? 'تم استرجاع المبلغ' : 'Commande remboursée') : (isArabic ? 'الطلب ملغى' : 'Commande annulée')}</h2>{digitalOrder.rejection_reason && <p className="mt-2 whitespace-pre-line text-sm text-rose-800">{digitalOrder.rejection_reason}</p>}</section>}
               {status ===
                 'payment_review' && (
                 <section className="rounded-[20px] border border-amber-200 bg-amber-50 p-5">
@@ -2573,11 +2543,9 @@ function DigitalOrderStatusPage() {
                           </p>
 
                           <a
-                            href={
-                              digitalOrder.fulfillment_link
-                            }
+                            href={/^https?:\/\//i.test(digitalOrder.fulfillment_link) ? digitalOrder.fulfillment_link : undefined}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                             className="mt-2 block break-all text-sm font-black text-violet-700 underline"
                           >
                             {
@@ -2938,6 +2906,7 @@ function DigitalOrderStatusPage() {
                     ? 'طلباتي'
                     : 'Mes commandes'}
                 </Link>
+                <Link to="/assistance" className="mt-2 flex min-h-[46px] items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white">{isArabic ? 'التواصل مع الدعم' : 'Contacter le support'}</Link>
               </section>
             </aside>
           </div>
