@@ -1,3 +1,4 @@
+import { ShieldCheck, CalendarDays, Zap, KeyRound, ChevronDown, FileText, BookOpen, Star, ShoppingBag } from 'lucide-react'
 import {
   useEffect,
   useState,
@@ -601,7 +602,7 @@ function DigitalProductDetailsPage() {
     }
 
   return (
-    <main className="min-h-screen bg-[#f7f9fc]">
+    <main className="min-h-screen bg-[#f7f9fc] pb-28 lg:pb-0" dir={isArabic ? 'rtl' : 'ltr'}>
       <section className="border-b border-slate-200 bg-white">
         <Container className="py-3">
           <div className="flex min-w-0 items-center gap-2 overflow-hidden text-xs font-semibold text-slate-400">
@@ -680,14 +681,6 @@ function DigitalProductDetailsPage() {
                   }
                 </h1>
 
-                {localizedServiceDescription && (
-                  <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-                    {
-                      localizedServiceDescription
-                    }
-                  </p>
-                )}
-
                 {!reviewsLoading &&
                   validReviews.length >
                     0 && (
@@ -721,18 +714,16 @@ function DigitalProductDetailsPage() {
               </div>
             </div>
             {!isComingSoon && (
-              <section aria-label={isArabic ? 'معلومات الخدمة' : 'Informations du service'} className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2" dir={isArabic ? 'rtl' : 'ltr'}>
+              <section aria-label={isArabic ? 'معلومات الخدمة' : 'Informations du service'} className="mt-4 space-y-2" dir={isArabic ? 'rtl' : 'ltr'}>
                 {[
-                  { label: isArabic ? 'الضمان' : 'Garantie', value: warrantyText, icon: '🛡' },
-                  { label: isArabic ? 'مدة الخدمة' : 'Durée', value: durationText(validityDays), icon: '◷' },
-                  { label: isArabic ? 'التسليم' : 'Livraison', value: deliveryText, icon: '↗' },
-                ].map((item) => (
-                  <div key={item.label} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50/70 px-1.5 py-2 text-center sm:px-3 sm:py-2.5">
-                    <div className="flex items-center justify-center gap-1 text-[10px] font-semibold text-slate-500 sm:text-xs">
-                      <span aria-hidden="true" className="text-blue-600">{item.icon}</span>
-                      <span>{item.label}</span>
-                    </div>
-                    <p className="mt-1 break-words text-[11px] font-extrabold leading-4 text-slate-900 sm:text-sm">{item.value}</p>
+                  { label: isArabic ? 'مدة التسليم' : 'Délai de livraison', value: deliveryMinutes !== null ? deliveryText : '', Icon: Zap },
+                  { label: isArabic ? 'مدة الاشتراك' : 'Durée de l’abonnement', value: validityDays !== null && validityDays > 0 ? durationText(validityDays) : '', Icon: CalendarDays },
+                  { label: isArabic ? 'طريقة الاستلام' : 'Mode de réception', value: selectedGroup && selectedGroup.fulfillment.type !== 'coming_soon' ? getLocalizedFulfillmentLabel(selectedGroup.fulfillment.type, language) : '', Icon: KeyRound },
+                  { label: isArabic ? 'الضمان' : 'Garantie', value: fullWarranty || (warrantyDays !== null && warrantyDays > 0) ? warrantyText : '', Icon: ShieldCheck },
+                ].filter(item => item.value).map(({label,value,Icon}) => (
+                  <div key={label} className="flex items-center justify-between gap-3 rounded-xl bg-slate-100 px-3 py-3 text-sm sm:px-4">
+                    <span className="flex min-w-0 items-center gap-2 text-slate-700"><Icon size={19} className="shrink-0 text-blue-600" aria-hidden="true"/>{label}</span>
+                    <span className="min-w-0 break-words text-end font-semibold text-slate-900">{value}</span>
                   </div>
                 ))}
               </section>
@@ -1155,16 +1146,17 @@ function DigitalProductDetailsPage() {
                   </div>
                 )}
 
-              <section id="teo-instructions" className="mt-5 scroll-mt-28 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
-                <h3 className="text-base font-extrabold text-slate-900">{isArabic ? 'تعليمات الاستخدام والتفعيل' : 'Instructions d’utilisation et d’activation'}</h3>
-                <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-slate-700">
-                  {selectedGroup
-                    ? (getLocalizedFulfillmentInstructions(service.slug, selectedGroup, language) || (isArabic ? 'لا توجد تعليمات خاصة بهذه الباقة حاليًا. ستظهر هنا عند إضافتها من لوحة الإدارة.' : 'Aucune instruction particulière pour cette formule. Elles apparaîtront ici après ajout dans ADMIN.'))
-                    : (isArabic ? 'اختر الباقة لعرض تعليماتها.' : 'Sélectionnez une formule pour voir ses instructions.')}
-                </p>
-              </section>
+              {localizedServiceDescription && <details open className="group mt-5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+                <summary className="flex cursor-pointer list-none items-center gap-2 font-bold text-slate-900 [&::-webkit-details-marker]:hidden"><FileText size={20} className="text-blue-600"/>{isArabic ? 'وصف المنتج' : 'Description du produit'}<ChevronDown size={18} className="ms-auto group-open:rotate-180"/></summary>
+                <p className="mt-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-slate-700">{localizedServiceDescription}</p>
+              </details>}
+              <details id="teo-instructions" className="group mt-3 scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+                <summary className="flex cursor-pointer list-none items-center gap-2 font-bold text-slate-900 [&::-webkit-details-marker]:hidden"><BookOpen size={20} className="text-blue-600"/>{isArabic ? 'طريقة التفعيل والاستخدام' : 'Activation et utilisation'}<ChevronDown size={18} className="ms-auto group-open:rotate-180"/></summary>
+                <p className="mt-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-slate-700">{selectedGroup ? (getLocalizedFulfillmentInstructions(service.slug, selectedGroup, language) || (isArabic ? 'لا توجد تعليمات إضافية.' : 'Aucune instruction supplémentaire.')) : (isArabic ? 'اختر الباقة.' : 'Sélectionnez une formule.')}</p>
+              </details>
 
-              <section id="teo-reviews" className="mt-5 scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <details id="teo-reviews" className="group mt-3 scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <summary className="flex cursor-pointer list-none items-center gap-2 p-4 font-bold text-slate-900 [&::-webkit-details-marker]:hidden"><Star size={20} className="text-blue-600"/>{isArabic ? 'تقييمات الزبناء' : 'Avis clients'} ({validReviews.length})<ChevronDown size={18} className="ms-auto group-open:rotate-180"/></summary>
                 <div className="border-b border-slate-100 p-5 sm:p-6">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -1356,7 +1348,7 @@ function DigitalProductDetailsPage() {
                     </div>
                   )}
                 </div>
-              </section>
+              </details>
 
               {selectedGroup &&
                 selectedPlan && (
@@ -1486,6 +1478,17 @@ function DigitalProductDetailsPage() {
             </div>
           </Container>
         </section>
+      )}
+      {!isComingSoon && selectedGroup && selectedPlan && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-4 pt-3 shadow-lg lg:hidden" style={{paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))'}}>
+          <div className="mx-auto flex max-w-5xl items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs text-slate-500">{getLocalizedPlanLabel(selectedPlan, language)}</p>
+              <p className="break-words text-xl font-black text-blue-600">{formatPrice(selectedPlan.price, selectedPlan.currency)}</p>
+            </div>
+            <button type="button" onClick={handleContinue} disabled={service.availability !== 'available' || selectedGroup.availability !== 'available' || selectedPlan.availability !== 'available'} className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"><ShoppingBag size={19}/>{service.availability !== 'available' || selectedGroup.availability !== 'available' || selectedPlan.availability !== 'available' ? (isArabic ? 'غير متوفر' : 'Indisponible') : (isArabic ? 'اشترِ الآن' : 'Acheter maintenant')}</button>
+          </div>
+        </div>
       )}
     </main>
   )
