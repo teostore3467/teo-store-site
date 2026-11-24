@@ -93,12 +93,6 @@ type ProfileUser = {
   fullName: string
 }
 
-type WhatsappSupportSetting = {
-  active: boolean
-  number: string
-  messageFr: string
-  messageAr: string
-}
 
 type LoyaltySummary = {
   points_balance: number
@@ -110,6 +104,9 @@ type LoyaltySummary = {
 }
 
 type ProfileSection =
+  | 'services'
+  | 'loyalty'
+  | 'security'
   | 'home'
   | 'orders'
   | 'notifications'
@@ -335,13 +332,6 @@ function ProfilePage() {
       [],
     )
 
-  const [
-    whatsappSupport,
-    setWhatsappSupport,
-  ] =
-    useState<WhatsappSupportSetting | null>(
-      null,
-    )
 
   const [
     loyaltySummary,
@@ -445,6 +435,20 @@ function ProfilePage() {
   ] =
     useState(false)
 
+  const [orderSearch,setOrderSearch] = useState('')
+  const [orderFilter,setOrderFilter] = useState('')
+  const [password,setPassword] = useState('')
+  const [passwordConfirm,setPasswordConfirm] = useState('')
+  const [saving,setSaving] = useState(false)
+  const [accountNotice,setAccountNotice] = useState('')
+  const changePassword = async () => {
+    if (saving || !user) return
+    if (password.length < 12 || password !== passwordConfirm) {setAccountNotice(isArabic ? 'تحقق من تطابق كلمة المرور (12 حرفًا على الأقل).' : 'Vérifiez les mots de passe (12 caractères minimum).'); return}
+    setSaving(true); setAccountNotice('')
+    try {const {error} = await supabase.auth.updateUser({password}); if(error) throw error; setPassword(''); setPasswordConfirm(''); setAccountNotice(isArabic ? 'تم تغيير كلمة المرور.' : 'Mot de passe modifié.')}
+    catch {setAccountNotice(isArabic ? 'تعذر التغيير. قد تحتاج إلى تسجيل الدخول مجددًا.' : 'Modification impossible. Une nouvelle connexion peut être nécessaire.')}
+    finally {setSaving(false)}
+  }
   const loadOrders =
     useCallback(
       async (
@@ -811,111 +815,6 @@ function ProfilePage() {
       [],
     )
 
-  const loadSupportWhatsapp =
-    useCallback(
-      async () => {
-        const {
-          data,
-          error,
-        } =
-          await supabase
-            .from(
-              'app_settings',
-            )
-            .select(
-              'setting_value',
-            )
-            .eq(
-              'setting_key',
-              'support_whatsapp',
-            )
-            .maybeSingle()
-
-        if (error) {
-          console.warn(
-            'Unable to load WhatsApp support setting:',
-            error,
-          )
-
-          setWhatsappSupport(
-            null,
-          )
-
-          return
-        }
-
-        const raw =
-          data?.setting_value
-
-        if (
-          !raw ||
-          typeof raw !==
-            'object' ||
-          Array.isArray(
-            raw,
-          )
-        ) {
-          setWhatsappSupport(
-            null,
-          )
-
-          return
-        }
-
-        const value =
-          raw as Record<
-            string,
-            unknown
-          >
-
-        const active =
-          typeof value.active ===
-            'boolean'
-            ? value.active
-            : true
-
-        const number =
-          typeof value.number ===
-            'string'
-            ? value.number.replace(
-                /\D/g,
-                '',
-              )
-            : ''
-
-        if (
-          !active ||
-          !number
-        ) {
-          setWhatsappSupport(
-            null,
-          )
-
-          return
-        }
-
-        setWhatsappSupport({
-          active:
-            true,
-
-          number,
-
-          messageFr:
-            typeof value.messageFr ===
-              'string'
-              ? value.messageFr
-              : 'Bonjour TEO STORE, j’ai besoin d’aide.',
-
-          messageAr:
-            typeof value.messageAr ===
-              'string'
-              ? value.messageAr
-              : 'مرحبًا TEO STORE، أحتاج إلى المساعدة.',
-        })
-      },
-      [],
-    )
-
   const loadAllCustomerData =
     useCallback(
       async (
@@ -950,7 +849,7 @@ function ProfilePage() {
 
             loadLoyaltySummary(),
 
-            loadSupportWhatsapp(),
+
           ])
 
           setErrorMessage(
@@ -979,7 +878,7 @@ function ProfilePage() {
         loadOrders,
         loadReviews,
         loadStoreReviews,
-        loadSupportWhatsapp,
+
       ],
     )
 
@@ -2477,9 +2376,10 @@ function ProfilePage() {
       section:
         ProfileSection,
     ) => {
-      setActiveSection(
-        section,
-      )
+      setActiveSection(section)
+      setPassword('')
+      setPasswordConfirm('')
+      setAccountNotice('')
 
       window.scrollTo({
         top:
@@ -2491,28 +2391,6 @@ function ProfilePage() {
         behavior:
           'smooth',
       })
-    }
-
-  const openWhatsappSupport =
-    () => {
-      if (
-        !whatsappSupport
-      ) {
-        return
-      }
-
-      const message =
-        isArabic
-          ? whatsappSupport.messageAr
-          : whatsappSupport.messageFr
-
-      window.open(
-        `https://wa.me/${whatsappSupport.number}?text=${encodeURIComponent(
-          message,
-        )}`,
-        '_blank',
-        'noopener,noreferrer',
-      )
     }
 
   const handleSignOut =
@@ -2670,259 +2548,21 @@ function ProfilePage() {
       )
     }
 
-  const sectionTitle =
-    activeSection ===
-    'home'
-      ? isArabic
-        ? 'حسابي'
-        : 'Mon compte'
-      : activeSection ===
-          'orders'
-        ? isArabic
-          ? 'طلباتي'
-          : 'Mes commandes'
-        : activeSection ===
-            'notifications'
-          ? isArabic
-            ? 'إشعاراتي'
-            : 'Mes notifications'
-          : activeSection ===
-              'reviews'
-            ? isArabic
-              ? 'تقييماتي'
-              : 'Mes avis'
-            : activeSection ===
-                'account'
-              ? isArabic
-                ? 'معلومات حسابي'
-                : 'Mes informations'
-              : isArabic
-                ? 'خدمة العملاء'
-                : 'Service client'
-
-  const rowArrow =
-    (
-      <span
-        className={
-          isArabic
-            ? 'rotate-180 text-slate-300'
-            : 'text-slate-300'
-        }
-      >
-        <Icon
-          name="arrow"
-        />
-      </span>
-    )
-
-  return (
-    <main
-      dir={
-        isArabic
-          ? 'rtl'
-          : 'ltr'
-      }
-      className="min-h-screen bg-[#f6f7fb] pb-8"
-    >
-      <div className="border-b border-slate-200 bg-white">
-        <Container>
-          <div className="mx-auto flex min-h-[72px] max-w-5xl items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">
-                TEO STORE
-              </p>
-
-              <h1 className="mt-1 truncate text-xl font-black tracking-[-0.03em] text-slate-950 sm:text-2xl">
-                {
-                  sectionTitle
-                }
-              </h1>
-            </div>
-
-            <div className="flex shrink-0 gap-2">
-              {activeSection !==
-                'home' && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    openSection(
-                      'home',
-                    )
-                  }
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600"
-                  aria-label={
-                    isArabic
-                      ? 'العودة إلى الحساب'
-                      : 'Retour au compte'
-                  }
-                >
-                  <Icon
-                    name="home"
-                    className="h-4 w-4"
-                  />
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={
-                  handleRefresh
-                }
-                disabled={
-                  isRefreshing
-                }
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-50"
-                aria-label={
-                  isArabic
-                    ? 'تحديث'
-                    : 'Actualiser'
-                }
-              >
-                <Icon
-                  name="refresh"
-                  className={
-                    isRefreshing
-                      ? 'h-4 w-4 animate-spin'
-                      : 'h-4 w-4'
-                  }
-                />
-              </button>
-            </div>
-          </div>
-        </Container>
-      </div>
-
-      <Container className="py-4 sm:py-6">
-        <div className="mx-auto max-w-5xl">
-          {errorMessage && (
-            <div className="mb-4 rounded-[18px] border border-rose-100 bg-rose-50 p-4">
-              <p className="text-sm font-bold text-rose-700">
-                {
-                  errorMessage
-                }
-              </p>
-            </div>
-          )}
-
-          {activeSection ===
-            'home' && (
-            <div className="space-y-4">
-              <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)] sm:p-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xl font-black uppercase text-white">
-                    {
-                      firstLetter
-                    }
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-lg font-black text-slate-950 sm:text-xl">
-                      {
-                        user.fullName
-                      }
-                    </p>
-
-                    <p
-                      dir="ltr"
-                      className="mt-1 truncate text-left text-xs font-semibold text-slate-500 sm:text-sm"
-                    >
-                      {
-                        user.email
-                      }
-                    </p>
-
-                    {user.phone && (
-                      <p
-                        dir="ltr"
-                        className="mt-1 truncate text-left text-xs font-semibold text-slate-400"
-                      >
-                        {
-                          user.phone
-                        }
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-5 grid grid-cols-3 divide-x divide-slate-100 overflow-hidden rounded-[18px] border border-slate-100 bg-slate-50">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openSection(
-                        'orders',
-                      )
-                    }
-                    className="px-2 py-4 text-center"
-                  >
-                    <p
-                      dir="ltr"
-                      className="text-xl font-black text-slate-950"
-                    >
-                      {
-                        orders.length
-                      }
-                    </p>
-
-                    <p className="mt-1 text-[10px] font-bold text-slate-400 sm:text-xs">
-                      {isArabic
-                        ? 'الطلبات'
-                        : 'Commandes'}
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openSection(
-                        'notifications',
-                      )
-                    }
-                    className="px-2 py-4 text-center"
-                  >
-                    <p
-                      dir="ltr"
-                      className="text-xl font-black text-slate-950"
-                    >
-                      {
-                        unreadNotifications.length
-                      }
-                    </p>
-
-                    <p className="mt-1 text-[10px] font-bold text-slate-400 sm:text-xs">
-                      {isArabic
-                        ? 'جديدة'
-                        : 'Nouvelles'}
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openSection(
-                        'reviews',
-                      )
-                    }
-                    className="px-2 py-4 text-center"
-                  >
-                    <p
-                      dir="ltr"
-                      className="text-xl font-black text-slate-950"
-                    >
-                      {
-                        completedOrdersCount
-                      }
-                    </p>
-
-                    <p className="mt-1 text-[10px] font-bold text-slate-400 sm:text-xs">
-                      {isArabic
-                        ? 'مكتملة'
-                        : 'Terminées'}
-                    </p>
-                  </button>
-                </div>
-              </section>
-
-              <section className="overflow-hidden rounded-[24px] border border-blue-100 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+  const menu: {id: ProfileSection; icon: IconName; ar: string; fr: string}[] = [
+    {id:'home',icon:'home',ar:'لوحة الحساب',fr:'Tableau de bord'},
+    {id:'orders',icon:'orders',ar:'طلباتي',fr:'Mes commandes'},
+    {id:'services',icon:'store',ar:'خدماتي الرقمية',fr:'Mes services'},
+    {id:'loyalty',icon:'star',ar:'برنامج الولاء',fr:'Fidélité'},
+    {id:'notifications',icon:'bell',ar:'الإشعارات',fr:'Notifications'},
+    {id:'reviews',icon:'star',ar:'تقييماتي',fr:'Mes avis'},
+    {id:'support',icon:'support',ar:'مركز الدعم',fr:'Assistance'},
+    {id:'account',icon:'user',ar:'معلوماتي الشخصية',fr:'Mon profil'},
+    {id:'security',icon:'user',ar:'أمان الحساب',fr:'Sécurité'},
+  ]
+  const sectionTitle = menu.find(item => item.id === activeSection)?.[isArabic ? 'ar' : 'fr']
+  const delivered = orders.filter(order => ['fulfillment_sent','completed'].includes(order.status))
+  const visibleOrders = orders.filter(order => (!orderFilter || order.status === orderFilter) && `${order.order_number} ${order.service_name} ${order.plan_label}`.toLowerCase().includes(orderSearch.trim().toLowerCase()))
+  const loyaltyCard = loyaltySummary ? (<section className="overflow-hidden rounded-[24px] border border-blue-100 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
                 <div className="bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-700 p-5 text-white sm:p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
@@ -3061,7 +2701,235 @@ function ProfilePage() {
                     </p>
                   </div>
                 </div>
+              </section>) : <p>{isArabic ? "تعذر تحميل نقاط الولاء" : "Points de fidélité indisponibles"}</p>
+  const rowArrow =
+    (
+      <span
+        className={
+          isArabic
+            ? 'rotate-180 text-slate-300'
+            : 'text-slate-300'
+        }
+      >
+        <Icon
+          name="arrow"
+        />
+      </span>
+    )
+
+  return (
+    <main
+      dir={
+        isArabic
+          ? 'rtl'
+          : 'ltr'
+      }
+      className="teo-profile min-h-screen bg-[#f6f7fb] pb-8"
+    >
+      <style>{`html[data-teo-theme="dark"] .teo-profile {background:#0b1220;color:#e2e8f0} html[data-teo-theme="dark"] .teo-profile .bg-white {background:#111c2e} html[data-teo-theme="dark"] .teo-profile .bg-slate-50,html[data-teo-theme="dark"] .teo-profile .bg-slate-100 {background:#1e293b} html[data-teo-theme="dark"] .teo-profile :is(.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600){color:#e2e8f0} html[data-teo-theme="dark"] .teo-profile :is(.text-slate-500,.text-slate-400){color:#aab8ca} html[data-teo-theme="dark"] .teo-profile :is(.border-slate-100,.border-slate-200,.border-slate-300){border-color:#334155} html[data-teo-theme="dark"] .teo-profile :is(.bg-blue-50,.bg-amber-50,.bg-rose-50,.bg-orange-50,.bg-emerald-50,.bg-violet-50,.bg-indigo-50,.bg-cyan-50,.bg-sky-50){background:#243247} html[data-teo-theme="dark"] .teo-profile :is(.text-blue-950,.text-blue-900,.text-blue-700,.text-amber-950,.text-amber-900,.text-amber-700,.text-rose-700,.text-orange-700,.text-emerald-700,.text-indigo-700,.text-violet-700){color:#dbeafe}`}</style>
+      <div className="border-b border-slate-200 bg-white">
+        <Container>
+          <div className="mx-auto flex min-h-[72px] max-w-5xl items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">
+                TEO STORE
+              </p>
+
+              <h1 className="mt-1 truncate text-xl font-black tracking-[-0.03em] text-slate-950 sm:text-2xl">
+                {
+                  sectionTitle
+                }
+              </h1>
+            </div>
+
+            <div className="flex shrink-0 gap-2">
+              {activeSection !==
+                'home' && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    openSection(
+                      'home',
+                    )
+                  }
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600"
+                  aria-label={
+                    isArabic
+                      ? 'العودة إلى الحساب'
+                      : 'Retour au compte'
+                  }
+                >
+                  <Icon
+                    name="home"
+                    className="h-4 w-4"
+                  />
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={
+                  handleRefresh
+                }
+                disabled={
+                  isRefreshing
+                }
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-50"
+                aria-label={
+                  isArabic
+                    ? 'تحديث'
+                    : 'Actualiser'
+                }
+              >
+                <Icon
+                  name="refresh"
+                  className={
+                    isRefreshing
+                      ? 'h-4 w-4 animate-spin'
+                      : 'h-4 w-4'
+                  }
+                />
+              </button>
+            </div>
+          </div>
+        </Container>
+      </div>
+
+      <Container className="py-4 sm:py-6">
+        <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <nav aria-label={isArabic ? 'أقسام الحساب' : 'Navigation du compte'} className="flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-3 lg:sticky lg:top-24 lg:flex-col lg:self-start">
+            {menu.map(item => <button key={item.id} type="button" aria-current={activeSection === item.id ? 'page' : undefined} onClick={() => openSection(item.id)} className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold ${activeSection === item.id ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-slate-50'}`}><Icon name={item.icon}/>{isArabic ? item.ar : item.fr}{item.id === 'notifications' && unreadNotifications.length > 0 && <span className="rounded-full bg-rose-500 px-2 text-white">{unreadNotifications.length}</span>}</button>)}
+            <button type="button" onClick={() => void handleSignOut()} className="flex shrink-0 items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-rose-600"><Icon name="logout"/>{isArabic ? 'تسجيل الخروج' : 'Déconnexion'}</button>
+          </nav><div className="min-w-0">
+          {errorMessage && (
+            <div className="mb-4 rounded-[18px] border border-rose-100 bg-rose-50 p-4">
+              <p className="text-sm font-bold text-rose-700">
+                {
+                  errorMessage
+                }
+              </p>
+            </div>
+          )}
+
+          {activeSection ===
+            'home' && (
+            <div className="space-y-4">
+              <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)] sm:p-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xl font-black uppercase text-white">
+                    {
+                      firstLetter
+                    }
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-lg font-black text-slate-950 sm:text-xl">
+                      {
+                        user.fullName
+                      }
+                    </p>
+
+                    <p
+                      dir="ltr"
+                      className="mt-1 truncate text-left text-xs font-semibold text-slate-500 sm:text-sm"
+                    >
+                      {
+                        user.email
+                      }
+                    </p>
+
+                    {user.phone && (
+                      <p
+                        dir="ltr"
+                        className="mt-1 truncate text-left text-xs font-semibold text-slate-400"
+                      >
+                        {
+                          user.phone
+                        }
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-3 divide-x divide-slate-100 overflow-hidden rounded-[18px] border border-slate-100 bg-slate-50">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openSection(
+                        'orders',
+                      )
+                    }
+                    className="px-2 py-4 text-center"
+                  >
+                    <p
+                      dir="ltr"
+                      className="text-xl font-black text-slate-950"
+                    >
+                      {
+                        orders.length
+                      }
+                    </p>
+
+                    <p className="mt-1 text-[10px] font-bold text-slate-400 sm:text-xs">
+                      {isArabic
+                        ? 'الطلبات'
+                        : 'Commandes'}
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openSection(
+                        'notifications',
+                      )
+                    }
+                    className="px-2 py-4 text-center"
+                  >
+                    <p
+                      dir="ltr"
+                      className="text-xl font-black text-slate-950"
+                    >
+                      {
+                        unreadNotifications.length
+                      }
+                    </p>
+
+                    <p className="mt-1 text-[10px] font-bold text-slate-400 sm:text-xs">
+                      {isArabic
+                        ? 'جديدة'
+                        : 'Nouvelles'}
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openSection(
+                        'reviews',
+                      )
+                    }
+                    className="px-2 py-4 text-center"
+                  >
+                    <p
+                      dir="ltr"
+                      className="text-xl font-black text-slate-950"
+                    >
+                      {
+                        completedOrdersCount
+                      }
+                    </p>
+
+                    <p className="mt-1 text-[10px] font-bold text-slate-400 sm:text-xs">
+                      {isArabic
+                        ? 'مكتملة'
+                        : 'Terminées'}
+                    </p>
+                  </button>
+                </div>
               </section>
+
+              {loyaltyCard}
 
               {(
                 pendingReviewOrders.length >
@@ -3292,8 +3160,8 @@ function ProfilePage() {
 
                     <span className="mt-1 block text-xs text-slate-400">
                       {isArabic
-                        ? 'مساعدة داخل الموقع وWhatsApp'
-                        : 'Assistance sur le site et WhatsApp'}
+                        ? 'مساعدة داخل الموقع'
+                        : 'Assistance sur le site'}
                     </span>
                   </span>
 
@@ -3422,10 +3290,10 @@ function ProfilePage() {
                 </span>
               </div>
 
-              {orders.length >
-              0 ? (
+              <div className="mb-4 grid gap-2 sm:grid-cols-2"><input aria-label={isArabic ? 'بحث الطلبات' : 'Rechercher'} placeholder={isArabic ? 'بحث برقم الطلب أو الخدمة' : 'Rechercher une commande'} className="rounded-xl border border-slate-200 bg-white p-3 text-sm" value={orderSearch} onChange={e => setOrderSearch(e.target.value)}/><select aria-label={isArabic ? 'الحالة' : 'Statut'} className="rounded-xl border border-slate-200 bg-white p-3 text-sm" value={orderFilter} onChange={e => setOrderFilter(e.target.value)}><option value="">{isArabic ? 'كل الحالات' : 'Tous les statuts'}</option>{['payment_review','payment_partial','payment_confirmed','processing','fulfillment_sent','completed','disputed','cancelled','refunded'].map(status => <option key={status} value={status}>{getStatusLabel(status)}</option>)}</select></div>
+              {visibleOrders.length > 0 ? (
                 <div className="space-y-3">
-                  {orders.map(
+                  {visibleOrders.map(
                     (
                       order,
                     ) => {
@@ -3589,8 +3457,8 @@ function ProfilePage() {
 
                   <p className="mt-4 font-black text-slate-700">
                     {isArabic
-                      ? 'لا توجد طلبات حتى الآن'
-                      : 'Aucune commande pour le moment'}
+                      ? 'لا توجد طلبات مطابقة'
+                      : 'Aucune commande correspondante'}
                   </p>
 
                   <Link
@@ -4150,139 +4018,11 @@ function ProfilePage() {
             </section>
           )}
 
-          {activeSection ===
-            'support' && (
-            <section className="space-y-4">
-              <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] bg-blue-50 text-blue-600">
-                    <Icon
-                      name="support"
-                    />
-                  </span>
-
-                  <div>
-                    <p className="font-black text-slate-950">
-                      {isArabic
-                        ? 'كيف يمكننا مساعدتك؟'
-                        : 'Comment pouvons-nous vous aider ?'}
-                    </p>
-
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      {isArabic
-                        ? 'تابع أي مشكلة مرتبطة بطلبك مباشرة داخل TEO STORE، أو تواصل مع خدمة العملاء عبر WhatsApp عندما يكون متاحًا.'
-                        : 'Suivez tout problème lié à une commande sur le site, ou contactez rapidement le service client via WhatsApp.'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-                {latestOrder && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigate(
-                        `/commande/${latestOrder.order_number}`,
-                      )
-                    }
-                    className="flex min-h-[82px] w-full items-center gap-3 border-b border-slate-100 px-4 text-start transition hover:bg-slate-50 sm:px-5"
-                  >
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] bg-blue-50 text-blue-600">
-                      <Icon
-                        name="orders"
-                      />
-                    </span>
-
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-black text-slate-950">
-                        {isArabic
-                          ? 'المساعدة المتعلقة بطلب'
-                          : 'Assistance liée à une commande'}
-                      </span>
-
-                      <span className="mt-1 block text-xs leading-5 text-slate-400">
-                        {isArabic
-                          ? `افتح آخر طلب ${latestOrder.order_number} لمتابعة حالته أو فتح نزاع عند الحاجة.`
-                          : `Ouvrez votre dernière commande ${latestOrder.order_number} pour son suivi ou un litige.`}
-                      </span>
-                    </span>
-
-                    {
-                      rowArrow
-                    }
-                  </button>
-                )}
-
-                {whatsappSupport ? (
-                  <button
-                    type="button"
-                    onClick={
-                      openWhatsappSupport
-                    }
-                    className="flex min-h-[82px] w-full items-center gap-3 px-4 text-start transition hover:bg-slate-50 sm:px-5"
-                  >
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] bg-emerald-50 text-emerald-600">
-                      <Icon
-                        name="whatsapp"
-                      />
-                    </span>
-
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-black text-slate-950">
-                        WhatsApp
-                      </span>
-
-                      <span className="mt-1 block text-xs leading-5 text-slate-400">
-                        {isArabic
-                          ? 'تواصل مباشرة مع خدمة العملاء عبر WhatsApp.'
-                          : 'Contactez directement le service client.'}
-                      </span>
-                    </span>
-
-                    {
-                      rowArrow
-                    }
-                  </button>
-                ) : (
-                  <div className="flex min-h-[82px] items-center gap-3 px-4 opacity-60 sm:px-5">
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] bg-slate-100 text-slate-500">
-                      <Icon
-                        name="whatsapp"
-                      />
-                    </span>
-
-                    <div>
-                      <p className="text-sm font-black text-slate-800">
-                        WhatsApp
-                      </p>
-
-                      <p className="mt-1 text-xs leading-5 text-slate-400">
-                        {isArabic
-                          ? 'خدمة WhatsApp غير مفعلة حاليًا. يمكنك متابعة طلبك من داخل TEO STORE.'
-                          : 'WhatsApp n’est pas activé actuellement. Vous pouvez suivre votre commande directement dans TEO STORE.'}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-[20px] border border-blue-100 bg-blue-50 p-4">
-                <p className="text-xs font-black text-blue-900">
-                  {isArabic
-                    ? 'إذا كانت المشكلة مرتبطة بطلب'
-                    : 'Pour un problème lié à une commande'}
-                </p>
-
-                <p className="mt-1 text-xs leading-5 text-blue-700">
-                  {isArabic
-                    ? 'افتح الطلب داخل TEO STORE أولًا، لأن رقم الطلب وحالته ومعلومات الدفع والتسليم موجودة هناك.'
-                    : 'Ouvrez d’abord la commande dans TEO STORE : son numéro, son statut et les informations de paiement y sont déjà disponibles.'}
-                </p>
-              </div>
-            </section>
-          )}
-        </div>
+          {activeSection === 'support' && <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-black">{isArabic ? 'مركز المساعدة والمحادثات' : 'Centre d’assistance et conversations'}</h2><p className="my-3 text-sm text-slate-500">{isArabic ? 'تواصل مع فريق الدعم داخل الموقع وتابع محادثاتك.' : 'Contactez notre équipe et suivez vos conversations sur le site.'}</p><Link className="inline-flex rounded-xl bg-blue-600 px-5 py-3 font-bold text-white" to="/assistance">{isArabic ? 'فتح مركز الدعم' : 'Ouvrir l’assistance'}</Link></section>}
+          {activeSection === 'loyalty' && loyaltyCard}
+          {activeSection === 'services' && <section className="space-y-3"><p className="text-sm text-slate-500">{isArabic ? 'الخدمات التي تم إرسالها إليك. افتح الطلب للوصول إلى تفاصيل التسليم.' : 'Services livrés. Ouvrez la commande pour consulter la livraison.'}</p>{delivered.length === 0 && <p>{isArabic ? 'لا توجد خدمات مستلمة بعد.' : 'Aucun service livré.'}</p>}{delivered.map(order => <article key={order.id} className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-black">{order.service_name}</h2><p className="text-sm text-slate-500">{order.plan_label} · {order.order_number}</p><p className="my-2 text-sm">{getStatusLabel(order.status)}</p><Link className="inline-flex rounded-xl bg-blue-600 px-4 py-2 font-bold text-white" to={`/commande/${order.order_number}`}>{isArabic ? 'عرض الخدمة' : 'Voir le service'}</Link></article>)}</section>}
+          {activeSection === 'security' && <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-black">{isArabic ? 'تغيير كلمة المرور' : 'Modifier le mot de passe'}</h2><form className="space-y-3" onSubmit={event => {event.preventDefault(); void changePassword()}}><label className="block text-sm">{isArabic ? 'كلمة المرور الجديدة' : 'Nouveau mot de passe'}<input className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3" type="password" autoComplete="new-password" minLength={12} required value={password} onChange={e => setPassword(e.target.value)}/></label><label className="block text-sm">{isArabic ? 'تأكيد كلمة المرور' : 'Confirmer le mot de passe'}<input className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3" type="password" autoComplete="new-password" required value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)}/></label><button disabled={saving} className="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white">{isArabic ? 'حفظ كلمة المرور' : 'Enregistrer'}</button></form>{accountNotice && <p role="status" className="text-sm">{accountNotice}</p>}</section>}
+        </div></div>
       </Container>
 
       {reviewOrder && (
