@@ -1,4 +1,4 @@
-import { ShieldCheck, CalendarDays, Zap, KeyRound, ChevronDown, FileText, BookOpen, Star, ShoppingBag } from 'lucide-react'
+import { ShieldCheck, CalendarDays, Zap, KeyRound, FileText, BookOpen, Star, ShoppingBag } from 'lucide-react'
 import {
   useEffect,
   useState,
@@ -43,6 +43,7 @@ function DigitalProductDetailsPage() {
   const { productSlug } = useParams()
 
   const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState<'plans' | 'description' | 'instructions' | 'reviews'>('plans')
 
   const {
     language,
@@ -93,6 +94,7 @@ function DigitalProductDetailsPage() {
     useState(true)
 
   useEffect(() => {
+    setActiveTab('plans')
     window.scrollTo({
       top: 0,
       left: 0,
@@ -223,11 +225,9 @@ function DigitalProductDetailsPage() {
 
     const firstAvailableGroup =
       service.groups.find(
-        (group) =>
-          group.availability ===
-          'available',
+        (group) => group.availability === 'available' && group.plans.some(plan => plan.availability === 'available'),
       ) ??
-      service.groups[0]
+      service.groups.find(group => group.availability === 'available') ?? service.groups[0]
 
     if (!firstAvailableGroup) {
       setSelectedGroupId('')
@@ -584,8 +584,8 @@ function DigitalProductDetailsPage() {
 
       return new Intl.DateTimeFormat(
         isArabic
-          ? 'ar-MR'
-          : 'fr-FR',
+          ? 'ar-MR-u-nu-latn'
+          : 'fr-FR-u-nu-latn',
         {
           year:
             'numeric',
@@ -602,7 +602,7 @@ function DigitalProductDetailsPage() {
     }
 
   return (
-    <main className="min-h-screen bg-[#f7f9fc] pb-28 lg:pb-0" dir={isArabic ? 'rtl' : 'ltr'}>
+    <main className="teo-product-detail min-h-screen bg-[#f7f9fc] pb-28 lg:pb-0" dir={isArabic ? 'rtl' : 'ltr'}>
       <section className="border-b border-slate-200 bg-white">
         <Container className="py-3">
           <div className="flex min-w-0 items-center gap-2 overflow-hidden text-xs font-semibold text-slate-400">
@@ -630,7 +630,7 @@ function DigitalProductDetailsPage() {
 
       <section className="border-b border-slate-100 bg-white">
         <Container className="py-5 sm:py-7 lg:py-8">
-          <div className="mx-auto max-w-5xl">
+          <div className="mx-auto max-w-6xl">
             <div className="flex items-center gap-3 sm:gap-4">
               <div
                 className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[16px] p-2 text-lg font-black text-white shadow-[0_10px_28px_rgba(37,99,235,0.20)] sm:h-14 sm:w-14 sm:text-xl lg:h-16 lg:w-16 lg:text-2xl"
@@ -714,16 +714,16 @@ function DigitalProductDetailsPage() {
               </div>
             </div>
             {!isComingSoon && (
-              <section aria-label={isArabic ? 'معلومات الخدمة' : 'Informations du service'} className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4" dir={isArabic ? 'rtl' : 'ltr'}>
+              <section aria-label={isArabic ? 'معلومات الخدمة' : 'Informations du service'} className="mt-4 space-y-2" dir={isArabic ? 'rtl' : 'ltr'}>
                 {[
                   { label: isArabic ? 'مدة التسليم' : 'Délai de livraison', value: deliveryMinutes !== null ? deliveryText : '', Icon: Zap },
                   { label: isArabic ? 'مدة الاشتراك' : 'Durée de l’abonnement', value: validityDays !== null && validityDays > 0 ? durationText(validityDays) : '', Icon: CalendarDays },
                   { label: isArabic ? 'طريقة الاستلام' : 'Mode de réception', value: selectedGroup && selectedGroup.fulfillment.type !== 'coming_soon' ? getLocalizedFulfillmentLabel(selectedGroup.fulfillment.type, language) : '', Icon: KeyRound },
                   { label: isArabic ? 'الضمان' : 'Garantie', value: fullWarranty || (warrantyDays !== null && warrantyDays > 0) ? warrantyText : '', Icon: ShieldCheck },
-                ].filter(item => item.value).map(({label,value,Icon}) => (
-                  <div key={label} className="flex flex-col items-start gap-2 rounded-xl bg-slate-100 px-3 py-3 text-sm sm:px-4">
+                ].map(({label,value,Icon}) => (
+                  <div key={label} className="flex items-center justify-between gap-3 rounded-xl bg-slate-100 px-3 py-3 text-sm sm:px-4">
                     <span className="flex min-w-0 items-center gap-2 text-slate-700"><Icon size={19} className="shrink-0 text-blue-600" aria-hidden="true"/>{label}</span>
-                    <span className="min-w-0 break-words font-semibold text-slate-900">{value}</span>
+                    <span className="min-w-0 break-words text-end font-semibold text-slate-900">{value || (isArabic ? 'غير محدد' : 'Non précisé')}</span>
                   </div>
                 ))}
               </section>
@@ -733,20 +733,20 @@ function DigitalProductDetailsPage() {
         </Container>
       </section>
 
-      {/* Premium compact section navigation: manual, no automatic carousel */}
       {!isComingSoon && (
-        <div className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
-          <Container className="py-2">
-            <nav aria-label={isArabic ? 'أقسام الخدمة' : 'Sections du service'} className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <a href="#teo-formules" onClick={event => { event.preventDefault(); const target = document.getElementById('teo-formules'); if (!target) return; if (target instanceof HTMLDetailsElement) target.open = true; const header = document.querySelector('header'); window.scrollTo({ top: Math.max(0, target.getBoundingClientRect().top + window.scrollY - (header?.getBoundingClientRect().height ?? 140) - 65), behavior: 'smooth' }); }} className="shrink-0 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500">
-                {isArabic ? 'الخطط والأسعار' : 'Formules et prix'}
-              </a>
-              <a href="#teo-instructions" onClick={event => { event.preventDefault(); const target = document.getElementById('teo-instructions'); if (!target) return; if (target instanceof HTMLDetailsElement) target.open = true; const header = document.querySelector('header'); window.scrollTo({ top: Math.max(0, target.getBoundingClientRect().top + window.scrollY - (header?.getBoundingClientRect().height ?? 140) - 65), behavior: 'smooth' }); }} className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
-                {isArabic ? 'التعليمات' : 'Instructions'}
-              </a>
-              <a href="#teo-reviews" onClick={event => { event.preventDefault(); const target = document.getElementById('teo-reviews'); if (!target) return; if (target instanceof HTMLDetailsElement) target.open = true; const header = document.querySelector('header'); window.scrollTo({ top: Math.max(0, target.getBoundingClientRect().top + window.scrollY - (header?.getBoundingClientRect().height ?? 140) - 65), behavior: 'smooth' }); }} className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
-                {isArabic ? `التقييمات (${validReviews.length})` : `Avis (${validReviews.length})`}
-              </a>
+        <div className="border-b border-slate-200 bg-white">
+          <Container className="py-3">
+            <nav aria-label={isArabic ? 'أقسام الخدمة' : 'Sections du service'} className="mx-auto flex max-w-6xl gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {([
+                { id: 'plans', label: isArabic ? 'الباقات والأسعار' : 'Formules et prix', Icon: ShoppingBag },
+                { id: 'description', label: isArabic ? 'الوصف' : 'Description', Icon: FileText },
+                { id: 'instructions', label: isArabic ? 'التعليمات' : 'Instructions', Icon: BookOpen },
+                { id: 'reviews', label: isArabic ? `التقييمات (${validReviews.length})` : `Avis (${validReviews.length})`, Icon: Star },
+              ] as const).map(({id,label,Icon}) => (
+                <button key={id} type="button" aria-pressed={activeTab === id} onClick={() => setActiveTab(id)} className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold sm:text-sm ${activeTab === id ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-blue-400'}`}>
+                  <Icon size={16} aria-hidden="true"/>{label}
+                </button>
+              ))}
             </nav>
           </Container>
         </div>
@@ -755,7 +755,7 @@ function DigitalProductDetailsPage() {
       {isComingSoon ? (
         <section className="py-6 sm:py-9 lg:py-10">
           <Container>
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-6xl">
               <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_8px_30px_rgba(15,23,42,0.05)] sm:p-7">
                 <div className="flex items-start gap-4">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-lg font-black text-blue-600">
@@ -797,7 +797,10 @@ function DigitalProductDetailsPage() {
       ) : (
         <section id="teo-formules" className="scroll-mt-20 py-5 sm:py-7 lg:py-8">
           <Container>
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-6xl">
+              <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
+              {activeTab === 'plans' && <>
               {isServiceOutOfStock && (
                 <div className="mb-5 rounded-[16px] border border-red-200 bg-red-50 p-4">
                   <p className="text-xs font-black uppercase tracking-[0.14em] text-red-700">
@@ -944,7 +947,7 @@ function DigitalProductDetailsPage() {
                     selectedGroup,
                     language,
                   ) && (
-                    <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+                    <p className="mt-1 max-w-2xl line-clamp-2 whitespace-pre-line text-sm leading-6 text-slate-500">
                       {getLocalizedGroupDescription(
                         service.slug,
                         selectedGroup,
@@ -974,7 +977,7 @@ function DigitalProductDetailsPage() {
                   {selectedGroup.plans
                     .length >
                   0 ? (
-                    <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+                    <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
                       {selectedGroup.plans.map(
                         (
                           plan,
@@ -1002,7 +1005,7 @@ function DigitalProductDetailsPage() {
                                 )
                               }
                               className={[
-                                'relative min-h-[106px] rounded-[18px] border p-4 transition',
+                                'relative flex min-h-[120px] flex-col gap-3 rounded-[18px] border p-3 transition',
 
                                 isArabic
                                   ? 'text-right'
@@ -1021,11 +1024,11 @@ function DigitalProductDetailsPage() {
                                 isPlanAvailable && (
                                   <span
                                     className={[
-                                      'absolute top-2 rounded-full bg-blue-600 px-2 py-1 text-xs font-black text-white',
+                                      'self-start rounded-full bg-blue-600 px-2 py-1 text-xs font-black text-white',
 
                                       isArabic
-                                        ? 'left-2'
-                                        : 'right-2',
+                                        ? ''
+                                        : '',
                                     ].join(
                                       ' ',
                                     )}
@@ -1039,7 +1042,7 @@ function DigitalProductDetailsPage() {
                               {!isPlanAvailable && (
                                 <span
                                   className={[
-                                    'absolute top-2 rounded-full bg-slate-200 px-2 py-1 text-xs font-black text-slate-500',
+                                    'self-start rounded-full bg-slate-200 px-2 py-1 text-xs font-black text-slate-500',
 
                                     isArabic
                                       ? 'left-2'
@@ -1059,8 +1062,8 @@ function DigitalProductDetailsPage() {
                                   'text-sm font-black leading-5 text-slate-950',
 
                                   isArabic
-                                    ? 'pl-8'
-                                    : 'pr-8',
+                                    ? ''
+                                    : '',
                                 ].join(
                                   ' ',
                                 )}
@@ -1071,7 +1074,7 @@ function DigitalProductDetailsPage() {
                                 )}
                               </p>
 
-                              <div className="absolute inset-x-4 bottom-4 flex items-end justify-between gap-2">
+                              <div className="mt-auto flex flex-wrap items-end justify-between gap-2">
                                 <p
                                   dir="ltr"
                                   className={[
@@ -1146,17 +1149,17 @@ function DigitalProductDetailsPage() {
                   </div>
                 )}
 
-              {localizedServiceDescription && <details open className="group mt-5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-                <summary className="flex cursor-pointer list-none items-center gap-2 font-bold text-slate-900 [&::-webkit-details-marker]:hidden"><FileText size={20} className="text-blue-600"/>{isArabic ? 'وصف المنتج' : 'Description du produit'}<ChevronDown size={18} className="ms-auto group-open:rotate-180"/></summary>
-                <p className="mt-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-slate-700">{localizedServiceDescription}</p>
-              </details>}
-              <details id="teo-instructions" className="group mt-3 scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-                <summary className="flex cursor-pointer list-none items-center gap-2 font-bold text-slate-900 [&::-webkit-details-marker]:hidden"><BookOpen size={20} className="text-blue-600"/>{isArabic ? 'طريقة التفعيل والاستخدام' : 'Activation et utilisation'}<ChevronDown size={18} className="ms-auto group-open:rotate-180"/></summary>
+              </>}
+              {activeTab === 'description' && <section>
+                <h2 className="flex items-center gap-2 text-lg font-black text-slate-950"><FileText size={20} className="text-blue-600"/>{isArabic ? 'وصف المنتج' : 'Description du produit'}</h2>
+                {[localizedServiceDescription, selectedGroup ? getLocalizedGroupDescription(service.slug, selectedGroup, language) : ''].filter((value,index,all) => Boolean(value) && all.indexOf(value) === index).map((value,index) => <p key={index} className="mt-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-slate-700">{value}</p>)}
+                {!localizedServiceDescription && !(selectedGroup && getLocalizedGroupDescription(service.slug, selectedGroup, language)) && <p className="mt-4 text-sm text-slate-500">{isArabic ? 'لا يوجد وصف إضافي.' : 'Aucune description supplémentaire.'}</p>}
+              </section>}
+              {activeTab === 'instructions' && <section>
+                <h2 className="flex items-center gap-2 text-lg font-black text-slate-950"><BookOpen size={20} className="text-blue-600"/>{isArabic ? 'طريقة التفعيل والاستخدام' : 'Activation et utilisation'}</h2>
                 <p className="mt-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-slate-700">{selectedGroup ? (getLocalizedFulfillmentInstructions(service.slug, selectedGroup, language) || (isArabic ? 'لا توجد تعليمات إضافية.' : 'Aucune instruction supplémentaire.')) : (isArabic ? 'اختر الباقة.' : 'Sélectionnez une formule.')}</p>
-              </details>
-
-              <details id="teo-reviews" className="group mt-3 scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <summary className="flex cursor-pointer list-none items-center gap-2 p-4 font-bold text-slate-900 [&::-webkit-details-marker]:hidden"><Star size={20} className="text-blue-600"/>{isArabic ? 'تقييمات الزبناء' : 'Avis clients'} ({validReviews.length})<ChevronDown size={18} className="ms-auto group-open:rotate-180"/></summary>
+              </section>}
+              {activeTab === 'reviews' && <section className="overflow-hidden">
                 <div className="border-b border-slate-100 p-5 sm:p-6">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -1165,7 +1168,7 @@ function DigitalProductDetailsPage() {
                           ★
                         </span>
 
-                        <span className="text-[8px] font-black uppercase tracking-[0.14em] text-amber-700 sm:text-[9px]">
+                        <span className="text-xs font-black uppercase tracking-[0.14em] text-amber-700 sm:text-xs">
                           {isArabic
                             ? 'تقييمات العملاء'
                             : 'AVIS CLIENTS'}
@@ -1178,7 +1181,7 @@ function DigitalProductDetailsPage() {
                           : 'Ce que disent nos clients'}
                       </h2>
 
-                      <p className="mt-1 text-[10px] leading-5 text-slate-500 sm:text-xs">
+                      <p className="mt-1 text-sm leading-5 text-slate-500 sm:text-xs">
                         {isArabic
                           ? 'تقييمات حقيقية من العملاء الذين طلبوا هذه الخدمة.'
                           : 'Avis de clients ayant commandé ce service.'}
@@ -1199,7 +1202,7 @@ function DigitalProductDetailsPage() {
                               }
                             </p>
 
-                            <p className="text-[8px] font-bold text-slate-400">
+                            <p className="text-xs font-bold text-slate-400">
                               / 5
                             </p>
                           </div>
@@ -1215,7 +1218,7 @@ function DigitalProductDetailsPage() {
                                   ? 'rtl'
                                   : 'ltr'
                               }
-                              className="mt-1 text-[8px] font-bold text-slate-400"
+                              className="mt-1 text-xs font-bold text-slate-400"
                             >
                               {
                                 validReviews.length
@@ -1239,7 +1242,7 @@ function DigitalProductDetailsPage() {
                       <div className="text-center">
                         <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-100 border-t-blue-600" />
 
-                        <p className="mt-3 text-[9px] font-bold text-slate-400">
+                        <p className="mt-3 text-xs font-bold text-slate-400">
                           {isArabic
                             ? 'جارٍ تحميل التقييمات...'
                             : 'Chargement des avis...'}
@@ -1259,7 +1262,7 @@ function DigitalProductDetailsPage() {
                           : 'Aucun avis pour le moment'}
                       </h3>
 
-                      <p className="mx-auto mt-1 max-w-sm text-[9px] leading-5 text-slate-400 sm:text-[10px]">
+                      <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-slate-400 sm:text-sm">
                         {isArabic
                           ? 'سيظهر هنا أول تقييم بعد إكمال أحد العملاء طلبًا لهذه الخدمة.'
                           : 'Le premier avis apparaîtra ici après une commande terminée pour ce service.'}
@@ -1285,7 +1288,7 @@ function DigitalProductDetailsPage() {
                                   ),
                                 )}
 
-                                <p className="mt-2 text-[9px] font-black text-slate-700">
+                                <p className="mt-2 text-xs font-black text-slate-700">
                                   {isArabic
                                     ? 'عميل TEO STORE'
                                     : 'Client TEO STORE'}
@@ -1293,11 +1296,11 @@ function DigitalProductDetailsPage() {
                               </div>
 
                               <div className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1">
-                                <span className="text-[7px] font-black text-emerald-700">
+                                <span className="text-xs font-black text-emerald-700">
                                   ✓{' '}
                                   {isArabic
-                                    ? 'طلب مؤكد'
-                                    : 'Commande vérifiée'}
+                                    ? 'تقييم عميل'
+                                    : 'Avis client'}
                                 </span>
                               </div>
                             </div>
@@ -1307,7 +1310,7 @@ function DigitalProductDetailsPage() {
                               .trim()
                               .length >
                               0 ? (
-                              <p className="mt-3 text-[10px] leading-5 text-slate-600 sm:text-xs">
+                              <p className="mt-3 text-sm leading-5 text-slate-600 sm:text-xs">
                                 “
                                 {
                                   review.comment
@@ -1316,7 +1319,7 @@ function DigitalProductDetailsPage() {
                                 ”
                               </p>
                             ) : (
-                              <p className="mt-3 text-[9px] italic leading-5 text-slate-400">
+                              <p className="mt-3 text-xs italic leading-5 text-slate-400">
                                 {isArabic
                                   ? 'ترك العميل تقييمًا بدون تعليق.'
                                   : 'Le client a laissé une note sans commentaire.'}
@@ -1324,7 +1327,7 @@ function DigitalProductDetailsPage() {
                             )}
 
                             <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-200/70 pt-3">
-                              <span className="text-[8px] font-bold text-slate-400">
+                              <span className="text-xs font-bold text-slate-400">
                                 {formatReviewDate(
                                   review.created_at,
                                 )}
@@ -1332,7 +1335,7 @@ function DigitalProductDetailsPage() {
 
                               <span
                                 dir="ltr"
-                                className="text-[9px] font-black text-slate-700"
+                                className="text-xs font-black text-slate-700"
                               >
                                 {Number(
                                   review.rating,
@@ -1348,12 +1351,13 @@ function DigitalProductDetailsPage() {
                     </div>
                   )}
                 </div>
-              </details>
+              </section>}
+              </div>
 
               {selectedGroup &&
                 selectedPlan && (
                   <div
-                    className="mt-6 overflow-hidden rounded-[22px] p-5 text-white shadow-[0_16px_42px_rgba(15,23,42,0.14)]"
+                    className="hidden lg:block lg:sticky lg:top-6 overflow-hidden rounded-[22px] p-5 text-white shadow-[0_16px_42px_rgba(15,23,42,0.14)]"
                     style={{
                       background:
                         'linear-gradient(135deg, #06101f 0%, #101d44 55%, #312e81 100%)',
@@ -1417,7 +1421,7 @@ function DigitalProductDetailsPage() {
                         handleContinue
                       }
                       disabled={
-                        isServiceOutOfStock ||
+                        service.availability !== 'available' ||
                         selectedGroup.availability !==
                           'available' ||
                         selectedPlan.availability !==
@@ -1426,7 +1430,7 @@ function DigitalProductDetailsPage() {
                       className={[
                         'mt-4 flex h-12 w-full items-center justify-center rounded-xl px-4 text-sm font-black text-white transition',
 
-                        isServiceOutOfStock ||
+                        service.availability !== 'available' ||
                         selectedGroup.availability !==
                           'available' ||
                         selectedPlan.availability !==
@@ -1447,8 +1451,8 @@ function DigitalProductDetailsPage() {
                             ? 'غير متوفر'
                             : 'Rupture de stock'
                           : isArabic
-                            ? 'متابعة'
-                            : 'Continuer'}
+                            ? 'اشترِ الآن'
+                            : 'Acheter maintenant'}
                     </button>
 
                     <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs font-semibold text-white/40">
@@ -1475,13 +1479,14 @@ function DigitalProductDetailsPage() {
                     </div>
                   </div>
                 )}
+              </div>
             </div>
           </Container>
         </section>
       )}
       {!isComingSoon && selectedGroup && selectedPlan && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-4 pt-3 shadow-lg lg:hidden" style={{paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))'}}>
-          <div className="mx-auto flex max-w-5xl items-center gap-3">
+          <div className="mx-auto flex max-w-6xl items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs text-slate-500">{getLocalizedPlanLabel(selectedPlan, language)}</p>
               <p className="break-words text-xl font-black text-blue-600">{formatPrice(selectedPlan.price, selectedPlan.currency)}</p>
