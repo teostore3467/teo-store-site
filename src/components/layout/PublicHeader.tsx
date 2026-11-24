@@ -1885,7 +1885,6 @@ function PublicHeader() {
               <Link to="/services-numeriques?category=gaming">Gaming</Link>
               <Link to="/services-numeriques?category=streaming">Streaming</Link>
               <Link to="/services-numeriques?category=gift-cards">{isArabic ? 'بطاقات الهدايا' : 'Cartes cadeaux'}</Link>
-              <Link to="/actualites">TEO NEWS</Link>
             </div>
           </div>
 
@@ -2022,20 +2021,6 @@ function PublicHeader() {
           <div className="border-t border-slate-100 bg-white xl:hidden">
             <Container className="py-3">
               <nav className="grid gap-2">
-                <Link
-                  to="/actualites"
-                  onClick={() =>
-                    setIsMenuOpen(
-                      false,
-                    )
-                  }
-                  className="rounded-[14px] border border-slate-200 px-4 py-3 text-sm font-black text-slate-800"
-                >
-                  {isArabic
-                    ? 'الأخبار'
-                    : 'TEO NEWS'}
-                </Link>
-
                 <Link
                   to="/services-numeriques"
                   onClick={() =>

@@ -4,7 +4,6 @@ import { ArrowLeft, ArrowRight, Clock3, ShoppingBag, Sparkles, MessageCircle } f
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 import { supabase } from '../../../lib/supabase'
-import { NewsPublic } from '../../news/News'
 import DigitalCategoriesSection from '../../digital-commerce/components/DigitalCategoriesSection'
 import FeaturedDigitalSection from '../components/FeaturedDigitalSection'
 
@@ -131,7 +130,6 @@ function HomePage() {
       </section>
       <DigitalCategoriesSection />
       <FeaturedDigitalSection />
-      <NewsPublic home />
       <PreorderShowcase ar={ar}/>
     </main>
   )

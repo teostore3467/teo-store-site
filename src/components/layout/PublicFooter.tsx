@@ -83,13 +83,12 @@ export default function PublicFooter() {
   const items = content.links.flatMap(l=>{
     const target=str(l.target),kind=str(l.link_type)
     if(!content.sections.some(s=>s.id===l.section_id))return []
-    const to=kind==='page'&&content.pages.some(p=>p.slug===target)?'/information/'+target:kind==='action'&&target==='faq'&&faq.length?'/information/faq':kind==='external'?safeUrl(target):kind==='internal'&&target==='/actualites'?target:''
+    const to=kind==='page'&&content.pages.some(p=>p.slug===target)?'/information/'+target:kind==='action'&&target==='faq'&&faq.length?'/information/faq':kind==='external'?safeUrl(target):''
     if(!to||seen.has(to))return [];seen.add(to)
     return [{label:str(ar?l.label_ar:l.label_fr),to}]
   })
   const legal=items.filter(x=>['about','terms','privacy','warranty','refund'].some(k=>x.to==='/information/'+k))
   const useful=items.filter(x=>!legal.includes(x))
-  if(!seen.has('/actualites'))useful.push({label:'TEO NEWS',to:'/actualites'})
   const groups=[{key:'legal',title:t('معلومات وسياسات','Informations'),items:legal},{key:'useful',title:t('روابط مفيدة','Liens utiles'),items:useful}].filter(g=>g.items.length)
 
   return <footer dir={ar ? 'rtl' : 'ltr'} style={{background:'#0b1120',color:'#f8fafc'}}>
