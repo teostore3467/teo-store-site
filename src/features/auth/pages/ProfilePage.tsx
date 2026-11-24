@@ -8,6 +8,7 @@ import {
 import {
   Link,
   useNavigate,
+  useLocation,
 } from 'react-router-dom'
 
 import Container from '../../../components/layout/Container'
@@ -280,6 +281,7 @@ function normalizeDigitalStatus(
 }
 
 function ProfilePage() {
+  const location = useLocation()
   const navigate =
     useNavigate()
 
@@ -572,6 +574,18 @@ function ProfilePage() {
       },
       [],
     )
+
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('section') === 'notifications') setActiveSection('notifications')
+  }, [location.search, location.key])
+  useEffect(() => {
+    if (!user?.id) return
+    const id = user.id
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void loadNotifications(id).catch(console.error)
+    }, 6000)
+    return () => window.clearInterval(timer)
+  }, [user?.id, loadNotifications])
 
   const loadReviews =
     useCallback(

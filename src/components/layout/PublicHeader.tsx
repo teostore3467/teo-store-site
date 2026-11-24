@@ -39,17 +39,14 @@ type CustomerUser = {
 }
 
 type OrderNotification = {
-  orderNumber: string
-  serviceName: string
-  status: string
-  updatedAt: string
-  createdAt: string
-}
-
-type LiveToast = {
-  orderNumber: string
-  serviceName: string
-  status: string
+  id: string
+  order_number: string | null
+  type: string
+  title: string
+  message: string
+  action_url: string | null
+  is_read: boolean
+  created_at: string
 }
 
 function PublicHeader() {
@@ -63,31 +60,10 @@ function PublicHeader() {
   const isArabic =
     language === 'ar'
 
-  const accountMenuRef =
-    useRef<HTMLDivElement | null>(
-      null,
-    )
-
-  const searchContainerRef =
-    useRef<HTMLDivElement | null>(
-      null,
-    )
-
-  const notificationRef =
-    useRef<HTMLDivElement | null>(
-      null,
-    )
-
-  const knownUpdatesRef =
-    useRef<Record<string, string>>(
-      {},
-    )
-
-  const toastTimerRef =
-    useRef<number | null>(
-      null,
-    )
-
+const toastTimerRef = useRef<number | null>(null)
+  const notificationOwner = useRef<string | null>(null)
+  const requestVersion = useRef(0)
+  const knownIds = useRef<Set<string> | null>(null)
   const [
     currentUser,
     setCurrentUser,
@@ -152,21 +128,8 @@ function PublicHeader() {
   ] =
     useState(false)
 
-  const [
-    readUpdates,
-    setReadUpdates,
-  ] =
-    useState<Record<string, string>>(
-      {},
-    )
-
-  const [
-    liveToast,
-    setLiveToast,
-  ] =
-    useState<LiveToast | null>(
-      null,
-    )
+  const [liveToast, setLiveToast] = useState<OrderNotification | null>(null)
+  const [notificationError, setNotificationError] = useState(false)
 
   // Public branding is controlled from ADMIN > Paramètres > Boutique.
   const [storeBranding, setStoreBranding] = useState({
@@ -237,361 +200,47 @@ function PublicHeader() {
     </div>
   )
 
-  const getStorageKey =
-    useCallback(
-      (userId: string) =>
-        `teo-store-order-notifications:${userId}`,
-      [],
-    )
-
-  const getStatusLabel =
-    useCallback(
-      (status: string) => {
-        switch (status) {
-          case 'payment_review':
-            return isArabic
-              ? 'يتم التحقق من الدفع'
-              : 'Paiement en vérification'
-
-          case 'payment_partial':
-            return isArabic
-              ? 'الدفع غير مكتمل'
-              : 'Paiement incomplet'
-
-          case 'payment_confirmed':
-            return isArabic
-              ? 'تم تأكيد الدفع'
-              : 'Paiement confirmé'
-
-          case 'processing':
-            return isArabic
-              ? 'الطلب قيد التجهيز'
-              : 'Commande en préparation'
-
-          case 'fulfillment_sent':
-            return isArabic
-              ? 'تم إرسال الخدمة'
-              : 'Service livré'
-
-          case 'disputed':
-            return isArabic
-              ? 'نزاع مفتوح'
-              : 'Litige ouvert'
-
-          case 'completed':
-            return isArabic
-              ? 'تم إكمال الطلب'
-              : 'Commande terminée'
-
-          case 'cancelled':
-            return isArabic
-              ? 'تم إلغاء الطلب'
-              : 'Commande annulée'
-
-          case 'refunded':
-            return isArabic
-              ? 'تم تسجيل الاسترجاع'
-              : 'Remboursement enregistré'
-
-          default:
-            return isArabic
-              ? 'تحديث جديد على طلبك'
-              : 'Nouvelle mise à jour'
-        }
-      },
-      [
-        isArabic,
-      ],
-    )
-
-  const getStatusIcon =
-    (
-      status: string,
-    ) => {
-      if (
-        status ===
-        'completed'
-      ) {
-        return '✓'
-      }
-
-      if (
-        status ===
-        'cancelled'
-      ) {
-        return '×'
-      }
-
-      if (
-        status ===
-        'fulfillment_sent'
-      ) {
-        return '↗'
-      }
-
-      return '•'
+  const getStatusLabel = (n: OrderNotification) => {
+    const ar: Record<string, string> = {
+      payment_partial: 'مطلوب إكمال الدفع', payment_confirmed: 'تم تأكيد الدفع',
+      processing: 'طلبك قيد التجهيز', fulfillment_sent: 'خدمتك جاهزة',
+      dispute_open: 'تم فتح النزاع', refunded: 'تم استرجاع الطلب',
+      review_request: 'قيّم خدمتك', cancelled: 'تم إلغاء الطلب',
     }
-
-  const getStatusIconClasses =
-    (
-      status: string,
-    ) => {
-      if (
-        status ===
-        'completed'
-      ) {
-        return 'bg-emerald-50 text-emerald-600'
-      }
-
-      if (
-        status ===
-          'cancelled' ||
-        status ===
-          'disputed'
-      ) {
-        return 'bg-rose-50 text-rose-600'
-      }
-
-      if (
-        status ===
-        'payment_partial'
-      ) {
-        return 'bg-orange-50 text-orange-600'
-      }
-
-      if (
-        status ===
-        'fulfillment_sent'
-      ) {
-        return 'bg-violet-50 text-violet-600'
-      }
-
-      return 'bg-blue-50 text-blue-600'
+    return isArabic ? ar[n.type] ?? n.title : n.title
+  }
+  const getMessage = (n: OrderNotification) => {
+    const ar: Record<string, string> = {
+      payment_partial: 'يحتاج طلبك إلى إكمال المبلغ المتبقي.',
+      payment_confirmed: 'تم التحقق من دفعتك بنجاح.', processing: 'طلبك قيد التجهيز.',
+      fulfillment_sent: 'تم إرسال خدمتك. افتح الطلب لمراجعتها.',
+      dispute_open: 'تم تسجيل النزاع.', refunded: 'تم تسجيل استرجاع طلبك.',
+      review_request: 'اكتمل طلبك. شاركنا تقييمك.', cancelled: 'تم إلغاء طلبك.',
     }
-
-  const formatNotificationDate =
-    (
-      value: string,
-    ) => {
-      try {
-        return new Intl.DateTimeFormat(
-          isArabic
-            ? 'ar-MR-u-nu-latn'
-            : 'fr-FR-u-nu-latn',
-          {
-            numberingSystem:
-              'latn',
-            day: '2-digit',
-            month: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-          },
-        ).format(
-          new Date(value),
-        )
-      } catch {
-        return ''
-      }
+    return isArabic ? ar[n.type] ?? n.message : n.message
+  }
+  const formatNotificationDate = (value: string) => new Date(value).toLocaleString(isArabic ? 'ar-MR-u-nu-latn' : 'fr-FR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+  const loadNotifications = useCallback(async (userId: string, showLoading = false, detectUpdates = false) => {
+    if (notificationOwner.current !== userId) return
+    const version = ++requestVersion.current
+    if (showLoading) setNotificationsLoading(true)
+    const {data,error} = await supabase.from('customer_notifications')
+      .select('id,order_number,type,title,message,action_url,is_read,created_at')
+      .eq('user_id',userId).order('created_at',{ascending:false}).limit(60)
+    if (notificationOwner.current !== userId || version !== requestVersion.current) return
+    setNotificationsLoading(false)
+    setNotificationError(Boolean(error))
+    if (error) return
+    const rows = (data ?? []) as OrderNotification[]
+    const fresh = detectUpdates && knownIds.current ? rows.find(n => !n.is_read && !knownIds.current?.has(n.id)) : undefined
+    knownIds.current = new Set(rows.map(n => n.id))
+    setNotifications(rows)
+    if (fresh) {
+      setLiveToast(fresh)
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current)
+      toastTimerRef.current = window.setTimeout(() => setLiveToast(null),5000)
     }
-
-  const persistReadUpdates =
-    useCallback(
-      (
-        next:
-          Record<string, string>,
-      ) => {
-        setReadUpdates(
-          next,
-        )
-
-        if (!currentUser) {
-          return
-        }
-
-        try {
-          window.localStorage.setItem(
-            getStorageKey(
-              currentUser.id,
-            ),
-            JSON.stringify(
-              next,
-            ),
-          )
-        } catch {
-          //
-        }
-      },
-      [
-        currentUser,
-        getStorageKey,
-      ],
-    )
-
-  const loadNotifications =
-    useCallback(
-      async (
-        userId: string,
-        showLoading = false,
-        detectUpdates = false,
-      ) => {
-        if (showLoading) {
-          setNotificationsLoading(
-            true,
-          )
-        }
-
-        const {
-          data,
-          error,
-        } =
-          await supabase
-            .from(
-              'digital_orders',
-            )
-            .select(
-              `
-                order_number,
-                service_name,
-                status,
-                updated_at,
-                created_at
-              `,
-            )
-            .eq(
-              'user_id',
-              userId,
-            )
-            .order(
-              'updated_at',
-              {
-                ascending:
-                  false,
-              },
-            )
-            .limit(8)
-
-        if (showLoading) {
-          setNotificationsLoading(
-            false,
-          )
-        }
-
-        if (error) {
-          console.error(
-            'Unable to load order notifications:',
-            error,
-          )
-
-          return
-        }
-
-        const nextNotifications:
-          OrderNotification[] =
-            (data ?? []).map(
-              (row) => ({
-                orderNumber:
-                  String(
-                    row.order_number,
-                  ),
-
-                serviceName:
-                  String(
-                    row.service_name ??
-                      'TEO STORE',
-                  ),
-
-                status:
-                  String(
-                    row.status ??
-                      'payment_review',
-                  ),
-
-                updatedAt:
-                  String(
-                    row.updated_at,
-                  ),
-
-                createdAt:
-                  String(
-                    row.created_at,
-                  ),
-              }),
-            )
-
-        if (detectUpdates) {
-          for (
-            const notification
-            of nextNotifications
-          ) {
-            const previous =
-              knownUpdatesRef
-                .current[
-                notification.orderNumber
-              ]
-
-            if (
-              previous &&
-              previous !==
-                notification.updatedAt
-            ) {
-              setLiveToast({
-                orderNumber:
-                  notification.orderNumber,
-
-                serviceName:
-                  notification.serviceName,
-
-                status:
-                  notification.status,
-              })
-
-              if (
-                toastTimerRef.current
-              ) {
-                window.clearTimeout(
-                  toastTimerRef.current,
-                )
-              }
-
-              toastTimerRef.current =
-                window.setTimeout(
-                  () => {
-                    setLiveToast(
-                      null,
-                    )
-                  },
-                  5000,
-                )
-
-              break
-            }
-          }
-        }
-
-        const nextKnown:
-          Record<string, string> =
-            {}
-
-        nextNotifications.forEach(
-          (
-            notification,
-          ) => {
-            nextKnown[
-              notification.orderNumber
-            ] =
-              notification.updatedAt
-          },
-        )
-
-        knownUpdatesRef.current =
-          nextKnown
-
-        setNotifications(
-          nextNotifications,
-        )
-      },
-      [],
-    )
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -695,126 +344,29 @@ function PublicHeader() {
     }
   }, [])
 
+  const userId = currentUser?.id
   useEffect(() => {
-    if (!currentUser) {
-      setNotifications(
-        [],
-      )
-
-      setReadUpdates(
-        {},
-      )
-
-      knownUpdatesRef.current =
-        {}
-
-      return
-    }
-
-    try {
-      const stored =
-        window.localStorage
-          .getItem(
-            getStorageKey(
-              currentUser.id,
-            ),
-          )
-
-      setReadUpdates(
-        stored
-          ? JSON.parse(
-              stored,
-            )
-          : {},
-      )
-    } catch {
-      setReadUpdates(
-        {},
-      )
-    }
-
-    void loadNotifications(
-      currentUser.id,
-      true,
-      false,
-    )
-
-    const channel =
-      supabase
-        .channel(
-          `customer-global-orders-${currentUser.id}-${Date.now()}`,
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table:
-              'digital_orders',
-            filter:
-              `user_id=eq.${currentUser.id}`,
-          },
-          () => {
-            void loadNotifications(
-              currentUser.id,
-              false,
-              true,
-            )
-          },
-        )
-        .subscribe()
-
-    const interval =
-      window.setInterval(
-        () => {
-          if (
-            document.visibilityState ===
-            'visible'
-          ) {
-            void loadNotifications(
-              currentUser.id,
-              false,
-              true,
-            )
-          }
-        },
-        6000,
-      )
-
-    const handleFocus =
-      () => {
-        void loadNotifications(
-          currentUser.id,
-          false,
-          true,
-        )
-      }
-
-    window.addEventListener(
-      'focus',
-      handleFocus,
-    )
-
+    notificationOwner.current = userId ?? null
+    knownIds.current = null
+    setNotifications([])
+    setLiveToast(null)
+    setNotificationError(false)
+    setNotificationsLoading(false)
+    if (!userId) return
+    void loadNotifications(userId,true)
+    const refresh = () => { void loadNotifications(userId,false,true) }
+    const channel = supabase.channel(`header-notifications-${userId}-${Date.now()}`)
+      .on('postgres_changes',{event:'*',schema:'public',table:'customer_notifications',filter:`user_id=eq.${userId}`},refresh).subscribe()
+    const timer = window.setInterval(() => { if(document.visibilityState === 'visible') refresh() },6000)
+    window.addEventListener('focus',refresh)
     return () => {
-      window.clearInterval(
-        interval,
-      )
-
-      window.removeEventListener(
-        'focus',
-        handleFocus,
-      )
-
-      void supabase
-        .removeChannel(
-          channel,
-        )
+      notificationOwner.current = null
+      ++requestVersion.current
+      window.clearInterval(timer)
+      window.removeEventListener('focus',refresh)
+      void supabase.removeChannel(channel)
     }
-  }, [
-    currentUser?.id,
-    getStorageKey,
-    loadNotifications,
-  ])
+  },[userId,loadNotifications])
 
   useEffect(() => {
     const handleOutsideClick =
@@ -825,9 +377,7 @@ function PublicHeader() {
           event.target as Node
 
         if (
-          accountMenuRef.current &&
-          !accountMenuRef.current
-            .contains(target)
+          !(target instanceof Element && target.closest("[data-teo-account]"))
         ) {
           setIsAccountMenuOpen(
             false,
@@ -835,9 +385,7 @@ function PublicHeader() {
         }
 
         if (
-          searchContainerRef.current &&
-          !searchContainerRef.current
-            .contains(target)
+          !(target instanceof Element && target.closest("[data-teo-search]"))
         ) {
           setIsSearchOpen(
             false,
@@ -845,9 +393,7 @@ function PublicHeader() {
         }
 
         if (
-          notificationRef.current &&
-          !notificationRef.current
-            .contains(target)
+          !(target instanceof Element && target.closest("[data-teo-notifications]"))
         ) {
           setIsNotificationOpen(
             false,
@@ -923,156 +469,32 @@ function PublicHeader() {
     }
   }, [])
 
-  const unreadCount =
-    useMemo(
-      () =>
-        notifications.filter(
-          (
-            notification,
-          ) =>
-            readUpdates[
-              notification.orderNumber
-            ] !==
-            notification.updatedAt,
-        ).length,
-      [
-        notifications,
-        readUpdates,
-      ],
-    )
-
-  const markAllRead =
-    useCallback(() => {
-      if (
-        notifications.length ===
-        0
-      ) {
-        return
-      }
-
-      const nextReadUpdates = {
-        ...readUpdates,
-      }
-
-      notifications.forEach(
-        (
-          notification,
-        ) => {
-          nextReadUpdates[
-            notification.orderNumber
-          ] =
-            notification.updatedAt
-        },
-      )
-
-      persistReadUpdates(
-        nextReadUpdates,
-      )
-    }, [
-      notifications,
-      persistReadUpdates,
-      readUpdates,
-    ])
-
-  const markCurrentNotificationsAsRead =
-    useCallback(() => {
-      if (
-        !currentUser ||
-        notifications.length ===
-          0
-      ) {
-        return
-      }
-
-      const nextReadUpdates = {
-        ...readUpdates,
-      }
-
-      notifications.forEach(
-        (
-          notification,
-        ) => {
-          nextReadUpdates[
-            notification.orderNumber
-          ] =
-            notification.updatedAt
-        },
-      )
-
-      persistReadUpdates(
-        nextReadUpdates,
-      )
-    }, [
-      currentUser,
-      notifications,
-      persistReadUpdates,
-      readUpdates,
-    ])
-
-  const handleNotificationToggle =
-    () => {
-      const willOpen =
-        !isNotificationOpen
-
-      setIsNotificationOpen(
-        willOpen,
-      )
-
-      setIsAccountMenuOpen(
-        false,
-      )
-
-      setIsSearchOpen(
-        false,
-      )
-
-      setIsMenuOpen(
-        false,
-      )
-
-      if (willOpen) {
-        markCurrentNotificationsAsRead()
-      }
-    }
-
-  const handleNotificationSelect =
-    (
-      notification:
-        OrderNotification,
-    ) => {
-      persistReadUpdates({
-        ...readUpdates,
-
-        [notification.orderNumber]:
-          notification.updatedAt,
-      })
-
-      setIsNotificationOpen(
-        false,
-      )
-
-      setIsMenuOpen(
-        false,
-      )
-
-      navigate(
-        `/commande/${notification.orderNumber}`,
-      )
-    }
-
-  const { catalog, loading: catalogLoading } = useLiveCatalog()
-  const results =
-    useMemo(
-      () =>
-        searchServices(
-          searchQuery,
-          6,
-          catalog,
-        ),
-      [
-        searchQuery, catalog,
-      ],
-    )
+  const unreadCount = notifications.filter(n => !n.is_read).length
+  const markRead = async (id?: string) => {
+    if (!userId) return
+    let query = supabase.from('customer_notifications').update({is_read:true,read_at:new Date().toISOString()}).eq('user_id',userId).eq('is_read',false)
+    if (id) query = query.eq('id',id)
+    const {error} = await query
+    if (notificationOwner.current !== userId) return
+    if (error) { setNotificationError(true); return }
+    await loadNotifications(userId)
+  }
+  const handleNotificationToggle = () => {
+    setIsNotificationOpen(v => !v)
+    setIsAccountMenuOpen(false)
+    setIsSearchOpen(false)
+    setIsMenuOpen(false)
+    if (userId) void loadNotifications(userId)
+  }
+  const handleNotificationSelect = (n: OrderNotification) => {
+    void markRead(n.id)
+    setIsNotificationOpen(false)
+    setLiveToast(null)
+    const url = n.order_number ? `/commande/${encodeURIComponent(n.order_number)}` : n.action_url
+    navigate(url && /^\/(?![\/\\])/.test(url) ? url : '/profil?section=notifications')
+  }
+  const {catalog,loading:catalogLoading} = useLiveCatalog()
+  const results = useMemo(() => searchServices(searchQuery,6,catalog),[searchQuery,catalog])
 
   const isAuthenticated =
     Boolean(
@@ -1302,9 +724,7 @@ function PublicHeader() {
 
   const searchBox = (
     <div
-      ref={
-        searchContainerRef
-      }
+      data-teo-search
       className="relative w-full"
     >
       <input
@@ -1409,272 +829,27 @@ function PublicHeader() {
     </div>
   )
 
-  const notificationButton =
-    isAuthenticated ? (
-      <div
-        ref={
-          notificationRef
-        }
-        className="relative"
-      >
-        <button
-          type="button"
-          onClick={
-            handleNotificationToggle
-          }
-          className={[
-            'relative flex h-10 w-10 items-center justify-center rounded-[13px] border bg-white text-slate-700 shadow-sm transition sm:h-11 sm:w-11',
-            isNotificationOpen
-              ? 'border-blue-300 bg-blue-50 text-blue-700'
-              : 'border-slate-200 hover:border-blue-200 hover:bg-blue-50',
-          ].join(
-            ' ',
-          )}
-          aria-label={
-            isArabic
-              ? 'الإشعارات'
-              : 'Notifications'
-          }
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.9"
-            className="h-[18px] w-[18px]"
-          >
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
-
-            <path d="M10 21h4" />
-          </svg>
-
-          {unreadCount >
-            0 && (
-            <span
-              dir="ltr"
-              className="absolute -right-1.5 -top-1.5 flex min-h-[19px] min-w-[19px] items-center justify-center rounded-full border-2 border-white bg-rose-500 px-1 text-[10px] font-black text-white"
-            >
-              {unreadCount >
-              9
-                ? '9+'
-                : unreadCount}
-            </span>
-          )}
-        </button>
-
-        {isNotificationOpen && (
-          <div
-            dir={
-              isArabic
-                ? 'rtl'
-                : 'ltr'
-            }
-            className={[
-              'absolute top-[calc(100%+7px)] z-[150] w-[258px] overflow-hidden rounded-[15px] border border-slate-200 bg-white shadow-[0_16px_45px_rgba(15,23,42,0.18)] sm:w-[310px]',
-              isArabic
-                ? 'left-0'
-                : 'right-0',
-            ].join(
-              ' ',
-            )}
-          >
-            <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2.5">
-              <p className="text-[13px] font-black text-slate-950">
-                {isArabic
-                  ? 'الإشعارات'
-                  : 'Notifications'}
-              </p>
-
-              {unreadCount >
-                0 && (
-                <button
-                  type="button"
-                  onClick={
-                    markAllRead
-                  }
-                  className="text-[11px] font-black text-blue-600"
-                >
-                  {isArabic
-                    ? 'قراءة الكل'
-                    : 'Tout lire'}
-                </button>
-              )}
-            </div>
-
-            {notificationsLoading ? (
-              <div className="px-4 py-6 text-center text-xs font-bold text-slate-400">
-                {isArabic
-                  ? 'جارٍ التحميل...'
-                  : 'Chargement...'}
-              </div>
-            ) : notifications.length >
-              0 ? (
-              <div className="max-h-[224px] overflow-y-auto p-1">
-                {notifications.map(
-                  (
-                    notification,
-                  ) => {
-                    const unread =
-                      readUpdates[
-                        notification.orderNumber
-                      ] !==
-                      notification.updatedAt
-
-                    return (
-                      <button
-                        key={`${notification.orderNumber}-${notification.updatedAt}`}
-                        type="button"
-                        onClick={() =>
-                          handleNotificationSelect(
-                            notification,
-                          )
-                        }
-                        className={[
-                          'flex w-full items-start gap-2 rounded-[11px] px-2 py-2 text-start transition hover:bg-blue-50',
-                          unread
-                            ? 'bg-blue-50/60'
-                            : '',
-                        ].join(
-                          ' ',
-                        )}
-                      >
-                        <span
-                          className={[
-                            'flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] text-xs font-black',
-                            getStatusIconClasses(
-                              notification.status,
-                            ),
-                          ].join(
-                            ' ',
-                          )}
-                        >
-                          {getStatusIcon(
-                            notification.status,
-                          )}
-                        </span>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <p className="min-w-0 flex-1 truncate text-xs font-black text-slate-950">
-                              {
-                                notification.serviceName
-                              }
-                            </p>
-
-                            {unread && (
-                              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-600" />
-                            )}
-                          </div>
-
-                          <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-500">
-                            {getStatusLabel(
-                              notification.status,
-                            )}
-                          </p>
-
-                          <div className="mt-1 flex items-center justify-between gap-2">
-                            <span
-                              dir="ltr"
-                              className="truncate text-left text-[11px] font-black text-blue-600"
-                            >
-                              {
-                                notification.orderNumber
-                              }
-                            </span>
-
-                            <span
-                              dir="ltr"
-                              className="shrink-0 text-[10px] text-slate-400"
-                            >
-                              {formatNotificationDate(
-                                notification.updatedAt,
-                              )}
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                    )
-                  },
-                )}
-              </div>
-            ) : (
-              <div className="px-4 py-6 text-center text-xs font-bold text-slate-500">
-                {isArabic
-                  ? 'لا توجد إشعارات'
-                  : 'Aucune notification'}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    ) : null
+  const notificationButton = isAuthenticated ? (
+    <div data-teo-notifications className="relative">
+      <button type="button" onClick={handleNotificationToggle} aria-expanded={isNotificationOpen} aria-label={isArabic ? 'الإشعارات' : 'Notifications'} className="relative flex h-10 w-10 items-center justify-center rounded-[13px] border border-slate-200 bg-white text-slate-700 shadow-sm sm:h-11 sm:w-11">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-[18px] w-[18px]"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+        {unreadCount > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-rose-500 px-1.5 text-[10px] font-black text-white">{unreadCount}</span>}
+      </button>
+      {isNotificationOpen && <div className="teo-notification-panel fixed inset-x-3 top-[68px] z-[150] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl xl:absolute xl:inset-x-auto xl:end-0 xl:top-full xl:w-[350px]">
+        <div className="flex items-center justify-between border-b border-slate-200 p-3"><strong>{isArabic ? 'الإشعارات' : 'Notifications'} ({unreadCount})</strong>{unreadCount > 0 && <button type="button" onClick={() => void markRead()} className="text-xs font-bold text-blue-600">{isArabic ? 'قراءة الكل' : 'Tout lire'}</button>}</div>
+        {notificationError && <p className="p-3 text-xs text-rose-600">{isArabic ? 'تعذر تحديث الإشعارات' : 'Impossible de synchroniser les notifications'}</p>}
+        <div className="max-h-[50dvh] overflow-y-auto p-2">
+          {notificationsLoading ? <p className="p-4 text-sm">{isArabic ? 'جار التحميل...' : 'Chargement...'}</p> : notifications.length ? notifications.map(n => <button key={n.id} type="button" onClick={() => handleNotificationSelect(n)} className={`block w-full rounded-xl p-3 text-start hover:bg-slate-50 ${!n.is_read ? 'bg-blue-50' : ''}`}><div className="flex items-center gap-2"><strong className="flex-1 text-sm">{getStatusLabel(n)}</strong>{!n.is_read && <span className="h-2 w-2 rounded-full bg-blue-600"/>}</div><p className="mt-1 text-xs text-slate-500">{getMessage(n)}</p><p className="mt-1 text-[10px] text-slate-500" dir="ltr">{n.order_number} · {formatNotificationDate(n.created_at)}</p></button>) : <p className="p-5 text-center text-sm">{isArabic ? 'لا توجد إشعارات' : 'Aucune notification'}</p>}
+        </div>
+        <Link to="/profil?section=notifications" onClick={() => setIsNotificationOpen(false)} className="block border-t border-slate-200 p-3 text-center text-sm font-bold text-blue-600">{isArabic ? 'جميع الإشعارات' : 'Toutes les notifications'}</Link>
+      </div>}
+    </div>
+  ) : null
 
   return (
-    <div
-      dir={
-        isArabic
-          ? 'rtl'
-          : 'ltr'
-      }
-      className="sticky top-0 z-[60]"
-    >
-      {liveToast && (
-        <button
-          type="button"
-          onClick={() => {
-            setLiveToast(
-              null,
-            )
-
-            navigate(
-              `/commande/${liveToast.orderNumber}`,
-            )
-          }}
-          className={[
-            'fixed top-3 z-[300] w-[calc(100%-1.5rem)] max-w-[300px] rounded-[16px] border border-blue-100 bg-white p-3 text-start shadow-xl',
-            isArabic
-              ? 'left-3'
-              : 'right-3',
-          ].join(
-            ' ',
-          )}
-        >
-          <div className="flex items-start gap-2.5">
-            <span
-              className={[
-                'flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] font-black',
-                getStatusIconClasses(
-                  liveToast.status,
-                ),
-              ].join(
-                ' ',
-              )}
-            >
-              {getStatusIcon(
-                liveToast.status,
-              )}
-            </span>
-
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-black text-blue-600">
-                TEO STORE
-              </p>
-
-              <p className="mt-1 text-[13px] font-black text-slate-950">
-                {getStatusLabel(
-                  liveToast.status,
-                )}
-              </p>
-
-              <p className="mt-0.5 truncate text-xs text-slate-500">
-                {
-                  liveToast.serviceName
-                }
-              </p>
-            </div>
-          </div>
-        </button>
-      )}
+    <div dir={isArabic ? 'rtl' : 'ltr'} className="sticky top-0 z-[60]">
+      <style>{`html[data-teo-theme="dark"] .teo-notification-panel, html[data-teo-theme="dark"] .teo-notification-toast {background:#111827;color:#e2e8f0;border-color:#334155} html[data-teo-theme="dark"] .teo-notification-panel .bg-blue-50 {background:#172554} html[data-teo-theme="dark"] .teo-notification-panel button:hover {background:#1e293b} html[data-teo-theme="dark"] .teo-notification-panel .text-slate-500 {color:#a5b4c8}`}</style>
+      {liveToast && <button type="button" onClick={() => handleNotificationSelect(liveToast)} className="teo-notification-toast fixed end-3 top-3 z-[300] w-[calc(100%-1.5rem)] max-w-[300px] rounded-2xl border border-blue-100 bg-white p-4 text-start shadow-xl"><strong className="text-sm">{getStatusLabel(liveToast)}</strong><p className="mt-1 text-xs">{getMessage(liveToast)}</p></button>}
 
       <div className="hidden bg-[#06101f]/95 text-white lg:block">
         <Container>
@@ -1780,9 +955,7 @@ function PublicHeader() {
                 {!authLoading &&
                   isAuthenticated && (
                     <div
-                      ref={
-                        accountMenuRef
-                      }
+                      data-teo-account
                       className="relative"
                     >
                       <button
@@ -2021,6 +1194,20 @@ function PublicHeader() {
           <div className="border-t border-slate-100 bg-white xl:hidden">
             <Container className="py-3">
               <nav className="grid gap-2">
+                <Link
+                  to="/"
+                  onClick={() =>
+                    setIsMenuOpen(
+                      false,
+                    )
+                  }
+                  className="rounded-[14px] border border-slate-200 px-4 py-3 text-sm font-black text-slate-800"
+                >
+                  {isArabic
+                    ? 'الرئيسية'
+                    : 'Accueil'}
+                </Link>
+
                 <Link
                   to="/services-numeriques"
                   onClick={() =>
