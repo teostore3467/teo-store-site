@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
@@ -49,16 +49,29 @@ function PaymentLogo({ method }: { method: PaymentMethod }) {
 }
 
 const panel = 'rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5'
-const inputClass = 'mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-950 outline-none focus:border-blue-500'
-const smallTitle = 'text-[9px] font-black uppercase tracking-wide'
+const inputClass = 'mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none focus:border-blue-500'
+const smallTitle = 'text-xs font-black uppercase tracking-wide'
 
 function SectionTitle({ number, title, subtitle }: { number: number; title: string; subtitle: string }) {
   return <div className="flex items-center gap-3">
     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black text-white ${['bg-blue-600', 'bg-indigo-600', 'bg-emerald-600'][number - 1]}`}>{number}</div>
     <div><h2 className="text-sm font-black text-slate-950 sm:text-base">{title}</h2>
-      <p className="mt-0.5 text-[9px] text-slate-400 sm:text-[10px]">{subtitle}</p></div>
+      <p className="mt-0.5 text-xs text-slate-400 sm:text-xs">{subtitle}</p></div>
   </div>
 }
+
+const checkoutStyles = `html[data-teo-theme="dark"] .teo-checkout { background:#0b1220; color:#e2e8f0; }
+html[data-teo-theme="dark"] .teo-checkout :is(.bg-white,.bg-slate-50) { background:#152033; color:#e2e8f0; }
+html[data-teo-theme="dark"] .teo-checkout :is(.text-slate-950,.text-slate-900,.text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400) { color:#cbd5e1; }
+html[data-teo-theme="dark"] .teo-checkout :is(.border-slate-100,.border-slate-200,.border-slate-300) { border-color:#334155; }
+html[data-teo-theme="dark"] .teo-checkout :is(.bg-blue-50,[class~="bg-blue-50/50"],[class~="bg-blue-50/60"]) { background:#172b49; border-color:#34527a; }
+html[data-teo-theme="dark"] .teo-checkout .bg-amber-50 { background:#392b16; color:#fde68a; border-color:#785b25; }
+html[data-teo-theme="dark"] .teo-checkout .bg-emerald-50 { background:#12372e; color:#a7f3d0; }
+html[data-teo-theme="dark"] .teo-checkout .text-emerald-800 { color:#a7f3d0; }
+html[data-teo-theme="dark"] .teo-checkout .bg-red-50 { background:#3b2029; color:#fecaca; }
+html[data-teo-theme="dark"] .teo-checkout .text-blue-600 { color:#93c5fd; }
+html[data-teo-theme="dark"] .teo-checkout .bg-slate-950 .bg-white { background:#fff; color:#0f172a; }
+.teo-checkout input:focus-visible,.teo-checkout button:focus-visible,.teo-checkout summary:focus-visible { outline:2px solid #3b82f6; outline-offset:2px; }`
 
 function DigitalCheckoutPage() {
   const { productSlug } = useParams()
@@ -84,6 +97,15 @@ function DigitalCheckoutPage() {
   const [paymentSenderNumber, setPaymentSenderNumber] = useState('')
   const [paymentNumberCopied, setPaymentNumberCopied] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const submittingRef = useRef(false)
+  const [uncertainSubmission, setUncertainSubmission] = useState(false)
+  const [proofPreview, setProofPreview] = useState('')
+  useEffect(() => {
+    if (!paymentProofFile) { setProofPreview(''); return }
+    const url = URL.createObjectURL(paymentProofFile)
+    setProofPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [paymentProofFile])
   const [submissionError, setSubmissionError] = useState<string | null>(null)
 
   const loadPaymentMethods = useCallback(async () => {
@@ -153,7 +175,6 @@ function DigitalCheckoutPage() {
     setPaymentProofFile(null)
     setPaymentSenderNumber('')
     setPaymentNumberCopied(false)
-    setIsSubmitting(false)
     setSubmissionError(null)
   }, [productSlug, groupId, planId])
 
@@ -202,8 +223,8 @@ function DigitalCheckoutPage() {
   }
 
   if (authChecking || catalogLoading) {
-    return <main className="flex min-h-[60vh] items-center justify-center bg-[#f7f9fc] text-center">
-      <div><div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+    return <main className="teo-checkout flex min-h-[60vh] items-center justify-center bg-[#f7f9fc] text-center">
+      <style>{checkoutStyles}</style><div><div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
         <p className="mt-4 text-xs font-bold text-slate-500">{t('جارٍ التحقق من حسابك...', 'Vérification de votre compte...')}</p></div>
     </main>
   }
@@ -211,7 +232,7 @@ function DigitalCheckoutPage() {
   if (!service || !selectedGroup || !selectedPlan || service.availability !== 'available' ||
       selectedGroup.availability !== 'available' || selectedPlan.availability !== 'available' ||
       !isDatabaseId(groupDatabaseId) || !isDatabaseId(planDatabaseId)) {
-    return <main dir={isArabic ? 'rtl' : 'ltr'} className="min-h-screen bg-[#f7f9fc] py-8 sm:py-12"><Container>
+    return <main dir={isArabic ? 'rtl' : 'ltr'} className="teo-checkout min-h-screen bg-[#f7f9fc] py-8 sm:py-12"><style>{checkoutStyles}</style><Container>
       <div className={`mx-auto max-w-md text-center ${panel}`}>
         <h1 className="text-xl font-black">{t('تعذّر فتح الطلب', 'Commande indisponible')}</h1>
         <p className="mt-2 text-xs leading-5 text-slate-500">{t('تعذّر التحقق من الخطة المختارة. ارجع إلى الخدمة واختر الخطة مجددًا.', 'Impossible de vérifier la formule sélectionnée. Revenez au service pour la sélectionner à nouveau.')}</p>
@@ -235,16 +256,19 @@ function DigitalCheckoutPage() {
   const totalLabel = formatCurrencyText(`${price} ${selectedPlan.currency}`)
   const fieldsComplete = fields.every(field => {
     const value = customerValues[field.id]
+    if (field.type === 'email' && typeof value === 'string' && value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) return false
     return !field.required || (field.type === 'checkbox' ? value === true : typeof value === 'string' && value.trim().length > 0)
   })
   const canConfirmPayment = Boolean(customerName.trim() && customerPhone.trim() && selectedPayment &&
-    paymentSenderNumber.trim() && paymentProofFile && fieldsComplete && !isSubmitting)
+    paymentSenderNumber.trim() && paymentProofFile && fieldsComplete && !isSubmitting && !uncertainSubmission)
 
   const handleSubmitOrder = async () => {
-    if (!canConfirmPayment || !selectedPayment || !paymentProofFile) return
+    if (submittingRef.current || !canConfirmPayment || !selectedPayment || !paymentProofFile) return
+    submittingRef.current = true
     setIsSubmitting(true)
     setSubmissionError(null)
     let removableProof: string | null = null
+    let rpcStarted = false
     try {
       const { data: auth, error: authError } = await supabase.auth.getUser()
       if (authError) throw authError
@@ -259,6 +283,16 @@ function DigitalCheckoutPage() {
         await loadPaymentMethods()
         throw new Error(t('وسيلة الدفع المختارة لم تعد متاحة. اختر وسيلة أخرى.', 'Ce moyen de paiement n’est plus disponible. Choisissez-en un autre.'))
       }
+      if (method.payment_number !== selectedPayment.payment_number) {
+        await loadPaymentMethods()
+        throw new Error(t('تغير رقم المستفيد. إذا دفعت بالفعل، تواصل مع الدعم ولا تدفع مرة أخرى.', 'Le numéro bénéficiaire a changé. Si vous avez déjà payé, contactez le support sans payer à nouveau.'))
+      }
+      const latest = await fetchPublicServiceBySlug(service.slug)
+      const latestGroup = latest?.groups.find(group => group.databaseId === groupDatabaseId)
+      const latestPlan = latestGroup?.plans.find(plan => plan.databaseId === planDatabaseId)
+      if (latest?.availability !== 'available' || latestGroup?.availability !== 'available' || latestPlan?.availability !== 'available' || Number(latestPlan.price) !== Number(selectedPlan.price) || latestPlan.currency !== selectedPlan.currency) {
+        throw new Error(t('تغير السعر أو توفر الخدمة. تواصل مع الدعم إذا دفعت بالفعل، ولا تكرر الدفع.', 'Le prix ou la disponibilité a changé. Si vous avez déjà payé, contactez le support sans repayer.'))
+      }
       const extension = paymentProofFile.type === 'image/png' ? 'png' : paymentProofFile.type === 'image/webp' ? 'webp' : 'jpg'
       const reference = Math.floor(100000 + Math.random() * 900000)
       const path = `${auth.user.id}/TEO-${reference}-${Date.now()}.${extension}`
@@ -269,6 +303,7 @@ function DigitalCheckoutPage() {
       const emailField = fields.find(field => field.type === 'email')
       const emailValue = emailField ? customerValues[emailField.id] : undefined
       const customerEmail = typeof emailValue === 'string' && emailValue.trim() ? emailValue.trim() : auth.user.email ?? ''
+      rpcStarted = true
       const { data, error, status } = await supabase.rpc('customer_create_digital_order', {
         p_service_slug: service.slug,
         p_group_id: groupDatabaseId,
@@ -283,7 +318,7 @@ function DigitalCheckoutPage() {
       })
       if (error) {
         // A lost response can follow a committed order. Keep its receipt in that case.
-        if (status >= 400 && status < 500 && status !== 408) removableProof = path
+        if (status >= 400 && status < 500 && status !== 408) { removableProof = path; rpcStarted = false }
         throw error
       }
       const order = Array.isArray(data) ? data[0] : data
@@ -301,9 +336,10 @@ function DigitalCheckoutPage() {
           console.warn('Unable to remove payment proof:', cleanupError)
         }
       }
+      if (rpcStarted) setUncertainSubmission(true)
       const message = error instanceof Error ? error.message : t('تحقّق من حالة الطلب في حسابك.', 'Vérifiez le statut de la commande dans votre compte.')
       setSubmissionError(t(`تعذّر تأكيد الطلب. ${message}`, `Impossible de confirmer la commande. ${message}`))
-    } finally { setIsSubmitting(false) }
+    } finally { submittingRef.current = false; setIsSubmitting(false) }
   }
 
   const fulfillmentNotes: Record<string, string> = {
@@ -330,24 +366,28 @@ function DigitalCheckoutPage() {
     setSubmissionError(null)
   }
 
-  return <main dir={isArabic ? 'rtl' : 'ltr'} className="min-h-screen bg-[#f7f9fc]">
+  return <main dir={isArabic ? 'rtl' : 'ltr'} className="teo-checkout min-h-screen bg-[#f7f9fc]">
+    <style>{checkoutStyles}</style>
     <section className="border-b border-slate-200 bg-white">
       <Container className="py-3">
-        <div className="flex min-w-0 items-center gap-2 overflow-hidden text-[9px] font-semibold text-slate-400 sm:text-xs">
+        <div className="flex min-w-0 items-center gap-2 overflow-hidden text-xs font-semibold text-slate-400 sm:text-xs">
           <Link to="/services-numeriques">{t('الخدمات الرقمية', 'Services numériques')}</Link><span>/</span>
           <Link className="truncate" to={`/services-numeriques/${service.slug}`}>{serviceName}</Link><span>/</span>
           <span className="text-slate-700">{t('الطلب', 'Commande')}</span>
         </div>
       </Container>
     </section>
-    <section className="py-5 sm:py-9 lg:py-12"><Container><div className="mx-auto max-w-5xl">
-      <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[8px] font-black text-blue-600">
+    <section className="py-5 sm:py-9 lg:py-12"><Container><div className="mx-auto max-w-6xl">
+      <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-600">
         <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />{t('طلب رقمي', 'COMMANDE DIGITALE')}
       </div>
       <h1 className="mt-3 text-[26px] font-black tracking-tight text-slate-950 sm:text-3xl lg:text-4xl">{t('أكمل طلبك', 'Finalisez votre commande')}</h1>
-      <p className="mt-2 max-w-xl text-[11px] leading-5 text-slate-500 sm:text-sm">{t('أدخل معلوماتك، ادفع من تطبيقك، ثم ارفع إثبات الدفع.', 'Renseignez vos informations, payez depuis votre application puis ajoutez votre preuve de paiement.')}</p>
-      <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_360px] lg:items-start">
-        <div className="space-y-4">
+      <p className="mt-2 max-w-xl text-sm leading-5 text-slate-500 sm:text-sm">{t('أدخل معلوماتك، ادفع من تطبيقك، ثم ارفع إثبات الدفع.', 'Renseignez vos informations, payez depuis votre application puis ajoutez votre preuve de paiement.')}</p>
+      <div className="mt-5 grid grid-cols-3 gap-2" aria-label={t('مراحل الطلب', 'Étapes de commande')}>
+        {[[t('معلوماتك','Coordonnées'), Boolean(customerName.trim() && customerPhone.trim())], [t('الخدمة','Service'), fieldsComplete], [t('الدفع','Paiement'), Boolean(selectedPayment && paymentSenderNumber.trim() && paymentProofFile)]].map(([label, done], index) => <div key={index} className="rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold"><span className={done ? 'text-emerald-600' : 'text-blue-600'}>{done ? '✓' : index + 1}</span> {label}</div>)}
+      </div>
+      <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        <fieldset disabled={isSubmitting || uncertainSubmission} className="min-w-0 space-y-4">
           <section className={panel}>
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-2 font-black text-white">
@@ -355,17 +395,17 @@ function DigitalCheckoutPage() {
               </div>
               <div className="min-w-0"><p className={`${smallTitle} text-blue-600`}>{category}</p>
                 <h2 className="truncate text-sm font-black text-slate-950 sm:text-base">{serviceName}</h2>
-                <p className="text-[10px] text-slate-400">{groupName} · {planLabel}</p></div>
+                <p className="text-xs text-slate-400">{groupName} · {planLabel}</p></div>
               <p dir="ltr" className="ms-auto shrink-0 text-sm font-black text-blue-600">{totalLabel}</p>
             </div>
           </section>
           <section className={panel}>
             <SectionTitle number={1} title={t('معلوماتك', 'Vos informations')} subtitle={t('بيانات التواصل', 'Informations de contact')} />
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <label className="block text-[9px] font-black text-slate-600">{t('الاسم', 'Nom')} <span className="text-red-500">*</span>
+              <label className="block text-xs font-black text-slate-600">{t('الاسم', 'Nom')} <span className="text-red-500">*</span>
                 <input className={inputClass} value={customerName} placeholder={t('اسمك', 'Votre nom')} onChange={e => { setCustomerName(e.target.value); setSubmissionError(null) }} />
               </label>
-              <label className="block text-[9px] font-black text-slate-600">{t('الهاتف', 'Téléphone')} <span className="text-red-500">*</span>
+              <label className="block text-xs font-black text-slate-600">{t('الهاتف', 'Téléphone')} <span className="text-red-500">*</span>
                 <input dir="ltr" className={inputClass} type="tel" inputMode="tel" value={customerPhone} placeholder="+222 ..." onChange={e => { setCustomerPhone(e.target.value); setSubmissionError(null) }} />
               </label>
             </div>
@@ -378,13 +418,13 @@ function DigitalCheckoutPage() {
                 <input type="checkbox" checked={value === true} onChange={e => updateField(field.id, e.target.checked)} />
                 <span className="text-xs font-bold text-slate-700">{field.label}{field.helpText && <small className="mt-1 block font-normal">{field.helpText}</small>}</span>
               </label>
-              return <label key={field.id} className="block text-[9px] font-black text-slate-600">{field.label} {field.required && <span className="text-red-500">*</span>}
+              return <label key={field.id} className="block text-xs font-black text-slate-600">{field.label} {field.required && <span className="text-red-500">*</span>}
                 <input className={inputClass} type={field.type === 'email' ? 'email' : 'text'} value={typeof value === 'string' ? value : ''} placeholder={field.placeholder ?? ''} onChange={e => updateField(field.id, e.target.value)} />
                 {field.helpText && <small className="mt-1.5 block font-normal text-slate-400">{field.helpText}</small>}
               </label>
             })}</div> : fulfillmentNotes[fulfillmentType] && <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-xs leading-5 text-slate-600">{fulfillmentNotes[fulfillmentType]}</div>}
-            {warning && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[10px] leading-5 text-amber-700"><strong>{t('مهم', 'Important')}</strong><p>{warning}</p></div>}
-            {instructions && <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 text-[10px] leading-5 text-slate-600"><strong>{t('التعليمات', 'Instructions')}</strong><p>{instructions}</p></div>}
+            {warning && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-700"><strong>{t('مهم', 'Important')}</strong><p>{warning}</p></div>}
+            {instructions && <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-slate-600"><strong>{t('التعليمات', 'Instructions')}</strong><p>{instructions}</p></div>}
           </section>
           <section className={panel}>
             <SectionTitle number={3} title={t('الدفع', 'Paiement')} subtitle={t('اختر تطبيق الدفع واتبع الخطوات', 'Choisissez votre application et suivez les étapes')} />
@@ -393,7 +433,7 @@ function DigitalCheckoutPage() {
                 const selected = method.code === selectedPaymentCode
                 return <button type="button" key={method.id} aria-pressed={selected}
                   className={`relative rounded-[18px] border p-3 text-center ${selected ? 'border-2 border-blue-600 bg-blue-50' : 'border-slate-200 bg-white'}`}
-                  onClick={() => { setSelectedPaymentCode(method.code); setPaymentNumberCopied(false); setSubmissionError(null) }}>
+                  onClick={() => { if (method.code !== selectedPaymentCode) { setPaymentProofFile(null); setPaymentSenderNumber('') }; setSelectedPaymentCode(method.code); setPaymentNumberCopied(false); setSubmissionError(null) }}>
                   {selected && <span className="absolute end-2 top-2 rounded-full bg-blue-600 px-1 text-white">✓</span>}
                   <span className="mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-slate-50"><PaymentLogo method={method} /></span>
                   <span className="mt-3 block truncate text-xs font-black">{method.name}</span>
@@ -415,49 +455,55 @@ function DigitalCheckoutPage() {
                   {paymentNumberCopied ? t('تم نسخ الرقم ✓', 'Numéro copié ✓') : t('نسخ رقم المستفيد', 'Copier le numéro')}
                 </button></div>
               </div>
-              <div className="rounded-[20px] border border-blue-100 bg-blue-50/50 p-4">
-                <h3 className="text-sm font-black">{t('كيف أدفع؟', 'Comment payer ?')}</h3><p className="text-[10px] text-slate-400">{t(`خطوات الدفع عبر ${selectedPayment.name}`, `Étapes de paiement avec ${selectedPayment.name}`)}</p>
+              <details className="rounded-[20px] border border-blue-100 bg-blue-50/50 p-4">
+                <summary className="cursor-pointer text-sm font-black">{t('كيف أدفع؟', 'Comment payer ?')}</summary><p className="text-xs text-slate-400">{t(`خطوات الدفع عبر ${selectedPayment.name}`, `Étapes de paiement avec ${selectedPayment.name}`)}</p>
                 <ol className="mt-4 space-y-3">{paymentSteps.map((step, index) => <li className="flex items-start gap-3 text-xs leading-5 text-slate-600" key={index}>
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white font-black text-blue-600">{index + 1}</span>{step}
                 </li>)}</ol>
-                <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[10px] text-amber-800">{t('تأكد من رقم المستفيد والمبلغ قبل تأكيد التحويل. لا ترسل مبلغًا إلى رقم آخر.', 'Vérifiez le numéro du bénéficiaire et le montant avant de confirmer. N’envoyez pas le paiement vers un autre numéro.')}</p>
-              </div>
-              <label className="block rounded-[20px] border border-slate-200 bg-slate-50 p-4 text-[10px] font-black">
+                <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{t('تأكد من رقم المستفيد والمبلغ قبل تأكيد التحويل. لا ترسل مبلغًا إلى رقم آخر.', 'Vérifiez le numéro du bénéficiaire et le montant avant de confirmer. N’envoyez pas le paiement vers un autre numéro.')}</p>
+              </details>
+              <label className="block rounded-[20px] border border-slate-200 bg-slate-50 p-4 text-xs font-black">
                 {t('الرقم الذي دفعت منه', 'Numéro utilisé pour payer')} <span className="text-red-500">*</span>
                 <small className="mt-1 block font-normal text-slate-400">{t(`أدخل رقم حساب ${selectedPayment.name} الذي أرسلت منه المبلغ.`, `Indiquez le numéro du compte ${selectedPayment.name} utilisé pour envoyer le paiement.`)}</small>
                 <input dir="ltr" className={inputClass} type="tel" inputMode="numeric" value={paymentSenderNumber} placeholder="Ex. 22 00 00 00" onChange={e => { setPaymentSenderNumber(e.target.value); setSubmissionError(null) }} />
               </label>
-              <div><p className="text-[10px] font-black">{t('إثبات الدفع', 'Preuve de paiement')} <span className="text-red-500">*</span></p>
-                <p className="mt-1 text-[9px] text-slate-400">{t('بعد نجاح الدفع، ارفع صورة واضحة تظهر عملية التحويل.', 'Après le paiement, ajoutez une capture d’écran claire de la transaction.')}</p>
+              <div><p className="text-xs font-black">{t('إثبات الدفع', 'Preuve de paiement')} <span className="text-red-500">*</span></p>
+                <p className="mt-1 text-xs text-slate-400">{t('بعد نجاح الدفع، ارفع صورة واضحة تظهر عملية التحويل.', 'Après le paiement, ajoutez une capture d’écran claire de la transaction.')}</p>
                 <label className={`mt-3 flex min-h-[130px] cursor-pointer flex-col items-center justify-center rounded-[18px] border border-dashed p-4 text-center ${paymentProofFile ? 'border-emerald-300 bg-emerald-50' : 'border-slate-300 bg-slate-50'}`}>
-                  <input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={handlePaymentProofChange} />
+                  <input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={handlePaymentProofChange} onClick={e => { e.currentTarget.value = '' }} />
                   <span className={`flex h-11 w-11 items-center justify-center rounded-xl text-lg font-black shadow-sm ${paymentProofFile ? 'bg-emerald-500 text-white' : 'bg-white text-blue-600'}`}>{paymentProofFile ? '✓' : '↑'}</span>
                   <span className="mt-3 max-w-[280px] truncate text-xs font-black">{paymentProofFile?.name || t('اضغط لاختيار صورة الدفع', 'Appuyez pour choisir la capture du paiement')}</span>
-                  <span className="mt-1 text-[9px] text-slate-400">JPG · PNG · WEBP · 5 MB max</span>
+                  <span className="mt-1 text-xs text-slate-400">JPG · PNG · WEBP · 5 MB max</span>
                 </label>
+                {paymentProofFile && proofPreview && <div className="mt-3 rounded-xl border border-slate-200 p-3">
+                  <img src={proofPreview} alt={t('معاينة إثبات الدفع','Aperçu de la preuve')} className="mx-auto max-h-64 max-w-full rounded-lg object-contain" />
+                  <div className="mt-2 flex items-center justify-between gap-2 text-xs"><span>{(paymentProofFile.size / 1024).toFixed(0)} KB</span><button type="button" className="font-bold text-red-600" onClick={() => setPaymentProofFile(null)}>{t('حذف الصورة','Supprimer la capture')}</button></div>
+                </div>}
               </div>
             </div>}
-            {submissionError && <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-[10px] font-bold text-red-600">{submissionError}</p>}
+            {submissionError && <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-600">{submissionError}</p>}
           </section>
-        </div>
-        <aside className="lg:sticky lg:top-6">
+        </fieldset>
+        <aside className="lg:sticky lg:top-24">
           <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-5"><p className={`${smallTitle} text-blue-600`}>{t('ملخص الطلب', 'RÉCAPITULATIF')}</p>
-              <h2 className="mt-2 text-base font-black">{serviceName}</h2><p className="mt-1 text-[10px] text-slate-400">{groupName} · {planLabel}</p></div>
+              <h2 className="mt-2 text-base font-black">{serviceName}</h2><p className="mt-1 text-xs text-slate-400">{groupName} · {planLabel}</p></div>
             <div className="space-y-3 p-5">
-              {[[t('الخدمة', 'Service'), serviceName], [t('الخطة', 'Formule'), planLabel]].map(([label, value]) => <div key={label} className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 p-3 text-[10px]"><span className="text-slate-400">{label}</span><strong>{value}</strong></div>)}
+              {[[t('الخدمة', 'Service'), serviceName], [t('الخطة', 'Formule'), planLabel], [t('طريقة التسليم','Mode de livraison'), fulfillmentLabel]].map(([label, value]) => <div key={label} className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 p-3 text-xs"><span className="text-slate-400">{label}</span><strong>{value}</strong></div>)}
               {selectedPayment && <div className="flex items-center gap-3 rounded-xl bg-emerald-50 p-3"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white"><PaymentLogo method={selectedPayment} /></div>
-                <div className="text-[10px] text-emerald-800"><p>{t('طريقة الدفع', 'Paiement')}</p><strong>{selectedPayment.name}</strong></div></div>}
+                <div className="text-xs text-emerald-800"><p>{t('طريقة الدفع', 'Paiement')}</p><strong>{selectedPayment.name}</strong></div></div>}
               <div className="flex items-center justify-between gap-4 rounded-xl bg-slate-950 p-4 text-white"><span className={smallTitle}>{t('المبلغ المطلوب', 'Montant à payer')}</span><strong dir="ltr" className="text-lg">{totalLabel}</strong></div>
               <button type="button" disabled={!canConfirmPayment} onClick={() => void handleSubmitOrder()} className="h-12 w-full rounded-[14px] bg-blue-600 text-xs font-black text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400">
-                {isSubmitting ? t('جارٍ إرسال الطلب...', 'Envoi en cours...') : t('تأكيد الدفع وإرسال الطلب', 'Confirmer le paiement')}
+                {isSubmitting ? t('جارٍ إرسال الطلب...', 'Envoi en cours...') : t('إرسال الطلب للمراجعة', 'Envoyer la commande')}
               </button>
-              {!isSubmitting && <p className={`text-center text-[9px] ${canConfirmPayment ? 'font-bold text-emerald-600' : 'text-slate-400'}`}>{canConfirmPayment ? t('كل شيء جاهز لإرسال الطلب ✓', 'Tout est prêt pour envoyer la commande ✓') : t('أكمل المعلومات واختر طريقة الدفع وارفع الإثبات لتفعيل الزر.', 'Complétez les informations, choisissez un moyen de paiement et ajoutez la preuve.')}</p>}
+              {uncertainSubmission && <p role="alert" className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">{t('قد يكون الطلب قد سُجل. تحقق من طلباتك أو تواصل مع الدعم قبل إعادة المحاولة. لا تدفع مرة أخرى.', 'La commande a peut-être été enregistrée. Vérifiez vos commandes ou contactez le support avant de réessayer. Ne payez pas à nouveau.')}</p>}
+              {submissionError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-600">{submissionError}</p>}
+              {!isSubmitting && !uncertainSubmission && <p className={`text-center text-xs ${canConfirmPayment ? 'font-bold text-emerald-600' : 'text-slate-400'}`}>{canConfirmPayment ? t('كل شيء جاهز لإرسال الطلب ✓', 'Tout est prêt pour envoyer la commande ✓') : t('أكمل المعلومات واختر طريقة الدفع وارفع الإثبات لتفعيل الزر.', 'Complétez les informations, choisissez un moyen de paiement et ajoutez la preuve.')}</p>}
             </div>
           </div>
           <div className="mt-4 rounded-[18px] border border-slate-200 bg-white p-4">
             <p className={`${smallTitle} text-slate-400`}>{t('بعد إرسال الطلب', 'Après la commande')}</p>
-            <p className="mt-2 text-[10px] leading-5 text-slate-500">{t('سيظهر طلبك في حسابك وستتمكن من متابعة التحقق من الدفع وتجهيز الخدمة والتسليم داخل TEO STORE.', 'Votre commande apparaîtra dans votre compte. Vous pourrez suivre la vérification du paiement, le traitement et la livraison directement dans TEO STORE.')}</p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">{t('سيظهر طلبك في حسابك وستتمكن من متابعة التحقق من الدفع وتجهيز الخدمة والتسليم داخل TEO STORE.', 'Votre commande apparaîtra dans votre compte. Vous pourrez suivre la vérification du paiement, le traitement et la livraison directement dans TEO STORE.')}</p>
           </div>
         </aside>
       </div>
