@@ -440,15 +440,40 @@ function ProfilePage() {
 
   const [orderSearch,setOrderSearch] = useState('')
   const [orderFilter,setOrderFilter] = useState('')
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileNotice, setProfileNotice] = useState<{ok: boolean; text: string} | null>(null)
+  const [passwordOpen, setPasswordOpen] = useState(false)
+  const savePersonalInfo = async () => {
+    if (!user || profileSaving || saving) return
+    const fullName = editName.trim()
+    let phone = editPhone.trim().replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit))).replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/[\s().-]/g, '')
+    if (phone.startsWith('00222')) phone = '+' + phone.slice(2)
+    if (/^\d{8}$/.test(phone)) phone = '+222' + phone
+    if (!fullName || fullName.length > 100 || (phone && !(/^\+[1-9]\d{7,14}$/.test(phone) && (!phone.startsWith('+222') || /^\+222\d{8}$/.test(phone))))) {
+      setProfileNotice({ok:false,text:isArabic ? 'أدخل اسمًا صالحًا ورقم هاتف صحيحًا (8 أرقام لموريتانيا أو رقم دولي يبدأ بـ +).' : 'Saisissez un nom valide et un téléphone correct (8 chiffres en Mauritanie ou numéro international avec +).'}); return
+    }
+    setProfileSaving(true); setProfileNotice(null)
+    try {
+      const {error} = await supabase.auth.updateUser({data:{full_name:fullName,phone}})
+      if (error) throw error
+      setUser(current => current ? {...current, fullName, phone} : current)
+      setEditName(fullName); setEditPhone(phone)
+      setProfileNotice({ok:true,text:isArabic ? 'تم حفظ معلوماتك بنجاح.' : 'Vos informations ont été enregistrées.'})
+    } catch {
+      setProfileNotice({ok:false,text:isArabic ? 'تعذر حفظ المعلومات. حاول مرة أخرى.' : 'Impossible d’enregistrer vos informations. Réessayez.'})
+    } finally {setProfileSaving(false)}
+  }
   const [password,setPassword] = useState('')
   const [passwordConfirm,setPasswordConfirm] = useState('')
   const [saving,setSaving] = useState(false)
   const [accountNotice,setAccountNotice] = useState('')
   const changePassword = async () => {
-    if (saving || !user) return
+    if (saving || profileSaving || !user) return
     if (password.length < 12 || password !== passwordConfirm) {setAccountNotice(isArabic ? 'تحقق من تطابق كلمة المرور (12 حرفًا على الأقل).' : 'Vérifiez les mots de passe (12 caractères minimum).'); return}
     setSaving(true); setAccountNotice('')
-    try {const {error} = await supabase.auth.updateUser({password}); if(error) throw error; setPassword(''); setPasswordConfirm(''); setAccountNotice(isArabic ? 'تم تغيير كلمة المرور.' : 'Mot de passe modifié.')}
+    try {const {error} = await supabase.auth.updateUser({password}); if(error) throw error; setPassword(''); setPasswordConfirm(''); setPasswordOpen(false); setAccountNotice(isArabic ? 'تم تغيير كلمة المرور.' : 'Mot de passe modifié.')}
     catch {setAccountNotice(isArabic ? 'تعذر التغيير. قد تحتاج إلى تسجيل الدخول مجددًا.' : 'Modification impossible. Une nouvelle connexion peut être nécessaire.')}
     finally {setSaving(false)}
   }
@@ -960,7 +985,7 @@ function ProfilePage() {
             authUser.user_metadata
               ?.phone
 
-          setUser({
+          const loadedUser: ProfileUser = {
             id:
               authUser.id,
 
@@ -968,15 +993,9 @@ function ProfilePage() {
               authUser.email ??
               '',
 
-            phone:
-              typeof authUser.phone ===
-                'string' &&
-              authUser.phone.trim()
-                ? authUser.phone.trim()
-                : typeof metadataPhone ===
-                    'string'
-                  ? metadataPhone.trim()
-                  : '',
+            phone: typeof metadataPhone === 'string'
+              ? metadataPhone.trim()
+              : authUser.phone?.trim() || '',
 
             fullName:
               typeof metadataName ===
@@ -992,7 +1011,10 @@ function ProfilePage() {
                       ? 'حسابي'
                       : 'Mon compte'
                   ),
-          })
+          }
+          setUser(loadedUser)
+          setEditName(loadedUser.fullName)
+          setEditPhone(loadedUser.phone)
 
           await loadAllCustomerData(
             authUser.id,
@@ -2349,6 +2371,10 @@ function ProfilePage() {
       setPassword('')
       setPasswordConfirm('')
       setAccountNotice('')
+      setPasswordOpen(false)
+      setProfileNotice(null)
+      setEditName(user?.fullName || '')
+      setEditPhone(user?.phone || '')
 
       window.scrollTo({
         top:
@@ -3254,53 +3280,14 @@ function ProfilePage() {
                   </div>
                 </div>
 
-                <div className="mt-5 divide-y divide-slate-100 border-t border-slate-100">
-                  <div className="py-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
-                      {isArabic
-                        ? 'الاسم'
-                        : 'Nom'}
-                    </p>
-
-                    <p className="mt-1 text-sm font-black text-slate-900">
-                      {
-                        user.fullName
-                      }
-                    </p>
-                  </div>
-
-                  <div className="py-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
-                      {isArabic
-                        ? 'البريد الإلكتروني'
-                        : 'E-mail'}
-                    </p>
-
-                    <p
-                      dir="ltr"
-                      className="mt-1 break-all text-left text-sm font-black text-slate-900"
-                    >
-                      {user.email ||
-                        '—'}
-                    </p>
-                  </div>
-
-                  <div className="py-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
-                      {isArabic
-                        ? 'الهاتف'
-                        : 'Téléphone'}
-                    </p>
-
-                    <p
-                      dir="ltr"
-                      className="mt-1 text-left text-sm font-black text-slate-900"
-                    >
-                      {user.phone ||
-                        '—'}
-                    </p>
-                  </div>
-                </div>
+                <form className="mt-5 space-y-4 border-t border-slate-100 pt-5" onSubmit={event => {event.preventDefault(); void savePersonalInfo()}}>
+                  <label className="block text-sm font-semibold text-slate-700">{isArabic ? 'الاسم الكامل' : 'Nom complet'}<input autoComplete="name" maxLength={100} required value={editName} onChange={e => setEditName(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900"/></label>
+                  <label className="block text-sm font-semibold text-slate-700">{isArabic ? 'البريد الإلكتروني' : 'Adresse e-mail'}<input dir="ltr" type="email" readOnly value={user.email} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500"/></label>
+                  <label className="block text-sm font-semibold text-slate-700">{isArabic ? 'رقم الهاتف للتواصل' : 'Téléphone de contact'}<input dir="ltr" type="tel" autoComplete="tel" maxLength={30} value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+222 XXXXXXXX" className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900"/></label>
+                  <p className="text-xs text-slate-500">{isArabic ? 'رقم اختياري للتواصل والطلبات، وليس لتسجيل الدخول.' : 'Numéro facultatif pour vos commandes et le contact, pas pour la connexion.'}</p>
+                  <button type="submit" disabled={profileSaving || saving || (editName === user.fullName && editPhone === user.phone)} className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{profileSaving ? (isArabic ? 'جارٍ الحفظ…' : 'Enregistrement…') : (isArabic ? 'حفظ المعلومات' : 'Enregistrer les modifications')}</button>
+                  {profileNotice && <p role="status" className={`text-sm ${profileNotice.ok ? 'text-emerald-700' : 'text-rose-700'}`}>{profileNotice.text}</p>}
+                </form>
               </div>
 
               <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
@@ -3349,21 +3336,6 @@ function ProfilePage() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  void handleSignOut()
-                }
-                className="flex min-h-[68px] w-full items-center justify-center gap-2 rounded-[18px] border border-rose-100 bg-rose-50 px-4 text-sm font-black text-rose-600"
-              >
-                <Icon
-                  name="logout"
-                />
-
-                {isArabic
-                  ? 'تسجيل الخروج'
-                  : 'Se déconnecter'}
-              </button>
             </section>
           )}
 
@@ -3371,7 +3343,11 @@ function ProfilePage() {
           {activeSection === 'subscriptions' && <CustomerServices key={user.id} userId={user.id}/>}
           {activeSection === 'support' && <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-black">{isArabic ? 'مركز المساعدة والمحادثات' : 'Centre d’assistance et conversations'}</h2><p className="my-3 text-sm text-slate-500">{isArabic ? 'تواصل مع فريق الدعم داخل الموقع وتابع محادثاتك.' : 'Contactez notre équipe et suivez vos conversations sur le site.'}</p><Link className="inline-flex rounded-xl bg-blue-600 px-5 py-3 font-bold text-white" to="/assistance">{isArabic ? 'فتح مركز الدعم' : 'Ouvrir l’assistance'}</Link></section>}
           {activeSection === 'loyalty' && loyaltyCard}
-          {activeSection === 'account' && <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-black">{isArabic ? 'تغيير كلمة المرور' : 'Modifier le mot de passe'}</h2><form className="space-y-3" onSubmit={event => {event.preventDefault(); void changePassword()}}><label className="block text-sm">{isArabic ? 'كلمة المرور الجديدة' : 'Nouveau mot de passe'}<input className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3" type="password" autoComplete="new-password" minLength={12} required value={password} onChange={e => setPassword(e.target.value)}/></label><label className="block text-sm">{isArabic ? 'تأكيد كلمة المرور' : 'Confirmer le mot de passe'}<input className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3" type="password" autoComplete="new-password" required value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)}/></label><button disabled={saving} className="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white">{isArabic ? 'حفظ كلمة المرور' : 'Enregistrer'}</button></form>{accountNotice && <p role="status" className="text-sm">{accountNotice}</p>}</section>}
+          {activeSection === 'account' && <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+            <button type="button" aria-expanded={passwordOpen} aria-controls="teo-password-form" onClick={() => {setPasswordOpen(value => !value); setPassword(''); setPasswordConfirm(''); setAccountNotice('')}} disabled={saving} className="flex w-full items-center gap-3 text-start text-sm font-bold text-slate-900"><Icon name="user" className="h-5 w-5 text-slate-500"/><span className="flex-1">{isArabic ? 'تغيير كلمة المرور' : 'Modifier le mot de passe'}</span><span aria-hidden="true" className="text-slate-500">{passwordOpen ? '−' : '+'}</span></button>
+            {passwordOpen && <form id="teo-password-form" className="mt-4 space-y-3 border-t border-slate-100 pt-4" onSubmit={event => {event.preventDefault(); void changePassword()}}><label className="block text-sm">{isArabic ? 'كلمة المرور الجديدة' : 'Nouveau mot de passe'}<input className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3" type="password" autoComplete="new-password" minLength={12} required value={password} onChange={e => setPassword(e.target.value)}/></label><label className="block text-sm">{isArabic ? 'تأكيد كلمة المرور' : 'Confirmer le mot de passe'}<input className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3" type="password" autoComplete="new-password" required value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)}/></label><div className="flex flex-wrap gap-2"><button type="submit" disabled={saving || profileSaving} className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{isArabic ? 'حفظ كلمة المرور' : 'Enregistrer'}</button><button type="button" disabled={saving} onClick={() => {setPasswordOpen(false);setPassword('');setPasswordConfirm('');setAccountNotice('')}} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold">{isArabic ? 'إلغاء' : 'Annuler'}</button></div></form>}
+            {accountNotice && <p role="status" className="mt-3 text-sm">{accountNotice}</p>}
+          </section>}
         </div></div>
       </Container>
 
