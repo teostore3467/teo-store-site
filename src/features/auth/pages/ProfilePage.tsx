@@ -1,3 +1,5 @@
+import CustomerServices from "./CustomerServices"
+import CustomerReferral from './CustomerReferral'
 import {
   useCallback,
   useEffect,
@@ -2813,6 +2815,8 @@ function ProfilePage() {
           {activeSection ===
             'home' && (
             <div className="grid gap-4 xl:grid-cols-2 [&>*:nth-child(n+3)]:xl:col-span-2">
+              <CustomerReferral key={user.id} userId={user.id}/>
+              <CustomerServices key={`services-${user.id}`} userId={user.id}/>
               <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] sm:p-5">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xl font-black uppercase text-white">

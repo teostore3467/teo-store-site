@@ -1,3 +1,4 @@
+import ReferralCapture from './features/auth/ReferralCapture'
 import AdminProPage from './features/admin/pages/AdminProPage'
 import SupportCenter from './features/support/SupportCenter'
 import AdminContent from './features/support/AdminContent'
@@ -49,6 +50,7 @@ function App() {
   return (
     <div className="min-h-screen bg-white">
       <ScrollToTop />
+      <ReferralCapture />
 
       <Routes>
         {/* ADMIN LOGIN */}
