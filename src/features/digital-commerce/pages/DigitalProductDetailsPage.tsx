@@ -601,7 +601,7 @@ function DigitalProductDetailsPage() {
     }
 
   return (
-    <main className="teo-product-detail min-h-screen bg-[#f7f9fc] pb-28 lg:pb-0" dir={isArabic ? 'rtl' : 'ltr'}>
+    <main className="teo-product-detail min-h-screen pb-28 lg:pb-0" dir={isArabic ? 'rtl' : 'ltr'}>
       <section className="border-b border-slate-200 bg-white">
         <Container className="py-3">
           <div className="flex min-w-0 items-center gap-2 overflow-hidden text-xs font-semibold text-slate-400">
@@ -627,12 +627,12 @@ function DigitalProductDetailsPage() {
         </Container>
       </section>
 
-      <section className="border-b border-slate-100 bg-white">
-        <Container className="py-5 sm:py-7 lg:py-8">
-          <div className="mx-auto max-w-6xl">
-            <div className="flex items-center gap-3 sm:gap-4">
+      <section className="teo-detail-hero">
+        <Container className="py-4 sm:py-5">
+          <div className="teo-detail-overview mx-auto max-w-6xl">
+            <div className="teo-detail-title flex items-center gap-3 sm:gap-4">
               <div
-                className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[16px] p-2 text-lg font-black text-white shadow-[0_10px_28px_rgba(37,99,235,0.20)] sm:h-14 sm:w-14 sm:text-xl lg:h-16 lg:w-16 lg:text-2xl"
+                className="teo-detail-image flex shrink-0 items-center justify-center overflow-hidden rounded-[16px] p-2 text-lg font-black text-white"
                 style={{
                   background:
                     'linear-gradient(145deg, #2563eb 0%, #4338ca 100%)',
@@ -713,16 +713,16 @@ function DigitalProductDetailsPage() {
               </div>
             </div>
             {!isComingSoon && (
-              <section aria-label={isArabic ? 'معلومات الخدمة' : 'Informations du service'} className="mt-4 space-y-2" dir={isArabic ? 'rtl' : 'ltr'}>
+              <section aria-label={isArabic ? 'معلومات الخدمة' : 'Informations du service'} className="teo-detail-facts" dir={isArabic ? 'rtl' : 'ltr'}>
                 {[
                   { label: isArabic ? 'مدة التسليم' : 'Délai de livraison', value: deliveryMinutes !== null ? deliveryText : '', Icon: Zap },
                   { label: isArabic ? 'مدة الاشتراك' : 'Durée de l’abonnement', value: selectedPlan?.duration_value && selectedPlan.duration_unit ? `${selectedPlan.duration_value} ${isArabic ? ({minutes:"دقيقة",hours:"ساعة",days:"يوم",weeks:"أسبوع",months:"شهر",years:"سنة"} as Record<string,string>)[selectedPlan.duration_unit] ?? selectedPlan.duration_unit : ({minutes:"min",hours:"h",days:"jours",weeks:"semaines",months:"mois",years:"ans"} as Record<string,string>)[selectedPlan.duration_unit] ?? selectedPlan.duration_unit}` : validityDays !== null && validityDays > 0 ? durationText(validityDays) : '', Icon: CalendarDays },
                   { label: isArabic ? 'طريقة الاستلام' : 'Mode de réception', value: selectedGroup && selectedGroup.fulfillment.type !== 'coming_soon' ? getLocalizedFulfillmentLabel(selectedGroup.fulfillment.type, language) : '', Icon: KeyRound },
                   { label: isArabic ? 'الضمان' : 'Garantie', value: fullWarranty || warrantyDays !== null ? warrantyText : '', Icon: ShieldCheck },
-                ].map(({label,value,Icon}) => (
-                  <div key={label} className="flex items-center justify-between gap-3 rounded-xl bg-slate-100 px-3 py-3 text-sm sm:px-4">
-                    <span className="flex min-w-0 items-center gap-2 text-slate-700"><Icon size={19} className="shrink-0 text-blue-600" aria-hidden="true"/>{label}</span>
-                    <span className="min-w-0 break-words text-end font-semibold text-slate-900">{value || (isArabic ? 'غير محدد' : 'Non précisé')}</span>
+                ].filter(item => !!item.value).map(({label,value,Icon}) => (
+                  <div key={label} className="teo-detail-fact">
+                    <span className="teo-detail-fact-label flex min-w-0 items-center gap-2"><Icon size={19} className="shrink-0 text-blue-600" aria-hidden="true"/>{label}</span>
+                    <span className="teo-detail-fact-value min-w-0 break-words font-semibold">{value || (isArabic ? 'غير محدد' : 'Non précisé')}</span>
                   </div>
                 ))}
               </section>
@@ -797,7 +797,7 @@ function DigitalProductDetailsPage() {
         <section id="teo-formules" className="scroll-mt-20 py-5 sm:py-7 lg:py-8">
           <Container>
             <div className="mx-auto max-w-6xl">
-              <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="teo-detail-purchase grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
               <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
               {activeTab === 'plans' && <>
               {isServiceOutOfStock && (
@@ -927,7 +927,7 @@ function DigitalProductDetailsPage() {
                   {selectedGroup.plans
                     .length >
                   0 ? (
-                    <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="teo-plan-grid mt-4 grid gap-3">
                       {selectedGroup.plans.map(
                         (
                           plan,
@@ -946,6 +946,7 @@ function DigitalProductDetailsPage() {
                                 plan.id
                               }
                               type="button"
+                              aria-pressed={isSelected}
                               disabled={
                                 !isPlanAvailable
                               }
@@ -955,7 +956,7 @@ function DigitalProductDetailsPage() {
                                 )
                               }
                               className={[
-                                'relative flex min-h-[120px] flex-col gap-3 rounded-[18px] border p-3 transition',
+                                'teo-plan-option relative flex min-h-[104px] flex-col gap-3 rounded-[18px] border p-3 transition',
 
                                 isArabic
                                   ? 'text-right'
@@ -1307,7 +1308,7 @@ function DigitalProductDetailsPage() {
               {selectedGroup &&
                 selectedPlan && (
                   <div
-                    className="hidden lg:block lg:sticky lg:top-6 overflow-hidden rounded-[22px] p-5 text-white shadow-[0_16px_42px_rgba(15,23,42,0.14)]"
+                    className="teo-purchase-summary hidden lg:block lg:sticky lg:top-6 overflow-hidden rounded-[22px] p-5 text-white shadow-[0_16px_42px_rgba(15,23,42,0.14)]"
                     style={{
                       background:
                         'linear-gradient(135deg, #06101f 0%, #101d44 55%, #312e81 100%)',
@@ -1435,7 +1436,7 @@ function DigitalProductDetailsPage() {
         </section>
       )}
       {!isComingSoon && selectedGroup && selectedPlan && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-4 pt-3 shadow-lg lg:hidden" style={{paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))'}}>
+        <div className="teo-mobile-purchase fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-4 pt-3 shadow-lg lg:hidden" style={{paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))'}}>
           <div className="mx-auto flex max-w-6xl items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs text-slate-500">{getLocalizedPlanLabel(selectedPlan, language)}</p>

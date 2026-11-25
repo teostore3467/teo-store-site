@@ -144,3 +144,52 @@ html[data-teo-theme="dark"] [class~="text-violet-800"] { color: #c4b5fd; }
 html[data-teo-theme="dark"] input:not([type="checkbox"]):not([type="radio"]), html[data-teo-theme="dark"] textarea, html[data-teo-theme="dark"] select { color-scheme: dark; }
 html[data-teo-theme="dark"] input::placeholder, html[data-teo-theme="dark"] textarea::placeholder { color:#94a3b8; }
 html[data-teo-theme="dark"] :focus-visible { outline-color:#60a5fa; }
+
+/* Shared theme: applied independently of OS setting and route. */
+html[data-teo-theme="light"] { color-scheme: light; }
+html[data-teo-theme="dark"] [class~="text-slate-400"] { color: #a8b8ce; }
+html[data-teo-theme="dark"] [class~="bg-slate-50/50"],
+html[data-teo-theme="dark"] [class~="bg-gray-100"] { background-color:#1b293d; }
+html[data-teo-theme="dark"] [class~="bg-white/80"],
+html[data-teo-theme="dark"] [class~="bg-white/90"] { background-color:#111c2e; }
+html[data-teo-theme="dark"] [class~="text-gray-500"],
+html[data-teo-theme="dark"] [class~="text-gray-600"],
+html[data-teo-theme="dark"] [class~="text-gray-700"] { color:#cbd5e1; }
+html[data-teo-theme="dark"] [class~="text-slate-300"] { color:#cbd5e1; }
+html[data-teo-theme="dark"] [class~="border-slate-200/60"],
+html[data-teo-theme="dark"] [class~="divide-slate-200"] > :not([hidden]) ~ :not([hidden]) { border-color:#344258; }
+html[data-teo-theme="dark"] [class~="bg-blue-100"] { background-color:#1e3a5f; }
+html[data-teo-theme="dark"] [class~="bg-emerald-100"] { background-color:#153b30; }
+html[data-teo-theme="dark"] [class~="bg-rose-100"] { background-color:#432535; }
+html[data-teo-theme="dark"] [class~="bg-red-100"] { background-color:#43252c; }
+html[data-teo-theme="dark"] [class~="text-rose-900"] { color:#fda4af; }
+html[data-teo-theme="dark"] [class~="text-red-800"],
+html[data-teo-theme="dark"] [class~="text-red-900"] { color:#fecaca; }
+html[data-teo-theme="dark"] [class~="text-green-600"],
+html[data-teo-theme="dark"] [class~="text-green-700"] { color:#86efac; }
+html[data-teo-theme="dark"] [class~="bg-green-50"] { background-color:#153b30; }
+html[data-teo-theme="dark"] [class~="hover:bg-slate-100"]:hover { background-color:#25364b; }
+html[data-teo-theme="dark"] [class~="hover:bg-white"]:hover { background-color:#1b293d; }
+/* Explicit dark utilities on the new editor and storefront take precedence. */
+html[data-teo-theme="dark"] [class~="dark:bg-slate-950"] { background-color:#0b1220; }
+html[data-teo-theme="dark"] [class~="dark:bg-slate-900"] { background-color:#111c2e; }
+html[data-teo-theme="dark"] [class~="dark:bg-slate-800"] { background-color:#1b293d; }
+html[data-teo-theme="dark"] [class~="dark:text-white"] { color:#f8fafc; }
+html[data-teo-theme="dark"] [class~="dark:border-slate-700"] { border-color:#344258; }
+html[data-teo-theme="dark"] [class~="dark:border-slate-600"] { border-color:#485a71; }
+:where(input, textarea, select) { accent-color:#2563eb; }
+:where(button,a,input,textarea,select,summary):focus-visible { outline:2px solid #2563eb; outline-offset:3px; }
+html[data-teo-theme="dark"] :where(button,a,input,textarea,select,summary):focus-visible { outline-color:#93c5fd; }
+html[data-teo-theme="dark"] select option { background:#111c2e; color:#f1f5f9; }
+.teo-editor :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select) { color:var(--color-text); border:1px solid var(--color-border); background:var(--color-surface); min-height:44px; font-weight:500; }
+.teo-editor :is(input,textarea)::placeholder { color:var(--color-text-muted); opacity:1; }
+.teo-editor :is(input,textarea,select):focus { border-color:#3b82f6; outline:2px solid #60a5fa; outline-offset:1px; }
+.teo-editor :is(input[type=checkbox],input[type=radio]) { width:18px; height:18px; flex-shrink:0; }
+.teo-editor :is(input[type=checkbox],input[type=radio]):focus-visible { outline-offset:3px; }
+.teo-store-card { display:flex; flex-direction:column; min-width:0; background:var(--color-surface); border:1px solid var(--color-border); border-radius:18px; overflow:hidden; box-shadow:0 3px 12px rgb(15 23 42 / 5%); transition:box-shadow .18s ease,border-color .18s ease,transform .18s ease; }
+.teo-store-card:hover { border-color:#60a5fa; box-shadow:0 12px 28px rgb(15 23 42 / 13%); transform:translateY(-2px); }
+html[data-teo-theme="dark"] .teo-store-card { box-shadow:0 3px 12px rgb(0 0 0 / 22%); }
+.teo-store-media { background:#eef2f7; }
+html[data-teo-theme="dark"] .teo-store-media { background:#223149; }
+.teo-store-card .teo-card-action { color:var(--color-primary); border-top:1px solid var(--color-border); }
+@media(prefers-reduced-motion:reduce){.teo-store-card{transition:none}.teo-store-card:hover{transform:none}}

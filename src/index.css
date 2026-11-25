@@ -1,5 +1,8 @@
 @import "tailwindcss";
 @import "./styles/tokens.css";
+@import "./components/layout/theme-switch.css";
+
+@custom-variant dark (&:where([data-teo-theme="dark"], [data-teo-theme="dark"] *));
 
 html {
   background: var(--color-bg);
@@ -182,3 +185,86 @@ img {
     font-size: 16px !important;
   }
 }
+/* TEO Launch 03 — semantic colors after all imported utilities. */
+html[data-teo-theme="light"] { color-scheme: light; }
+html[data-teo-theme="dark"] { color-scheme: dark; }
+.teo-public-header { background: var(--color-surface) !important; color: var(--color-text) !important; border-color: var(--color-border) !important; }
+.teo-public-header :is(input[type="search"],input[type="text"]) { background: var(--color-bg) !important; color: var(--color-text) !important; border-color: var(--color-border) !important; }
+.teo-public-header input::placeholder { color: var(--color-text-muted) !important; opacity: 1; }
+.teo-public-header :is(.bg-white,.bg-slate-50) { background-color: var(--color-surface) !important; }
+.teo-public-header :is(.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700) { color: var(--color-text) !important; }
+.teo-public-header :is(.text-slate-400,.text-slate-500,.text-slate-600) { color: var(--color-text-secondary) !important; }
+.teo-public-header :is(.border-slate-100,.border-slate-200) { border-color: var(--color-border) !important; }
+.teo-public-header .bg-slate-950.text-white { background: #2563eb; color: #fff; }
+html[data-teo-theme="dark"] .teo-public-header :is(.hover\:bg-blue-50:hover,.hover\:bg-slate-50:hover) { background: #21324c !important; }
+/* Native form controls retain legibility in both modes. */
+html[data-teo-theme="dark"] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]):not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),textarea,select) { color: var(--color-text); background-color: var(--color-surface); border-color: var(--color-border); }
+html[data-teo-theme="dark"] :is(input,textarea)::placeholder { color: var(--color-text-muted); opacity: 1; }
+html[data-teo-theme="dark"] select option { background: var(--color-surface); color: var(--color-text); }
+html[data-teo-theme="dark"] :is(.text-blue-600,.text-blue-700,.text-blue-800) { color: #93c5fd; }
+html[data-teo-theme="dark"] :is(.bg-white,.bg-white\/95,.bg-white\/90,.bg-white\/80,.bg-white\/70) { background-color: var(--color-surface); }
+.teo-offers-page { background:var(--color-bg); color:var(--color-text); min-height:65vh; padding:32px 0 48px; }
+.teo-offers-page > div { max-width:1240px; margin-inline:auto; }
+.teo-offers-heading { background:var(--color-surface); border:1px solid var(--color-border); border-radius:20px; color:var(--color-text); }
+.teo-offers-heading h1 { color:var(--color-text) !important; }
+.teo-offers-heading p { color:var(--color-text-secondary) !important; }
+.teo-offers-page > div > a { color:var(--color-primary) !important; }
+.teo-offers-count { color:var(--color-text-secondary); font-size:.875rem; font-weight:600; margin-bottom:12px; }
+.teo-offers-field { min-height:48px; padding:11px 15px; border:1px solid var(--color-border); border-radius:12px; background:var(--color-surface) !important; color:var(--color-text) !important; font:inherit; }
+.teo-offers-field::placeholder { color:var(--color-text-muted) !important; opacity:1; }
+.teo-offers-field:focus-visible { outline:2px solid var(--color-primary); outline-offset:2px; }
+.teo-offers-toolbar input { flex:1 1 220px; }
+.teo-offers-toolbar select { flex:0 1 230px; max-width:100%; }
+.teo-offers-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,235px),1fr)); gap:18px; align-items:stretch; }
+.teo-offer-card { max-width:350px; width:100%; background:var(--color-surface); color:var(--color-text); border:1px solid var(--color-border); border-radius:18px; }
+.teo-offer-media { aspect-ratio: 16/10; background:var(--color-bg); }
+.teo-offer-fallback { background:var(--color-surface); color:var(--color-primary); border:1px solid var(--color-border); }
+.teo-offer-name { color:var(--color-text) !important; font-size:1rem; line-height:1.45; }
+.teo-offer-muted { color:var(--color-text-secondary) !important; }
+.teo-offer-price { color:var(--color-primary) !important; font-size:1.15rem; }
+.teo-offer-card .teo-card-action { border:0; background:#2563eb; color:#fff; border-radius:10px; padding:10px 12px; margin-top:auto; }
+@media(max-width:600px) { .teo-offers-page { padding:20px 0 32px; } .teo-offers-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .teo-offers-toolbar select { flex:1 1 100%; } .teo-offer-card .teo-card-action { font-size:.8rem; padding:8px; } .teo-offer-name { font-size:.9rem; } }
+@media(max-width:350px) { .teo-offers-grid { grid-template-columns:1fr; } }
+
+/* Launch responsive surfaces: shared layout and compact product view. */
+:root { --container-max: 1280px; --teo-panel-soft:#f1f5f9; --teo-accent:#1d4ed8; }
+html[data-teo-theme="dark"] { --teo-panel-soft:#1b293d; --teo-accent:#a5caff; }
+html { font-size:16px; }
+.teo-public-header { background-color:var(--color-surface)!important; color:var(--color-text)!important; }
+.teo-public-header :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) { background:var(--teo-panel-soft)!important; color:var(--color-text)!important; border-color:var(--color-border)!important; }
+.teo-public-header input::placeholder { color:var(--color-text-muted)!important; }
+.teo-public-header :is(.text-slate-400,.text-slate-500,.text-slate-600) { color:var(--color-text-secondary)!important; }
+.teo-public-header :is(.text-slate-700,.text-slate-800,.text-slate-900,.text-slate-950) { color:var(--color-text)!important; }
+.teo-theme-switch { background:var(--color-surface); color:var(--color-text); border-color:var(--color-border); }
+.teo-offers-heading { padding:18px; margin-block:16px; }
+.teo-offers-page { min-height:0; }
+.teo-offers-grid { grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr)); gap:16px; }
+.teo-offer-card { max-width:none; }
+.teo-offer-media { aspect-ratio: 16/10; max-height:210px; }
+.teo-offer-card .teo-card-action { margin-top:auto; color:#fff!important; }
+.teo-offer-price { color:var(--teo-accent)!important; }
+.teo-product-detail { background:var(--color-bg)!important; color:var(--color-text); }
+.teo-detail-hero { background:var(--color-bg); }
+.teo-detail-overview { display:grid; gap:18px; padding:20px; border:1px solid var(--color-border); border-radius:20px; background:var(--color-surface); }
+.teo-detail-title { min-width:0; }
+.teo-detail-image { width:84px; height:84px; }
+.teo-detail-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.teo-detail-facts:empty { display:none; }
+.teo-detail-fact { display:flex; flex-direction:column; gap:6px; background:var(--teo-panel-soft); border:1px solid var(--color-border); border-radius:12px; padding:10px 12px; min-width:0; }
+.teo-detail-fact-label { color:var(--color-text-secondary); font-size:.8rem; }
+.teo-detail-fact-value { color:var(--color-text); font-size:.95rem; padding-inline-start:27px; }
+.teo-plan-grid { grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr)); }
+.teo-plan-option { background:var(--color-surface)!important; border-color:var(--color-border)!important; color:var(--color-text); text-align:start; }
+.teo-plan-option[aria-pressed="true"] { background:var(--teo-panel-soft)!important; border-color:var(--teo-accent)!important; box-shadow:0 0 0 1px var(--teo-accent); }
+.teo-plan-option :is(.text-slate-950,.text-slate-900) { color:var(--color-text)!important; }
+.teo-plan-option .text-blue-600 { color:var(--teo-accent)!important; }
+.teo-product-detail nav button { min-height:44px; }
+.teo-product-detail nav button[aria-pressed="false"] { background:var(--color-surface)!important; color:var(--color-text)!important; border-color:var(--color-border)!important; }
+.teo-product-detail nav button[aria-pressed="true"] { background:#2563eb!important; color:#fff!important; }
+.teo-purchase-summary { background:#142747!important; color:white!important; top:160px; }
+.teo-mobile-purchase { background:var(--color-surface)!important; border-color:var(--color-border)!important; }
+.teo-mobile-purchase .text-blue-600 { color:var(--teo-accent)!important; }
+.teo-editor :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),textarea,select) { border:1px solid var(--color-border); border-radius:10px; padding:10px 12px; background:var(--color-surface); color:var(--color-text); min-height:44px; }
+@media(min-width:900px) { .teo-detail-overview { grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); align-items:center; } .teo-detail-image { width:120px; height:120px; } }
+@media(max-width:600px) { .teo-offers-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;} .teo-offer-media{max-height:160px;} .teo-detail-overview{padding:12px;gap:12px;} .teo-detail-image{width:64px;height:64px;} .teo-detail-fact{padding:8px;gap:4px;} .teo-detail-fact-value{padding-inline-start:0;} .teo-detail-fact-label{font-size:.75rem;} .teo-product-detail nav{padding-block:2px;} .teo-plan-grid{grid-template-columns:repeat(2,minmax(0,1fr));} .teo-mobile-purchase button{max-width:60%;white-space:normal;} }
+@media(max-width:350px) { .teo-offers-grid,.teo-plan-grid{grid-template-columns:1fr;} }

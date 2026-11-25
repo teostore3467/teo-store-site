@@ -878,7 +878,7 @@ const toastTimerRef = useRef<number | null>(null)
         </Container>
       </div>
 
-      <header className="teo-themed-header border-b border-slate-100 bg-white/95 shadow-sm backdrop-blur-xl">
+      <header className="teo-themed-header teo-public-header border-b shadow-sm" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}>
         <Container>
           <div className="hidden xl:block">
             <div className="grid min-h-[76px] grid-cols-[215px_minmax(260px,1fr)_350px] items-center gap-6">
