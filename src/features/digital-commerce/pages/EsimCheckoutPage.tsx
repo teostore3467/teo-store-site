@@ -1,3 +1,4 @@
+import { copyText as copyToClipboard } from '../../../lib/copyText'
 import {
   useCallback,
   useEffect,
@@ -1078,52 +1079,8 @@ function EsimCheckoutPage() {
         'number'
         | 'amount',
     ) => {
-      const fallback =
-        () => {
-          const textarea =
-            document.createElement(
-              'textarea',
-            )
-
-          textarea.value =
-            value
-
-          textarea.style.position =
-            'fixed'
-
-          textarea.style.opacity =
-            '0'
-
-          document.body
-            .appendChild(
-              textarea,
-            )
-
-          textarea.select()
-
-          document.execCommand(
-            'copy',
-          )
-
-          document.body
-            .removeChild(
-              textarea,
-            )
-        }
-
       try {
-        if (
-          navigator.clipboard &&
-          window.isSecureContext
-        ) {
-          await navigator.clipboard
-            .writeText(
-              value,
-            )
-        } else {
-          fallback()
-        }
-
+        await copyToClipboard(value)
         if (
           type ===
           'number'
@@ -2042,7 +1999,7 @@ function EsimCheckoutPage() {
                                       alt={
                                         method.name
                                       }
-                                      className="h-full w-full rounded-full object-cover"
+                                      className="h-full w-full rounded-full object-contain p-2 bg-white"
                                     />
                                   ) : (
                                     <span className="text-sm font-black text-blue-600">
@@ -2106,7 +2063,7 @@ function EsimCheckoutPage() {
                                   alt={
                                     selectedMethod.name
                                   }
-                                  className="h-full w-full rounded-full object-cover"
+                                  className="h-full w-full rounded-full object-contain p-2 bg-white"
                                 />
                               ) : (
                                 <span className="text-sm font-black text-slate-900">
@@ -2482,7 +2439,7 @@ function EsimCheckoutPage() {
                             alt={
                               selectedMethod.name
                             }
-                            className="h-full w-full rounded-full object-cover"
+                            className="h-full w-full rounded-full object-contain p-2 bg-white"
                           />
                         ) : (
                           <span className="text-[10px] font-black text-slate-900">

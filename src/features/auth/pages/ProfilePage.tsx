@@ -107,6 +107,8 @@ type LoyaltySummary = {
 }
 
 type ProfileSection =
+  | 'referral'
+  | 'subscriptions'
   | 'services'
   | 'loyalty'
   | 'security'
@@ -2567,6 +2569,8 @@ function ProfilePage() {
   const menu: {id: ProfileSection; icon: IconName; ar: string; fr: string}[] = [
     {id:'home',icon:'home',ar:'لوحة الحساب',fr:'Tableau de bord'},
     {id:'orders',icon:'orders',ar:'طلباتي',fr:'Mes commandes'},
+    {id:'referral',icon:'globe',ar:'الإحالات',fr:'Parrainage'},
+    {id:'subscriptions',icon:'store',ar:'اشتراكاتي',fr:'Abonnements'},
     {id:'services',icon:'store',ar:'خدماتي الرقمية',fr:'Mes services'},
     {id:'loyalty',icon:'star',ar:'برنامج الولاء',fr:'Fidélité'},
     {id:'notifications',icon:'bell',ar:'الإشعارات',fr:'Notifications'},
@@ -2814,9 +2818,7 @@ function ProfilePage() {
 
           {activeSection ===
             'home' && (
-            <div className="grid gap-4 xl:grid-cols-2 [&>*:nth-child(n+3)]:xl:col-span-2">
-              <CustomerReferral key={user.id} userId={user.id}/>
-              <CustomerServices key={`services-${user.id}`} userId={user.id}/>
+            <div className="grid gap-5 xl:grid-cols-2 [&>*:nth-child(n+3)]:xl:col-span-2">
               <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] sm:p-5">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xl font-black uppercase text-white">
@@ -2984,10 +2986,10 @@ function ProfilePage() {
                 </section>
               )}
 
-              <section className="lg:hidden">
+              <section className="xl:col-span-2">
                 <h2 className="mb-3 text-sm font-black text-slate-950">{isArabic ? 'أقسام حسابي' : 'Mon espace'}</h2>
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                  {menu.filter(item => item.id !== 'home').map(item => <button key={item.id} type="button" onClick={() => openSection(item.id)} className="relative flex min-h-[84px] min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-2 text-center text-xs font-bold text-slate-700"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Icon name={item.icon}/></span>{isArabic ? item.ar : item.fr}{item.id === 'notifications' && unreadNotifications.length > 0 && <span className="absolute end-1 top-1 rounded-full bg-rose-500 px-1.5 text-[10px] text-white">{unreadNotifications.length}</span>}</button>)}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {menu.filter(item => item.id !== 'home').map(item => <button key={item.id} type="button" onClick={() => openSection(item.id)} className="relative flex min-h-[88px] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 text-center text-sm font-bold text-slate-700"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Icon name={item.icon}/></span>{isArabic ? item.ar : item.fr}{item.id === 'notifications' && unreadNotifications.length > 0 && <span className="absolute end-1 top-1 rounded-full bg-rose-500 px-1.5 text-[10px] text-white">{unreadNotifications.length}</span>}</button>)}
                   <button type="button" onClick={() => void handleSignOut()} className="flex min-h-[84px] flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-2 text-xs font-bold text-rose-600"><Icon name="logout"/>{isArabic ? 'تسجيل الخروج' : 'Déconnexion'}</button>
                 </div>
               </section>
@@ -3811,6 +3813,8 @@ function ProfilePage() {
             </section>
           )}
 
+          {activeSection === 'referral' && <CustomerReferral key={user.id} userId={user.id}/>}
+          {activeSection === 'subscriptions' && <CustomerServices key={user.id} userId={user.id}/>}
           {activeSection === 'support' && <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-black">{isArabic ? 'مركز المساعدة والمحادثات' : 'Centre d’assistance et conversations'}</h2><p className="my-3 text-sm text-slate-500">{isArabic ? 'تواصل مع فريق الدعم داخل الموقع وتابع محادثاتك.' : 'Contactez notre équipe et suivez vos conversations sur le site.'}</p><Link className="inline-flex rounded-xl bg-blue-600 px-5 py-3 font-bold text-white" to="/assistance">{isArabic ? 'فتح مركز الدعم' : 'Ouvrir l’assistance'}</Link></section>}
           {activeSection === 'loyalty' && loyaltyCard}
           {activeSection === 'services' && <section className="space-y-3"><p className="text-sm text-slate-500">{isArabic ? 'الخدمات التي تم إرسالها إليك. افتح الطلب للوصول إلى تفاصيل التسليم.' : 'Services livrés. Ouvrez la commande pour consulter la livraison.'}</p>{delivered.length === 0 && <p>{isArabic ? 'لا توجد خدمات مستلمة بعد.' : 'Aucun service livré.'}</p>}{delivered.map(order => <article key={order.id} className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-black">{order.service_name}</h2><p className="text-sm text-slate-500">{order.plan_label} · {order.order_number}</p><p className="my-2 text-sm">{getStatusLabel(order.status)}</p><Link className="inline-flex rounded-xl bg-blue-600 px-4 py-2 font-bold text-white" to={`/commande/${order.order_number}`}>{isArabic ? 'عرض الخدمة' : 'Voir le service'}</Link></article>)}</section>}

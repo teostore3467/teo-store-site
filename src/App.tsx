@@ -123,8 +123,10 @@ function App() {
           path="*"
           element={
             <>
+              <div className="flex min-h-screen flex-col">
               <PublicHeader />
 
+              <div className="flex-1 min-w-0">
               <Routes>
                 <Route path="/assistance" element={<SupportCenter />} />
                 <Route path="/information/:slug" element={<StoreContent />} />
@@ -189,9 +191,12 @@ function App() {
                   path="/reinitialiser-mot-de-passe"
                   element={<ResetPasswordPage />}
                 />
+                <Route path="*" element={<HomePage />} />
               </Routes>
 
+              </div>
               <PublicFooter />
+              </div>
             </>
           }
         />

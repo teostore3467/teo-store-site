@@ -68,7 +68,7 @@ export default function PublicFooter() {
     {label:'Telegram', icon:Send, href:safeUrl(obj(content.settings.socials).telegram), color:'#229ed9'},
     {label:'Play', icon:Play, href:safeUrl(obj(content.settings.socials).youtube), color:'#ff0000'},
   ].filter(item => item.href)
-  const visiblePayments = payments.filter(p => hiddenPayments[p.name] !== true && p.logo)
+  const visiblePayments = payments.filter(p => hiddenPayments[p.name] !== true )
   const name = str(store.storeName) || 'TEO STORE'
   const logo = safeUrl(obj(content.settings.general).logoUrl)||safeUrl(store.logoFooterUrl) || safeUrl(store.logoDarkUrl)
   useEffect(() => { setLogoFailed(false) }, [logo])
@@ -155,5 +155,5 @@ export default function PublicFooter() {
 
 function PaymentLogo({name,url}:{name:string;url:string}) {
   const [failed,setFailed]=useState(false)
-  return <span className="inline-flex h-8 items-center justify-center" title={name} style={{background:'transparent'}}>{url&&!failed?<img src={url} alt={name} loading="lazy" onError={()=>setFailed(true)} className="max-h-7 max-w-20 object-contain" style={{background:'transparent',border:0,boxShadow:'none'}}/>:<span className="text-xs font-semibold" style={{color:'#cbd5e1'}}>{name}</span>}</span>
+  return <span className="inline-flex h-12 min-w-20 items-center justify-center rounded-lg px-2" title={name} style={{background:'#fff'}}>{url&&!failed?<img src={url} alt={name} loading="lazy" onError={()=>setFailed(true)} className="max-h-10 max-w-24 object-contain" style={{background:'transparent',border:0,boxShadow:'none'}}/>:<span className="text-xs font-semibold" style={{color:'#334155'}}>{name}</span>}</span>
 }

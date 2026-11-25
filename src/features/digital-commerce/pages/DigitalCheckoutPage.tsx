@@ -1,3 +1,4 @@
+import { copyText } from '../../../lib/copyText'
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Container from '../../../components/layout/Container'
@@ -55,7 +56,7 @@ function paymentImage(method: PaymentMethod) {
 function PaymentLogo({ method }: { method: PaymentMethod }) {
   const url = paymentImage(method)
   return url
-    ? <img src={url} alt={method.name} className="h-full w-full rounded-full object-cover" />
+    ? <img src={url} alt={method.name} className="h-full w-full rounded-full object-contain p-2 bg-white" />
     : <span className="text-sm font-black text-slate-900">{method.name.slice(0, 2).toUpperCase()}</span>
 }
 
@@ -214,21 +215,7 @@ function DigitalCheckoutPage() {
   async function copyPaymentNumber() {
     if (!selectedPayment) return
     const number = selectedPayment.payment_number
-    try {
-      await navigator.clipboard.writeText(number)
-    } catch {
-      const field = document.createElement('textarea')
-      field.value = number
-      field.style.position = 'fixed'
-      field.style.opacity = '0'
-      document.body.appendChild(field)
-      try {
-        field.select()
-        if (!document.execCommand('copy')) return
-      } catch {
-        return
-      } finally { field.remove() }
-    }
+    try { await copyText(number) } catch { setSubmissionError(t('تعذر النسخ، حدد الرقم وانسخه يدويًا.', 'Copie impossible. Sélectionnez le numéro pour le copier.')); return }
     setPaymentNumberCopied(true)
     window.setTimeout(() => setPaymentNumberCopied(false), 1800)
   }

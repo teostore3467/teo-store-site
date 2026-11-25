@@ -113,8 +113,8 @@ function HomePage() {
   const ar = language === 'ar'
   const Arrow = ar ? ArrowLeft : ArrowRight
   return (
-    <main dir={ar ? 'rtl' : 'ltr'} className="min-h-screen bg-[#f8fafd] text-slate-900">
-      <section className="border-b border-slate-100 bg-white">
+    <main dir={ar ? 'rtl' : 'ltr'} className="min-h-[65vh] bg-[#f8fafd] text-slate-900 dark:bg-slate-950 dark:text-white">
+      <section className="border-b border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-950">
         <Container className="py-4 sm:py-5">
           <div className="relative overflow-hidden rounded-2xl bg-[#071b4d] px-5 py-5 text-white sm:px-8 sm:py-7">
             <div aria-hidden="true" className="pointer-events-none absolute -end-12 -top-28 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
@@ -133,6 +133,7 @@ function HomePage() {
       <DigitalCategoriesSection />
       <FeaturedDigitalSection />
       <PreorderShowcase ar={ar}/>
+      <Container className="py-8"><section className="grid gap-3 sm:grid-cols-3">{(ar?[['اختيار واضح','تصفح الباقات والأسعار قبل الطلب.'],['متابعة الطلب','تابع حالة طلبك من حسابك.'],['خدمة الزبائن','تواصل معنا من مركز المساعدة.']]:[['Choix clair','Consultez les offres et prix avant de commander.'],['Suivi de commande','Suivez vos commandes depuis votre compte.'],['Assistance','Contactez notre équipe depuis le centre d’aide.']]).map(([title,description])=><article key={title} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><h2 className="font-bold">{title}</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-300">{description}</p></article>)}</section></Container>
     </main>
   )
 }

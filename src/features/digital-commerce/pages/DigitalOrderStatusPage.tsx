@@ -1,3 +1,4 @@
+import { copyText } from '../../../lib/copyText'
 import {
   useCallback,
   useEffect,
@@ -1221,10 +1222,7 @@ function DigitalOrderStatusPage() {
         string,
     ) => {
       try {
-        await navigator.clipboard
-          .writeText(
-            value,
-          )
+        await copyText(value)
 
         showToast({
           type:
@@ -1257,10 +1255,7 @@ function DigitalOrderStatusPage() {
       }
 
       try {
-        await navigator.clipboard
-          .writeText(
-            paymentReceiverNumber,
-          )
+        await copyText(paymentReceiverNumber)
 
         setCopiedPaymentNumber(
           true,
