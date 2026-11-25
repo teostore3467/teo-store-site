@@ -109,13 +109,10 @@ type LoyaltySummary = {
 type ProfileSection =
   | 'referral'
   | 'subscriptions'
-  | 'services'
   | 'loyalty'
-  | 'security'
   | 'home'
   | 'orders'
   | 'notifications'
-  | 'reviews'
   | 'account'
   | 'support'
 
@@ -1429,26 +1426,6 @@ function ProfilePage() {
       ],
     )
 
-  const pendingReviewOrders =
-    useMemo(
-      () =>
-        orders.filter(
-          (
-            order,
-          ) =>
-            normalizeDigitalStatus(
-              order.status,
-            ) ===
-              'completed' &&
-            !reviewOrderIds.has(
-              order.id,
-            ),
-        ),
-      [
-        orders,
-        reviewOrderIds,
-      ],
-    )
 
   const completedOrdersCount =
     useMemo(
@@ -1522,32 +1499,6 @@ function ProfilePage() {
         completedOrdersCount,
         reviewedStoreMilestones,
       ],
-    )
-
-  const nextStoreReviewMilestone =
-    useMemo(
-      () => {
-        const base =
-          Math.floor(
-            completedOrdersCount /
-              5,
-          ) * 5
-
-        return Math.max(
-          5,
-          base + 5,
-        )
-      },
-      [
-        completedOrdersCount,
-      ],
-    )
-
-  const ordersUntilNextStoreReview =
-    Math.max(
-      0,
-      nextStoreReviewMilestone -
-        completedOrdersCount,
     )
 
   const markNotificationRead =
@@ -2489,12 +2440,6 @@ function ProfilePage() {
       .toUpperCase() ||
     'T'
 
-  const latestOrder =
-    orders[
-      0
-    ] ??
-    null
-
   const loyaltyPoints =
     loyaltySummary
       ?.points_balance ??
@@ -2571,16 +2516,12 @@ function ProfilePage() {
     {id:'orders',icon:'orders',ar:'طلباتي',fr:'Mes commandes'},
     {id:'referral',icon:'globe',ar:'الإحالات',fr:'Parrainage'},
     {id:'subscriptions',icon:'store',ar:'اشتراكاتي',fr:'Abonnements'},
-    {id:'services',icon:'store',ar:'خدماتي الرقمية',fr:'Mes services'},
     {id:'loyalty',icon:'star',ar:'برنامج الولاء',fr:'Fidélité'},
     {id:'notifications',icon:'bell',ar:'الإشعارات',fr:'Notifications'},
-    {id:'reviews',icon:'star',ar:'تقييماتي',fr:'Mes avis'},
     {id:'support',icon:'support',ar:'مركز الدعم',fr:'Assistance'},
     {id:'account',icon:'user',ar:'معلوماتي الشخصية',fr:'Mon profil'},
-    {id:'security',icon:'user',ar:'أمان الحساب',fr:'Sécurité'},
   ]
   const sectionTitle = menu.find(item => item.id === activeSection)?.[isArabic ? 'ar' : 'fr']
-  const delivered = orders.filter(order => ['fulfillment_sent','completed'].includes(order.status))
   const visibleOrders = orders.filter(order => (!orderFilter || order.status === orderFilter) && `${order.order_number} ${order.service_name} ${order.plan_label}`.toLowerCase().includes(orderSearch.trim().toLowerCase()))
   const loyaltyCard = loyaltySummary ? (<section className="overflow-hidden rounded-[24px] border border-blue-100 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
                 <div className="bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-700 p-5 text-white sm:p-6">
@@ -2802,7 +2743,7 @@ function ProfilePage() {
 
       <Container className="py-4 sm:py-6">
         <div className="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-          <nav aria-label={isArabic ? 'أقسام الحساب' : 'Navigation du compte'} className={`${activeSection === 'home' ? 'hidden lg:flex' : 'grid grid-cols-3 sm:grid-cols-5 lg:flex'} gap-1 rounded-2xl border border-slate-200 bg-white p-2 lg:flex-col lg:self-start`}>
+          <nav aria-label={isArabic ? 'أقسام الحساب' : 'Navigation du compte'} className={`hidden lg:flex gap-1 rounded-2xl border border-slate-200 bg-white p-2 lg:flex-col lg:self-start`}>
             {menu.map(item => <button key={item.id} type="button" aria-current={activeSection === item.id ? 'page' : undefined} onClick={() => openSection(item.id)} className={`relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-center text-[11px] font-bold lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:py-3 lg:text-start lg:text-sm ${activeSection === item.id ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-slate-50'}`}><Icon name={item.icon}/><span>{isArabic ? item.ar : item.fr}</span>{item.id === 'notifications' && unreadNotifications.length > 0 && <span className="rounded-full bg-rose-500 px-2 text-white">{unreadNotifications.length}</span>}</button>)}
             <button type="button" onClick={() => void handleSignOut()} className="flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[11px] font-bold text-rose-600 lg:flex-row lg:gap-3 lg:px-3 lg:py-3 lg:text-sm"><Icon name="logout"/>{isArabic ? 'تسجيل الخروج' : 'Déconnexion'}</button>
           </nav><div className="min-w-0">
@@ -2818,7 +2759,7 @@ function ProfilePage() {
 
           {activeSection ===
             'home' && (
-            <div className="grid gap-5 xl:grid-cols-2 [&>*:nth-child(n+3)]:xl:col-span-2">
+            <div className="space-y-4">
               <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] sm:p-5">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xl font-black uppercase text-white">
@@ -2941,119 +2882,13 @@ function ProfilePage() {
                 <div className="mt-2 flex items-center justify-between gap-2 text-xs"><span>{loyaltyProgressPoints}/100</span><button type="button" onClick={() => openSection('loyalty')} className="rounded-lg bg-white/15 px-3 py-2 font-bold">{isArabic ? 'التفاصيل' : 'Voir les détails'}</button></div>
               </section>}
 
-              {(
-                pendingReviewOrders.length >
-                  0 ||
-                pendingStoreReviewMilestone !==
-                  null
-              ) && (
-                <section className="rounded-[20px] border border-amber-200 bg-amber-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-amber-500 text-white">
-                      <Icon
-                        name="star"
-                      />
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-black text-amber-950">
-                        {isArabic
-                          ? 'لديك تقييم بانتظارك'
-                          : 'Un avis vous attend'}
-                      </p>
-
-                      <p className="mt-1 text-xs leading-5 text-amber-700">
-                        {isArabic
-                          ? 'بعض الطلبات المكتملة أو تجربة المتجر تحتاج إلى تقييمك.'
-                          : 'Des commandes terminées ou votre expérience avec TEO STORE attendent votre avis.'}
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openSection(
-                            'reviews',
-                          )
-                        }
-                        className="mt-3 h-9 rounded-xl bg-amber-500 px-4 text-xs font-black text-white"
-                      >
-                        {isArabic
-                          ? 'عرض التقييمات'
-                          : 'Voir les avis'}
-                      </button>
-                    </div>
-                  </div>
-                </section>
-              )}
-
               <section className="xl:col-span-2">
                 <h2 className="mb-3 text-sm font-black text-slate-950">{isArabic ? 'أقسام حسابي' : 'Mon espace'}</h2>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {menu.filter(item => item.id !== 'home').map(item => <button key={item.id} type="button" onClick={() => openSection(item.id)} className="relative flex min-h-[88px] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 text-center text-sm font-bold text-slate-700"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Icon name={item.icon}/></span>{isArabic ? item.ar : item.fr}{item.id === 'notifications' && unreadNotifications.length > 0 && <span className="absolute end-1 top-1 rounded-full bg-rose-500 px-1.5 text-[10px] text-white">{unreadNotifications.length}</span>}</button>)}
-                  <button type="button" onClick={() => void handleSignOut()} className="flex min-h-[84px] flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-2 text-xs font-bold text-rose-600"><Icon name="logout"/>{isArabic ? 'تسجيل الخروج' : 'Déconnexion'}</button>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {menu.filter(item => item.id !== 'home').map(item => <button key={item.id} type="button" onClick={() => openSection(item.id)} className="relative flex min-h-[72px] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 text-center text-sm font-bold text-slate-700"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Icon name={item.icon}/></span>{isArabic ? item.ar : item.fr}{item.id === 'notifications' && unreadNotifications.length > 0 && <span className="absolute end-1 top-1 rounded-full bg-rose-500 px-1.5 text-[10px] text-white">{unreadNotifications.length}</span>}</button>)}
+                  <button type="button" onClick={() => void handleSignOut()} className="flex min-h-[72px] flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-2 text-xs font-bold text-rose-600"><Icon name="logout"/>{isArabic ? 'تسجيل الخروج' : 'Déconnexion'}</button>
                 </div>
               </section>
-              <Link to="/services-numeriques" className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm font-bold text-blue-600"><Icon name="store"/>{isArabic ? 'استكشاف الخدمات' : 'Explorer les services'}</Link>
-
-              {latestOrder && (
-                <section className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
-                        {isArabic
-                          ? 'آخر طلب'
-                          : 'Dernière commande'}
-                      </p>
-
-                      <p
-                        dir="ltr"
-                        className="mt-1 text-left text-sm font-black text-blue-600"
-                      >
-                        {
-                          latestOrder.order_number
-                        }
-                      </p>
-                    </div>
-
-                    <span
-                      className={[
-                        'rounded-full border px-3 py-2 text-[10px] font-black sm:text-xs',
-
-                        getStatusClasses(
-                          latestOrder.status,
-                        ),
-                      ].join(
-                        ' ',
-                      )}
-                    >
-                      {getStatusLabel(
-                        latestOrder.status,
-                      )}
-                    </span>
-                  </div>
-
-                  <p className="mt-4 font-black text-slate-950">
-                    {
-                      latestOrder.service_name
-                    }
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    {
-                      latestOrder.plan_label
-                    }
-                  </p>
-
-                  <Link
-                    to={`/commande/${latestOrder.order_number}`}
-                    className="mt-4 flex h-11 w-full items-center justify-center rounded-[13px] bg-slate-950 px-4 text-sm font-black text-white sm:w-fit"
-                  >
-                    {isArabic
-                      ? 'متابعة الطلب'
-                      : 'Suivre la commande'}
-                  </Link>
-                </section>
-              )}
             </div>
           )}
 
@@ -3085,6 +2920,7 @@ function ProfilePage() {
                 </span>
               </div>
 
+              {pendingStoreReviewMilestone !== null && <button type="button" onClick={openStoreReviewModal} className="mb-3 rounded-xl border border-blue-200 px-4 py-2 text-sm font-bold text-blue-600">{isArabic ? 'شارك رأيك في المتجر' : 'Donner mon avis sur TEO STORE'}</button>}
               <div className="mb-4 grid gap-2 sm:grid-cols-2"><input aria-label={isArabic ? 'بحث الطلبات' : 'Rechercher'} placeholder={isArabic ? 'بحث برقم الطلب أو الخدمة' : 'Rechercher une commande'} className="rounded-xl border border-slate-200 bg-white p-3 text-sm" value={orderSearch} onChange={e => setOrderSearch(e.target.value)}/><select aria-label={isArabic ? 'الحالة' : 'Statut'} className="rounded-xl border border-slate-200 bg-white p-3 text-sm" value={orderFilter} onChange={e => setOrderFilter(e.target.value)}><option value="">{isArabic ? 'كل الحالات' : 'Tous les statuts'}</option>{['payment_review','payment_partial','payment_confirmed','processing','fulfillment_sent','completed','disputed','cancelled','refunded'].map(status => <option key={status} value={status}>{getStatusLabel(status)}</option>)}</select></div>
               {visibleOrders.length > 0 ? (
                 <div className="space-y-3">
@@ -3393,288 +3229,6 @@ function ProfilePage() {
           )}
 
           {activeSection ===
-            'reviews' && (
-            <section className="space-y-4">
-              <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-amber-50 text-amber-500">
-                    <Icon
-                      name="star"
-                    />
-                  </span>
-
-                  <div>
-                    <p className="font-black text-slate-950">
-                      {isArabic
-                        ? 'تقييم تجربتك'
-                        : 'Évaluez votre expérience'}
-                    </p>
-
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      {isArabic
-                        ? `${completedOrdersCount} طلبات مكتملة. تقييم المتجر يظهر كل 5 طلبات.`
-                        : `${completedOrdersCount} commandes terminées. L’avis sur TEO STORE apparaît toutes les 5 commandes.`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {pendingStoreReviewMilestone !==
-                null && (
-                <div className="rounded-[22px] border border-blue-100 bg-blue-50 p-5">
-                  <p className="font-black text-blue-950">
-                    {isArabic
-                      ? `وصلت إلى ${pendingStoreReviewMilestone} طلبات مكتملة`
-                      : `Vous avez atteint ${pendingStoreReviewMilestone} commandes terminées`}
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-blue-700">
-                    {isArabic
-                      ? 'شاركنا تقييمك العام لخدمة TEO STORE.'
-                      : 'Partagez votre avis général sur TEO STORE.'}
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={
-                      openStoreReviewModal
-                    }
-                    className="mt-4 h-11 rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
-                  >
-                    {isArabic
-                      ? 'تقييم TEO STORE'
-                      : 'Évaluer TEO STORE'}
-                  </button>
-                </div>
-              )}
-
-              {pendingReviewOrders.length >
-                0 && (
-                <div className="overflow-hidden rounded-[22px] border border-amber-200 bg-white shadow-sm">
-                  <div className="border-b border-amber-100 bg-amber-50 px-4 py-3">
-                    <p className="text-sm font-black text-amber-900">
-                      {isArabic
-                        ? 'خدمات تحتاج إلى تقييم'
-                        : 'Services à évaluer'}
-                    </p>
-                  </div>
-
-                  <div className="divide-y divide-slate-100">
-                    {pendingReviewOrders.map(
-                      (
-                        order,
-                      ) => (
-                        <div
-                          key={
-                            order.id
-                          }
-                          className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-                        >
-                          <div className="min-w-0">
-                            <p
-                              dir="ltr"
-                              className="text-left text-[11px] font-black text-blue-600"
-                            >
-                              {
-                                order.order_number
-                              }
-                            </p>
-
-                            <p className="mt-1 truncate font-black text-slate-950">
-                              {
-                                order.service_name
-                              }
-                            </p>
-
-                            <p className="mt-1 text-xs text-slate-500">
-                              {
-                                order.plan_label
-                              }
-                            </p>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openReviewModal(
-                                order,
-                              )
-                            }
-                            className="h-10 rounded-xl bg-amber-500 px-4 text-xs font-black text-white"
-                          >
-                            {isArabic
-                              ? 'تقييم'
-                              : 'Évaluer'}
-                          </button>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-black text-slate-950">
-                    {isArabic
-                      ? 'تقييمات TEO STORE السابقة'
-                      : 'Avis TEO STORE précédents'}
-                  </p>
-
-                  <span
-                    dir="ltr"
-                    className="text-xs font-black text-slate-500"
-                  >
-                    {
-                      storeReviews.length
-                    }
-                  </span>
-                </div>
-
-                {storeReviews.length >
-                0 ? (
-                  <div className="mt-4 space-y-3">
-                    {[...storeReviews]
-                      .sort(
-                        (
-                          a,
-                          b,
-                        ) =>
-                          b.milestone -
-                          a.milestone,
-                      )
-                      .map(
-                        (
-                          item,
-                        ) => (
-                          <div
-                            key={
-                              item.id
-                            }
-                            className="rounded-[16px] bg-slate-50 p-4"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="text-sm font-black text-slate-900">
-                                {isArabic
-                                  ? `بعد ${item.milestone} طلبات`
-                                  : `Après ${item.milestone} commandes`}
-                              </p>
-
-                              <span
-                                dir="ltr"
-                                className="font-black text-amber-500"
-                              >
-                                {
-                                  item.rating
-                                }
-                                /5 ★
-                              </span>
-                            </div>
-
-                            {item.comment && (
-                              <p className="mt-2 text-xs leading-5 text-slate-500">
-                                {
-                                  item.comment
-                                }
-                              </p>
-                            )}
-                          </div>
-                        ),
-                      )}
-                  </div>
-                ) : (
-                  <p className="mt-4 text-xs text-slate-500">
-                    {isArabic
-                      ? `يتبقى ${ordersUntilNextStoreReview} طلبات مكتملة حتى التقييم القادم.`
-                      : `Il reste ${ordersUntilNextStoreReview} commandes terminées avant le prochain avis.`}
-                  </p>
-                )}
-              </div>
-
-              <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-black text-slate-950">
-                    {isArabic
-                      ? 'تقييمات الخدمات السابقة'
-                      : 'Avis produits précédents'}
-                  </p>
-
-                  <span
-                    dir="ltr"
-                    className="text-xs font-black text-slate-500"
-                  >
-                    {
-                      reviews.length
-                    }
-                  </span>
-                </div>
-
-                {reviews.length >
-                0 ? (
-                  <div className="mt-4 space-y-3">
-                    {reviews.map(
-                      (
-                        review,
-                      ) => (
-                        <div
-                          key={
-                            review.id
-                          }
-                          className="rounded-[16px] bg-slate-50 p-4"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <p
-                              dir="ltr"
-                              className="truncate text-left text-xs font-black text-blue-600"
-                            >
-                              {
-                                review.order_number
-                              }
-                            </p>
-
-                            <span
-                              dir="ltr"
-                              className="shrink-0 font-black text-amber-500"
-                            >
-                              {
-                                review.rating
-                              }
-                              /5 ★
-                            </span>
-                          </div>
-
-                          {review.comment && (
-                            <p className="mt-2 text-xs leading-5 text-slate-500">
-                              {
-                                review.comment
-                              }
-                            </p>
-                          )}
-
-                          <p
-                            dir="ltr"
-                            className="mt-2 text-left text-[10px] text-slate-500"
-                          >
-                            {formatDate(
-                              review.created_at,
-                            )}
-                          </p>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                ) : (
-                  <p className="mt-4 text-xs text-slate-500">
-                    {isArabic
-                      ? 'لم ترسل أي تقييم للخدمات بعد.'
-                      : 'Vous n’avez encore publié aucun avis produit.'}
-                  </p>
-                )}
-              </div>
-            </section>
-          )}
-
-          {activeSection ===
             'account' && (
             <section className="space-y-4">
               <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
@@ -3817,8 +3371,7 @@ function ProfilePage() {
           {activeSection === 'subscriptions' && <CustomerServices key={user.id} userId={user.id}/>}
           {activeSection === 'support' && <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-black">{isArabic ? 'مركز المساعدة والمحادثات' : 'Centre d’assistance et conversations'}</h2><p className="my-3 text-sm text-slate-500">{isArabic ? 'تواصل مع فريق الدعم داخل الموقع وتابع محادثاتك.' : 'Contactez notre équipe et suivez vos conversations sur le site.'}</p><Link className="inline-flex rounded-xl bg-blue-600 px-5 py-3 font-bold text-white" to="/assistance">{isArabic ? 'فتح مركز الدعم' : 'Ouvrir l’assistance'}</Link></section>}
           {activeSection === 'loyalty' && loyaltyCard}
-          {activeSection === 'services' && <section className="space-y-3"><p className="text-sm text-slate-500">{isArabic ? 'الخدمات التي تم إرسالها إليك. افتح الطلب للوصول إلى تفاصيل التسليم.' : 'Services livrés. Ouvrez la commande pour consulter la livraison.'}</p>{delivered.length === 0 && <p>{isArabic ? 'لا توجد خدمات مستلمة بعد.' : 'Aucun service livré.'}</p>}{delivered.map(order => <article key={order.id} className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-black">{order.service_name}</h2><p className="text-sm text-slate-500">{order.plan_label} · {order.order_number}</p><p className="my-2 text-sm">{getStatusLabel(order.status)}</p><Link className="inline-flex rounded-xl bg-blue-600 px-4 py-2 font-bold text-white" to={`/commande/${order.order_number}`}>{isArabic ? 'عرض الخدمة' : 'Voir le service'}</Link></article>)}</section>}
-          {activeSection === 'security' && <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-black">{isArabic ? 'تغيير كلمة المرور' : 'Modifier le mot de passe'}</h2><form className="space-y-3" onSubmit={event => {event.preventDefault(); void changePassword()}}><label className="block text-sm">{isArabic ? 'كلمة المرور الجديدة' : 'Nouveau mot de passe'}<input className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3" type="password" autoComplete="new-password" minLength={12} required value={password} onChange={e => setPassword(e.target.value)}/></label><label className="block text-sm">{isArabic ? 'تأكيد كلمة المرور' : 'Confirmer le mot de passe'}<input className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3" type="password" autoComplete="new-password" required value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)}/></label><button disabled={saving} className="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white">{isArabic ? 'حفظ كلمة المرور' : 'Enregistrer'}</button></form>{accountNotice && <p role="status" className="text-sm">{accountNotice}</p>}</section>}
+          {activeSection === 'account' && <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-black">{isArabic ? 'تغيير كلمة المرور' : 'Modifier le mot de passe'}</h2><form className="space-y-3" onSubmit={event => {event.preventDefault(); void changePassword()}}><label className="block text-sm">{isArabic ? 'كلمة المرور الجديدة' : 'Nouveau mot de passe'}<input className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3" type="password" autoComplete="new-password" minLength={12} required value={password} onChange={e => setPassword(e.target.value)}/></label><label className="block text-sm">{isArabic ? 'تأكيد كلمة المرور' : 'Confirmer le mot de passe'}<input className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3" type="password" autoComplete="new-password" required value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)}/></label><button disabled={saving} className="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white">{isArabic ? 'حفظ كلمة المرور' : 'Enregistrer'}</button></form>{accountNotice && <p role="status" className="text-sm">{accountNotice}</p>}</section>}
         </div></div>
       </Container>
 
