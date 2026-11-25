@@ -899,7 +899,7 @@ function AdminServiceEditPage() {
     loadService,
   ])
 
-  const [detailsTab, setDetailsTab] = useState<'general' | 'catalog'>('general')
+  const [detailsTab, setDetailsTab] = useState<'general' | 'catalog' | 'legacy'>('catalog')
 
   const totalPlans =
     useMemo(
@@ -1734,19 +1734,19 @@ function AdminServiceEditPage() {
               <span dir="ltr" className="max-w-full truncate text-xs text-slate-400">{service.slug}</span>
             </div>
           </div>
-          <button type="button" onClick={() => void handleSaveService()} disabled={isSavingService}
+          {detailsTab === 'general' && <button type="button" onClick={() => void handleSaveService()} disabled={isSavingService}
             className="min-h-11 shrink-0 rounded-xl bg-blue-600 px-5 text-sm font-black text-white hover:bg-blue-700 disabled:opacity-50">
-            {isSavingService ? 'Enregistrement...' : '✓ Enregistrer les modifications'}
-          </button>
+            {isSavingService ? tr('Enregistrement…','جارٍ الحفظ…') : tr('Enregistrer le service','حفظ الخدمة')}
+          </button>}
         </div>
         <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4" role="tablist" aria-label="Sections du service">
           <button type="button" role="tab" aria-selected={detailsTab === 'general'} onClick={() => setDetailsTab('general')}
             className={`rounded-xl px-4 py-2.5 text-sm font-bold ${detailsTab === 'general' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-            Paramètres généraux
+            {tr('Service parent','الخدمة الأم')}
           </button>
           <button type="button" role="tab" aria-selected={detailsTab === 'catalog'} onClick={() => setDetailsTab('catalog')}
             className={`rounded-xl px-4 py-2.5 text-sm font-bold ${detailsTab === 'catalog' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-            {tr('Produits','المنتجات')} ({groups.length}) · {tr('Forfaits','الباقات')} ({totalPlans})
+            {tr('Produits','المنتجات')} ({groups.length})
           </button>
         </div>
       </header>
@@ -2000,7 +2000,8 @@ function AdminServiceEditPage() {
 
       )}
 
-      {detailsTab === 'catalog' && (
+      {detailsTab === 'catalog' && <SmartCatalogV4 service={service} groups={groups} ar={ar} reload={loadService} openLegacy={()=>setDetailsTab('legacy')}/> }
+      {detailsTab === 'legacy' && (
       <section className="mt-6">
         <div className="mb-4 flex items-end justify-between gap-4">
           <div>
@@ -2994,6 +2995,56 @@ function AdminServiceEditPage() {
       )}
     </div>
   )
+}
+
+
+function SmartCatalogV4({service,groups,ar,reload,openLegacy}: {service:ServiceRow;groups:GroupWithPlans[];ar:boolean;reload:()=>Promise<void>;openLegacy:()=>void}) {
+  const t=(fr:string,arabic:string)=>ar?arabic:fr
+  const input='mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white'
+  const panel='rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900'
+  const btn='rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50'
+  const [draft,setDraft]=useState<null|{groupId:string|null;planId:string|null;name_ar:string;name_fr:string;image_url:string;description_ar:string;description_fr:string;instructions_ar:string;instructions_fr:string;description_enabled:boolean;instructions_enabled:boolean;fulfillment:Record<string,unknown>;availability:AvailabilityStatus;active:boolean;price:string;old_price:string;duration:string;unit:string;legacyLabel:string;validity:number|null;delivery:number|null;warranty:string;warrantyDays:string;popular:boolean}>(null)
+  const [busy,setBusy]=useState(false)
+  const [file,setFile]=useState<File|null>(null)
+  const [message,setMessage]=useState('')
+  const [query,setQuery]=useState('')
+  const [contentLang,setContentLang]=useState(ar?'ar':'fr')
+  const start=(g?:GroupWithPlans,p?:PlanRow,copy=false)=>{
+    const full=p?.warranty_full_subscription??g?.warranty_full_subscription??service.warranty_full_subscription??false
+    const days=p?.warranty_days??g?.warranty_days??service.warranty_days??null
+    const label=p?.label??''
+    const match=label.match(/^\s*(\d+)\s*(mois|month[s]?|jour[s]?|day[s]?|an[s]?|année[s]?|year[s]?|semaine[s]?|week[s]?)\s*$/i)
+    const inferred=match? /mois|month/i.test(match[2])?'months':/jour|day/i.test(match[2])?'days':/semaine|week/i.test(match[2])?'weeks':'years':''
+    setFile(null);setMessage('');setContentLang(ar?'ar':'fr')
+    setDraft({groupId:copy?null:g?.id??null,planId:copy?null:p?.id??null,name_fr:g?.name_fr??g?.name??'',name_ar:g?.name_ar??'',image_url:g?.image_url??'',description_ar:g?.description_ar??'',description_fr:g?.description_fr??g?.description??'',instructions_ar:g?.instructions_ar??'',instructions_fr:g?.instructions_fr??'',description_enabled:g?.description_enabled??true,instructions_enabled:g?.instructions_enabled??true,fulfillment:g?.fulfillment??defaultFulfillment('account_credentials'),availability:p?.availability??g?.availability??'available',active:copy?false:g?g.active&&(p?.active??true):false,price:p?String(p.price):'',old_price:p?.old_price==null?'':String(p.old_price),duration:String(p?.duration_value??match?.[1]??''),unit:p?.duration_unit??inferred,legacyLabel:label,validity:p?.validity_days??g?.validity_days??service.validity_days??null,delivery:p?.delivery_minutes??g?.delivery_minutes??service.delivery_minutes??null,warranty:full?'full':days===0?'none':days==null?'unset':'custom',warrantyDays:days==null?'':String(days),popular:p?.popular??false})
+  }
+  const save=async()=>{
+    if(!draft||busy)return
+    if(!draft.name_fr.trim()||!draft.name_ar.trim()||!draft.price.trim()||!Number.isFinite(Number(draft.price))||Number(draft.price)<=0|| (draft.old_price!==''&&(!Number.isFinite(Number(draft.old_price))||Number(draft.old_price)<Number(draft.price))) || (draft.unit&&(!Number.isInteger(Number(draft.duration))||Number(draft.duration)<=0)) || (draft.warranty==='custom'&&(!Number.isInteger(Number(draft.warrantyDays))||Number(draft.warrantyDays)<=0))){setMessage(t('Vérifiez les noms, le prix et les durées.','تحقق من الأسماء والسعر والمدد.'));return}
+    setBusy(true);setMessage('')
+    let uploadedPath:string|null=null
+    let committed=false
+    try{
+      let url=draft.image_url||null
+      if(file){const ext=file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg';uploadedPath=`${service.slug}/offers/${crypto.randomUUID()}.${ext}`;const r=await supabase.storage.from(LOGO_BUCKET).upload(uploadedPath,file,{contentType:file.type,upsert:false});if(r.error){uploadedPath=null;throw r.error}url=supabase.storage.from(LOGO_BUCKET).getPublicUrl(uploadedPath).data.publicUrl}
+      const n=Number(draft.duration)
+      const units:Record<string,[string,string,number]>={days:['jour','يوم',1],weeks:['semaine','أسبوع',7],months:['mois','شهر',30],years:['an','سنة',365]}
+      const u=units[draft.unit]
+      const labelFr=u?`${n} ${u[0]}${n>1&&u[0]!=='mois'?'s':''}`:draft.legacyLabel||'Standard'
+      const labelAr=u?`${n} ${u[1]}`:draft.legacyLabel||'عادي'
+      const validity=u?(draft.validity!==null&&draft.planId?draft.validity:n*u[2]):draft.validity
+      const result=await supabase.rpc('admin_save_catalog_product_v4',{p_service_id:service.id,p_group_id:draft.groupId,p_plan_id:draft.planId,p_product:{name_fr:draft.name_fr.trim(),name_ar:draft.name_ar.trim(),image_url:url,description_ar:draft.description_ar,description_fr:draft.description_fr,instructions_ar:draft.instructions_ar,instructions_fr:draft.instructions_fr,description_enabled:draft.description_enabled,instructions_enabled:draft.instructions_enabled,availability:draft.availability,fulfillment:draft.fulfillment,active:draft.active},p_plan:{label_fr:labelFr,label_ar:labelAr,price:Number(draft.price),old_price:draft.old_price===''?null:Number(draft.old_price),duration_value:u?n:null,duration_unit:u?draft.unit:null,delivery_minutes:draft.delivery,warranty_days:draft.warranty==='custom'?Number(draft.warrantyDays):draft.warranty==='none'?0:null,warranty_full_subscription:draft.warranty==='full',validity_days:validity,popular:draft.popular}})
+      if(result.error)throw result.error
+      committed=true;setDraft(null);setFile(null);setMessage(t('Produit enregistré.','تم حفظ المنتج.'));await reload()
+    }catch(e){if(uploadedPath&&!committed){/* Keep upload on ambiguous network failure to avoid breaking a committed reference. */}setMessage(e instanceof Error?e.message:String((e as {message?:string})?.message??e))}finally{setBusy(false)}
+  }
+  const kinds: [FulfillmentType,string,string][]=[['account_credentials','Compte prêt','حساب جاهز'],['activation_code','Code','كود تفعيل'],['activation_link','Lien','رابط تفعيل'],['activation_code_or_link','Code ou lien','كود أو رابط'],['automatic_chat','Discussion Admin','محادثة الإدارة'],['customer_email','Activation par e-mail','تفعيل بالبريد'],['player_id_verification','Player ID','معرف اللاعب'],['coming_soon','Bientôt','قريبًا']]
+  if(draft)return <section className="mt-5 space-y-4" dir={ar?'rtl':'ltr'}><div className="flex items-center justify-between"><h2 className="text-xl font-black">{draft.groupId?t('Modifier le produit','تعديل المنتج'):t('Nouveau produit','منتج جديد')}</h2><button disabled={busy} onClick={()=>{setDraft(null);setFile(null);setMessage('')}} className="text-sm font-bold text-blue-600">{t('Annuler','إلغاء')}</button></div><fieldset disabled={busy} className="space-y-4"><div className={panel}><div className="flex items-center gap-3">{draft.image_url&&<img src={draft.image_url} className="h-16 w-16 rounded-xl object-contain" alt=""/>}<label className={btn}>{t('Image du produit','صورة المنتج')}<input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={e=>{const f=e.target.files?.[0];if(f&&LOGO_TYPES.includes(f.type)&&f.size<=3*1024*1024){setFile(f);setMessage('')}else if(f)setMessage(t('Image PNG, JPG ou WEBP, max. 3 Mo.','صورة PNG أو JPG أو WEBP بحد أقصى 3 MB.'))}}/></label>{(draft.image_url||file)&&<button type="button" className="text-rose-600 text-sm" onClick={()=>{setFile(null);setDraft({...draft,image_url:''})}}>{t('Retirer','إزالة')}</button>}</div>{file&&<p className="mt-2 text-sm">{file.name}</p>}<div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-sm font-bold">{t('Nom français','الاسم بالفرنسية')}<input className={input} dir="ltr" value={draft.name_fr} onChange={e=>setDraft({...draft,name_fr:e.target.value})}/></label><label className="text-sm font-bold">{t('Nom arabe','الاسم بالعربية')}<input className={input} dir="rtl" value={draft.name_ar} onChange={e=>setDraft({...draft,name_ar:e.target.value})}/></label></div></div>
+  <div className={panel}><h3 className="font-black mb-3">{t('Prix et durée','السعر والمدة')}</h3><div className="grid grid-cols-2 gap-3"><label>{t('Prix (MRU)','السعر (MRU)')}<input type="number" min="0" className={input} value={draft.price} onChange={e=>setDraft({...draft,price:e.target.value})}/></label><label>{t('Ancien prix (facultatif)','السعر القديم (اختياري)')}<input type="number" min="0" className={input} value={draft.old_price} onChange={e=>setDraft({...draft,old_price:e.target.value})}/></label><label>{t('Durée','المدة')}<input type="number" min="1" disabled={!draft.unit} className={input} value={draft.duration} onChange={e=>setDraft({...draft,duration:e.target.value,validity:null})}/></label><label>{t('Unité','الوحدة')}<select className={input} value={draft.unit} onChange={e=>setDraft({...draft,unit:e.target.value,validity:null})}><option value="">{t('Sans durée / existante','بدون مدة / المدة القديمة')}</option><option value="days">{t('Jours','أيام')}</option><option value="weeks">{t('Semaines','أسابيع')}</option><option value="months">{t('Mois','أشهر')}</option><option value="years">{t('Années','سنوات')}</option></select></label></div></div>
+  <div className={panel}><h3 className="font-black mb-3">{t('Livraison et garantie','التسليم والضمان')}</h3><div className="grid gap-3 sm:grid-cols-2"><label>{t('Le client reçoit','يستلم الزبون')}<select className={input} value={String(draft.fulfillment.type??'account_credentials')} onChange={e=>setDraft({...draft,fulfillment:defaultFulfillment(e.target.value as FulfillmentType)})}>{kinds.map(([v,f,a])=><option key={v} value={v}>{t(f,a)}</option>)}</select></label><div>{t('Délai de livraison','مدة التسليم')}<DeliveryInput ar={ar} value={draft.delivery} onChange={v=>setDraft({...draft,delivery:v})}/></div><label>{t('Garantie','الضمان')}<select className={input} value={draft.warranty} onChange={e=>setDraft({...draft,warranty:e.target.value})}><option value="unset">{t('Non définie','غير محدد')}</option><option value="full">{t('Tout l’abonnement','طوال الاشتراك')}</option><option value="custom">{t('Durée personnalisée','مدة محددة')}</option><option value="none">{t('Sans garantie','بدون ضمان')}</option></select></label>{draft.warranty==='custom'&&<label>{t('Jours de garantie','أيام الضمان')}<input type="number" min="1" className={input} value={draft.warrantyDays} onChange={e=>setDraft({...draft,warrantyDays:e.target.value})}/></label>}</div><p className="mt-3 text-xs text-slate-500">{t('Le mode manuel ou automatique reste dans la gestion du stock.','التسليم اليدوي أو التلقائي يبقى في إدارة المخزون.')}</p></div>
+  <div className={panel}><h3 className="font-black mb-3">{t('Description et instructions','الوصف والتعليمات')}</h3><div className="flex gap-2 mb-3">{['fr','ar'].map(l=><button key={l} type="button" onClick={()=>setContentLang(l)} className={`rounded-lg px-3 py-2 text-sm font-bold ${contentLang===l?'bg-blue-600 text-white':'bg-slate-100 text-slate-700'}`}>{l==='fr'?'Français':'العربية'}</button>)}</div><label className="block">{t('Description','الوصف')}<textarea rows={5} dir={contentLang==='ar'?'rtl':'ltr'} className={input} value={contentLang==='ar'?draft.description_ar:draft.description_fr} onChange={e=>setDraft({...draft,[contentLang==='ar'?'description_ar':'description_fr']:e.target.value})}/></label><label className="flex gap-2 items-center text-sm mb-4"><input type="checkbox" checked={draft.description_enabled} onChange={e=>setDraft({...draft,description_enabled:e.target.checked})}/>{t('Afficher la description','إظهار الوصف')}</label><label className="block">{t('Instructions','التعليمات')}<textarea rows={4} dir={contentLang==='ar'?'rtl':'ltr'} className={input} value={contentLang==='ar'?draft.instructions_ar:draft.instructions_fr} onChange={e=>setDraft({...draft,[contentLang==='ar'?'instructions_ar':'instructions_fr']:e.target.value})}/></label><label className="flex gap-2 items-center text-sm"><input type="checkbox" checked={draft.instructions_enabled} onChange={e=>setDraft({...draft,instructions_enabled:e.target.checked})}/>{t('Afficher les instructions','إظهار التعليمات')}</label></div>
+  <div className={panel}><div className="grid gap-3 sm:grid-cols-2"><label>{t('Disponibilité','التوفر')}<select className={input} value={draft.availability} onChange={e=>setDraft({...draft,availability:e.target.value as AvailabilityStatus})}><option value="available">{t('Disponible','متوفر')}</option><option value="out_of_stock">{t('Rupture','نفد المخزون')}</option><option value="coming_soon">{t('Bientôt','قريبًا')}</option></select></label><div className="space-y-2"><label className="flex items-center gap-2"><input type="checkbox" checked={draft.active} onChange={e=>setDraft({...draft,active:e.target.checked})}/>{t('Produit actif','منتج مفعل')}</label><label className="flex items-center gap-2"><input type="checkbox" checked={draft.popular} onChange={e=>setDraft({...draft,popular:e.target.checked})}/>{t('Populaire','شائع')}</label></div></div></div></fieldset>{message&&<p role="alert" className="rounded-xl bg-slate-100 p-3 text-sm text-slate-800">{message}</p>}<button disabled={busy} className={`${btn} w-full`} onClick={()=>void save()}>{busy?t('Enregistrement…','جارٍ الحفظ…'):t('Enregistrer le produit','حفظ المنتج')}</button></section>
+  return <section className="mt-5 space-y-3" dir={ar?'rtl':'ltr'}><div className="flex justify-between items-center gap-2"><h2 className="font-black text-xl">{t('Produits','المنتجات')}</h2><button className={btn} onClick={()=>start()}>{t('+ Produit','+ منتج')}</button></div><input className={input} placeholder={t('Rechercher un produit…','ابحث عن منتج…')} value={query} onChange={e=>setQuery(e.target.value)}/>{message&&<p role="status" className="text-sm text-slate-600">{message}</p>}{groups.filter(g=>`${g.name} ${g.name_ar??''} ${g.name_fr??''}`.toLowerCase().includes(query.toLowerCase())).map(g=><div key={g.id} className={panel}><div className="flex items-center gap-3">{g.image_url&&<img src={g.image_url} alt="" className="h-14 w-14 rounded-lg object-contain"/>}<div className="min-w-0 flex-1"><h3 className="font-bold break-words">{(ar?g.name_ar:g.name_fr)||g.name}</h3><p className="text-sm text-slate-500">{g.active?t('Actif','مفعل'):t('Masqué','مخفي')}</p></div></div>{(g.plans.length?g.plans:[undefined]).map(p=><div key={p?.id??'empty'} className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3"><div className="flex-1 text-sm">{p?`${(ar?p.label_ar:p.label_fr)||p.label} · ${p.price} MRU`:t('Sans prix','بدون سعر')}</div>{g.plans.length<=1?<button className="font-bold text-blue-600 text-sm" onClick={()=>start(g,p)}>{t('Modifier','تعديل')}</button>:<button className="font-bold text-blue-600 text-sm" onClick={openLegacy}>{t('Gestion avancée','إدارة متقدمة')}</button>}<button className="text-sm font-bold text-slate-500" onClick={()=>start(g,p,true)}>{t('Dupliquer','نسخ')}</button></div>)}</div>)}<button className="text-xs text-slate-500 underline" onClick={openLegacy}>{t('Gestion avancée des anciens produits','الإدارة المتقدمة للمنتجات القديمة')}</button></section>
 }
 
 export default AdminServiceEditPage
