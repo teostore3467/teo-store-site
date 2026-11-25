@@ -40,6 +40,16 @@ type PaymentMethod = {
   qr_image_path: string | null
 }
 
+type CheckoutQuote = { plan_id: string; original_price: number; total_mru: number; discount_mru: number; currency: string; checkout_enabled: boolean; discount_type: string; coupon_code?: string | null }
+
+async function fetchCheckoutQuote(planId: string, coupon: string | null): Promise<CheckoutQuote> {
+  const { data, error } = await supabase.rpc('teo_v6_checkout_quote', { p_plan_id: planId, p_coupon_code: coupon })
+  if (error) throw new Error(error.message)
+  const q = data as CheckoutQuote | null
+  if (!q || q.plan_id !== planId || q.currency !== 'MRU' || typeof q.checkout_enabled !== 'boolean' || !Number.isFinite(Number(q.total_mru)) || Number(q.total_mru) <= 0 || !Number.isFinite(Number(q.original_price)) || Number(q.total_mru) > Number(q.original_price)) throw new Error('INVALID_QUOTE')
+  return { ...q, original_price: Number(q.original_price), total_mru: Number(q.total_mru), discount_mru: Number(q.original_price) - Number(q.total_mru) }
+}
+
 const PAYMENT_PROOFS_BUCKET = 'payment-proofs'
 const MAX_PAYMENT_PROOF_SIZE = 5 * 1024 * 1024
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -196,6 +206,31 @@ function DigitalCheckoutPage() {
   const groupDatabaseId = selectedGroup?.databaseId
   const planDatabaseId = selectedPlan?.databaseId
 
+  const [quote, setQuote] = useState<CheckoutQuote | null>(null)
+  const [couponInput, setCouponInput] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null)
+  const [quoteBusy, setQuoteBusy] = useState(true)
+  const [quoteError, setQuoteError] = useState('')
+  const quoteRequest = useRef(0)
+  useEffect(() => {
+    const request = ++quoteRequest.current
+    setQuote(null); setCouponInput(''); setAppliedCoupon(null); setQuoteError(''); setQuoteBusy(true)
+    if (!authenticatedUserId || !isDatabaseId(planDatabaseId)) return
+    void fetchCheckoutQuote(planDatabaseId, null).then(q => { if (request === quoteRequest.current) setQuote(q) }).catch(() => { if (request === quoteRequest.current) setQuoteError('QUOTE_UNAVAILABLE') }).finally(() => { if (request === quoteRequest.current) setQuoteBusy(false) })
+    return () => { ++quoteRequest.current }
+  }, [authenticatedUserId, planDatabaseId])
+  async function applyCoupon(code: string | null) {
+    if (!isDatabaseId(planDatabaseId) || selectedPaymentCode || quoteBusy || submittingRef.current) return
+    const request = ++quoteRequest.current
+    setQuoteBusy(true); setQuoteError('')
+    try {
+      const q = await fetchCheckoutQuote(planDatabaseId, code)
+      if (request !== quoteRequest.current) return
+      setQuote(q); setAppliedCoupon(code); setCouponInput(code ?? '')
+    } catch (e) { if (request === quoteRequest.current) setQuoteError(e instanceof Error ? e.message : 'QUOTE_UNAVAILABLE') }
+    finally { if (request === quoteRequest.current) setQuoteBusy(false) }
+  }
+
   function handlePaymentProofChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     setSubmissionError(null)
@@ -250,14 +285,15 @@ function DigitalCheckoutPage() {
   const localizedFields = fields.map(field => getLocalizedCustomerField(service.slug, selectedGroup.id, field, language))
   const price = new Intl.NumberFormat(isArabic ? 'ar-MR-u-nu-latn' : 'fr-FR-u-nu-latn', {
     numberingSystem: 'latn', maximumFractionDigits: 2,
-  }).format(Number(selectedPlan.price))
-  const totalLabel = formatCurrencyText(`${price} ${selectedPlan.currency}`)
+  }).format(quote?.total_mru ?? Number(selectedPlan.price))
+  const totalLabel = quote && quote.plan_id === planDatabaseId && !quoteBusy ? formatCurrencyText(`${price} ${selectedPlan.currency}`) : t('قيد التحقق', 'À vérifier')
   const fieldsComplete = fields.every(field => {
     const value = customerValues[field.id]
     if (field.type === 'email' && typeof value === 'string' && value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) return false
     return !field.required || (field.type === 'checkbox' ? value === true : typeof value === 'string' && value.trim().length > 0)
   })
-  const canConfirmPayment = Boolean(customerName.trim() && customerPhone.trim() && selectedPayment &&
+  const quoteReady = Boolean(quote && quote.plan_id === planDatabaseId && !quoteBusy && quote.original_price === Number(selectedPlan.price))
+  const canConfirmPayment = Boolean(quoteReady && customerName.trim() && customerPhone.trim() && selectedPayment &&
     paymentSenderNumber.trim() && paymentProofFile && fieldsComplete && !isSubmitting && !uncertainSubmission)
 
   const handleSubmitOrder = async () => {
@@ -291,6 +327,9 @@ function DigitalCheckoutPage() {
       if (latest?.availability !== 'available' || latestGroup?.availability !== 'available' || latestPlan?.availability !== 'available' || Number(latestPlan.price) !== Number(selectedPlan.price) || latestPlan.currency !== selectedPlan.currency) {
         throw new Error(t('تغير السعر أو توفر الخدمة. تواصل مع الدعم إذا دفعت بالفعل، ولا تكرر الدفع.', 'Le prix ou la disponibilité a changé. Si vous avez déjà payé, contactez le support sans repayer.'))
       }
+      if (!quote || !isDatabaseId(planDatabaseId)) throw new Error('QUOTE_UNAVAILABLE')
+      const currentQuote = await fetchCheckoutQuote(planDatabaseId, appliedCoupon)
+      if (currentQuote.total_mru !== quote.total_mru || currentQuote.checkout_enabled !== quote.checkout_enabled || currentQuote.discount_type !== quote.discount_type) throw new Error(t('تغير السعر. إذا دفعت بالفعل تواصل مع الدعم ولا تدفع مرة أخرى.', 'Le prix a changé. Si vous avez déjà payé, contactez le support sans repayer.'))
       const extension = paymentProofFile.type === 'image/png' ? 'png' : paymentProofFile.type === 'image/webp' ? 'webp' : 'jpg'
       const reference = Math.floor(100000 + Math.random() * 900000)
       const path = `${auth.user.id}/TEO-${reference}-${Date.now()}.${extension}`
@@ -302,7 +341,7 @@ function DigitalCheckoutPage() {
       const emailValue = emailField ? customerValues[emailField.id] : undefined
       const customerEmail = typeof emailValue === 'string' && emailValue.trim() ? emailValue.trim() : auth.user.email ?? ''
       rpcStarted = true
-      const { data, error, status } = await supabase.rpc('customer_create_digital_order', {
+      const { data, error, status } = await supabase.rpc(quote.checkout_enabled ? 'customer_create_digital_order_v6' : 'customer_create_digital_order', {
         p_service_slug: service.slug,
         p_group_id: groupDatabaseId,
         p_plan_id: planDatabaseId,
@@ -313,6 +352,7 @@ function DigitalCheckoutPage() {
         p_payment_method: method.code,
         p_payment_sender_number: paymentSenderNumber.trim(),
         p_payment_proof_path: path,
+        ...(quote.checkout_enabled ? { p_expected_total: quote.total_mru, p_coupon_code: appliedCoupon } : {}),
       })
       if (error) {
         // A lost response can follow a committed order. Keep its receipt in that case.
@@ -426,17 +466,23 @@ function DigitalCheckoutPage() {
           </section>
           <section className={panel}>
             <SectionTitle number={3} title={t('الدفع', 'Paiement')} subtitle={t('اختر تطبيق الدفع واتبع الخطوات', 'Choisissez votre application et suivez les étapes')} />
+            <div className="mt-4 rounded-xl border border-slate-200 p-3 text-sm">
+              {quoteBusy && <p role="status">{t('جارٍ التحقق من السعر...', 'Vérification du prix…')}</p>}
+              {!quoteBusy && !quoteReady && <><p role="alert">{t('تعذر تأكيد السعر. لا تدفع الآن.', 'Prix non confirmé. Ne payez pas maintenant.')}</p><button type="button" className="mt-2 font-bold text-blue-600" onClick={() => void applyCoupon(null)} disabled={Boolean(selectedPaymentCode)}>{t('إعادة المحاولة', 'Réessayer')}</button></>}
+              {quoteReady && quote?.checkout_enabled && <><label className="font-bold">{t('رمز التخفيض', 'Code promotionnel')}</label><div className="mt-2 flex gap-2"><input className={inputClass} maxLength={40} value={couponInput} disabled={Boolean(selectedPaymentCode) || quote.discount_type === 'flash_sale'} onChange={e => setCouponInput(e.target.value)} /><button type="button" className="rounded-xl bg-blue-600 px-3 text-white disabled:opacity-50" disabled={Boolean(selectedPaymentCode) || !couponInput.trim() || quote.discount_type === 'flash_sale'} onClick={() => void applyCoupon(couponInput.trim().toUpperCase())}>{t('تطبيق', 'Appliquer')}</button></div>{appliedCoupon && <button type="button" disabled={Boolean(selectedPaymentCode)} className="mt-2 text-blue-600" onClick={() => void applyCoupon(null)}>{t('إزالة الكوبون', 'Retirer le code')}</button>}{quote.discount_mru > 0 && <p className="mt-2 font-bold text-emerald-600">{t('التخفيض', 'Réduction')} : {quote.discount_mru} MRU</p>}</>}
+              {quoteError && <p role="alert" className="mt-2 text-red-600">{t('تعذر تطبيق السعر أو الكوبون. تحقق من صلاحيته.', 'Prix ou code non validé. Vérifiez sa disponibilité.')}</p>}
+            </div>
             {paymentMethodsLoading ? <div className="mt-5 rounded-2xl bg-slate-50 p-5 text-center text-xs">{t('جارٍ تحميل وسائل الدفع...', 'Chargement des moyens de paiement...')}</div>
               : paymentMethods.length ? <div className="mt-4 grid grid-cols-4 gap-x-1 gap-y-3 sm:grid-cols-5 sm:gap-x-2">{paymentMethods.map(method => {
                 const selected = method.code === selectedPaymentCode
                 return <button type="button" key={method.id} aria-pressed={selected}
                   className={`group relative min-w-0 rounded-lg px-0.5 py-1.5 text-center bg-transparent transition hover:bg-blue-500/5 focus-visible:ring-2 focus-visible:ring-blue-500`}
-                  onClick={() => { if (method.code !== selectedPaymentCode) { setPaymentProofFile(null); setPaymentSenderNumber('') }; setSelectedPaymentCode(method.code); setPaymentNumberCopied(false); setSubmissionError(null) }}>
+                  disabled={!quoteReady} onClick={() => { if (!quoteReady) return; if (method.code !== selectedPaymentCode) { setPaymentProofFile(null); setPaymentSenderNumber('') }; setSelectedPaymentCode(method.code); setPaymentNumberCopied(false); setSubmissionError(null) }}>
                   <span className={`relative mx-auto flex h-12 w-12 items-center justify-center rounded-full ring-2 transition ${selected ? 'ring-blue-600' : 'ring-slate-300/70'}`} style={{ backgroundColor: '#ffffff' }}><span className="flex h-full w-full items-center justify-center overflow-hidden rounded-full" style={{ color: '#0f172a' }}><PaymentLogo method={method} /></span>{selected && <span aria-hidden="true" className="absolute -end-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white ring-2 ring-white">✓</span>}</span>
                   <span className="mt-1.5 block break-words text-[10px] leading-tight font-semibold sm:text-xs">{(isArabic ? method.name_ar : method.name_fr) || method.name}</span>
                 </button>
               })}</div> : <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-center text-xs text-amber-700">{t('لا توجد وسيلة دفع متاحة حاليًا.', 'Aucun moyen de paiement n’est disponible actuellement.')}</div>}
-            {selectedPayment && <div className="mt-5 space-y-4">
+            {quoteReady && selectedPayment && <div className="mt-5 space-y-4">
               <div className="overflow-hidden rounded-[22px] bg-slate-950 text-white">
                 <div className="p-4 sm:p-5"><div className="flex items-center gap-3">
                   <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white"><PaymentLogo method={selectedPayment} /></div>
@@ -489,6 +535,7 @@ function DigitalCheckoutPage() {
               {[[t('الخدمة', 'Service'), serviceName], [t('الخطة', 'Formule'), planLabel], [t('طريقة التسليم','Mode de livraison'), fulfillmentLabel]].map(([label, value]) => <div key={label} className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 p-3 text-xs"><span className="text-slate-400">{label}</span><strong>{value}</strong></div>)}
               {selectedPayment && <div className="flex items-center gap-3 rounded-xl bg-emerald-50 p-3"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white"><PaymentLogo method={selectedPayment} /></div>
                 <div className="text-xs text-emerald-800"><p>{t('طريقة الدفع', 'Paiement')}</p><strong>{selectedPayment.name}</strong></div></div>}
+              {quoteReady && quote && quote.discount_mru > 0 && <div className="space-y-2 text-sm"><div className="flex justify-between"><span>{t('السعر الأصلي', 'Prix initial')}</span><del>{quote.original_price} MRU</del></div><div className="flex justify-between text-emerald-600"><span>{t('التخفيض', 'Réduction')}</span><strong>−{quote.discount_mru} MRU</strong></div></div>}
               <div className="flex items-center justify-between gap-4 rounded-xl bg-slate-950 p-4 text-white"><span className={smallTitle}>{t('المبلغ المطلوب', 'Montant à payer')}</span><strong dir="ltr" className="text-lg">{totalLabel}</strong></div>
               <button type="button" disabled={!canConfirmPayment} onClick={() => void handleSubmitOrder()} className="h-12 w-full rounded-[14px] bg-blue-600 text-xs font-black text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400">
                 {isSubmitting ? t('جارٍ إرسال الطلب...', 'Envoi en cours...') : t('إرسال الطلب للمراجعة', 'Envoyer la commande')}
