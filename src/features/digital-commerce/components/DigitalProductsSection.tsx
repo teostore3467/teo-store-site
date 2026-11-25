@@ -6,6 +6,7 @@ import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 import { supabase } from '../../../lib/supabase'
 import type { ServiceCatalogItem } from '../data/serviceCatalog'
+import { getLocalizedServiceName } from '../data/serviceCatalogTranslations'
 import { fetchPublicServiceCatalog } from '../data/supabaseServiceCatalog'
 
 type LocalizedText = { fr: string; ar: string }
@@ -138,7 +139,7 @@ function ProductRail({ services, serviceLogos }: { services: ServiceCatalogItem[
           : isComingSoon
             ? (isArabic ? 'قريبًا' : 'Bientôt')
             : null
-        const logo = serviceLogos[service.slug]
+        const logo = service.image_url || serviceLogos[service.slug]
 
         return (
           <button
@@ -164,8 +165,8 @@ function ProductRail({ services, serviceLogos }: { services: ServiceCatalogItem[
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/30 to-transparent" />
               </div>
               <div className="min-w-0 p-3 sm:p-4">
-                <h3 className="line-clamp-2 break-words min-h-[40px] text-sm font-black leading-5 text-slate-950 transition group-hover:text-blue-600 lg:min-h-[44px] lg:text-[15px]">{service.name}</h3>
-                <p className="mt-1 line-clamp-2 min-h-[40px] text-xs leading-5 text-slate-500">{service.description || (isArabic ? 'خدمة رقمية من TEO STORE' : 'Service numérique TEO STORE')}</p>
+                <h3 className="line-clamp-2 break-words min-h-[40px] text-sm font-black leading-5 text-slate-950 transition group-hover:text-blue-600 lg:min-h-[44px] lg:text-[15px]">{getLocalizedServiceName(service,language)}</h3>
+                <p className="mt-1 line-clamp-2 min-h-[40px] text-xs leading-5 text-slate-500">{isArabic ? 'عرض المنتجات' : 'Voir les produits'}</p>
                 <div className="mt-3 border-t border-slate-100 pt-3">
                   <div className="flex items-end justify-between gap-2">
                     <div>

@@ -315,15 +315,17 @@ export function getLocalizedCategory(
 
 export function getLocalizedServiceName(
   service: ServiceCatalogItem,
-  _language: Language,
+  language: Language,
 ) {
-  return service.name
+  return (language === 'ar' ? service.name_ar : service.name_fr)?.trim() || service.name
 }
 
 export function getLocalizedServiceDescription(
   service: ServiceCatalogItem,
   language: Language,
 ) {
+  const value = (language === 'ar' ? service.description_ar : service.description_fr)?.trim()
+  if (value) return value
   if (!service.description) {
     return undefined
   }
@@ -342,6 +344,8 @@ export function getLocalizedGroupName(
   group: ServiceGroup,
   language: Language,
 ) {
+  const value = (language === 'ar' ? group.name_ar : group.name_fr)?.trim()
+  if (value) return value
   if (language === 'fr') {
     return group.name
   }
@@ -356,6 +360,8 @@ export function getLocalizedGroupShortName(
   group: ServiceGroup,
   language: Language,
 ) {
+  const value = (language === 'ar' ? group.short_name_ar : group.short_name_fr)?.trim()
+  if (value) return value
   if (language === 'fr') {
     return group.shortName
   }
@@ -371,6 +377,10 @@ export function getLocalizedGroupDescription(
   group: ServiceGroup,
   language: Language,
 ) {
+  if (group.description_enabled === false) return undefined
+  const value = (language === 'ar' ? group.description_ar : group.description_fr)?.trim()
+  if (value) return value
+  if (group.description_ar?.trim() || group.description_fr?.trim()) return undefined
   if (!group.description) {
     return undefined
   }
@@ -392,6 +402,8 @@ export function getLocalizedPlanLabel(
   plan: ServicePlan,
   language: Language,
 ) {
+  const value = (language === 'ar' ? plan.label_ar : plan.label_fr)?.trim()
+  if (value) return value
   if (language === 'fr') {
     return plan.label
   }
@@ -414,6 +426,10 @@ export function getLocalizedFulfillmentInstructions(
   group: ServiceGroup,
   language: Language,
 ) {
+  if (group.instructions_enabled === false) return undefined
+  const value = (language === 'ar' ? group.instructions_ar : group.instructions_fr)?.trim()
+  if (value) return value
+  if (group.instructions_ar?.trim() || group.instructions_fr?.trim()) return undefined
   const instructions =
     group.fulfillment.instructions
 

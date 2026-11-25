@@ -6,6 +6,12 @@ import type {
 } from '../types/serviceFulfillment'
 
 export type ServicePlan = {
+  label_ar?: string | null
+  label_fr?: string | null
+  old_price?: number | null
+  duration_value?: number | null
+  duration_unit?: string | null
+
   id: string
   label: string
   price: number
@@ -15,6 +21,22 @@ export type ServicePlan = {
 }
 
 export type ServiceGroup = {
+  name_ar?: string | null
+  name_fr?: string | null
+  short_name_ar?: string | null
+  short_name_fr?: string | null
+  image_url?: string | null
+  description_ar?: string | null
+  description_fr?: string | null
+  instructions_ar?: string | null
+  instructions_fr?: string | null
+  delivery_minutes?: number | null
+  warranty_days?: number | null
+  validity_days?: number | null
+  warranty_full_subscription?: boolean | null
+  description_enabled?: boolean | null
+  instructions_enabled?: boolean | null
+
   id: string
   name: string
   shortName: string
@@ -25,6 +47,12 @@ export type ServiceGroup = {
 }
 
 export type ServiceCatalogItem = {
+  name_ar?: string | null
+  name_fr?: string | null
+  image_url?: string | null
+  description_ar?: string | null
+  description_fr?: string | null
+
   slug: string
   name: string
   category: string

@@ -1,0 +1,23 @@
+TEO STORE - SMART CATALOG V3 - Catalog foundation + navigation + editor
+
+PREREQUISITE: TEO_SMART_CATALOG_V3_DATABASE_OK.
+1. Back up your current src (git commit or ZIP).
+2. Extract this archive into the project root. Replace only the files listed below; keep all other files.
+3. Run npm run build from your existing project root. Do not deploy if build fails.
+4. Test on local or staging with existing admin credentials.
+5. Create a draft parent service, upload its logo using existing control. Add a product (initially inactive), set localized content and image, save product, add/save a positive-price plan and activate product then parent. Check both languages. Existing stock/checkout IDs preserved.
+6. Check home > parent > product > selected plan > checkout. Confirm correct group/plan and server-side price. Test no real payment until launch checks pass.
+7. Test hiding description/instructions and old price, 0/30/1440/2880 delivery minutes. Test manual and automatic stock separately.
+
+LIMITS: syntax and localization checks performed; full dependency build and database runtime not performed (source ZIP only). Reviews remain aggregated at parent service level. Old records are not automatically merged into brands. Existing save controls remain separate; cost/profit, unified atomic save, duplication, full admin localization and final security tests remain. Parent logos use existing service_logos table; child images use existing service-logos bucket. Replacing child image does not delete prior file. Creating a group/plan reloads editor: save pending edits first.
+
+FILES:
+src/App.tsx
+src/features/digital-commerce/pages/ServiceOffersPage.tsx
+src/features/digital-commerce/pages/DigitalProductDetailsPage.tsx
+src/features/digital-commerce/data/serviceCatalog.ts
+src/features/digital-commerce/data/supabaseServiceCatalog.ts
+src/features/digital-commerce/data/serviceCatalogTranslations.ts
+src/features/digital-commerce/components/DigitalProductsSection.tsx
+src/features/admin/pages/AdminServiceEditPage.tsx
+src/features/admin/pages/AdminServicesPage.tsx

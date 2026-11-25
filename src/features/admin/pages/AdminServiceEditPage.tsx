@@ -10,6 +10,8 @@ import {
   useParams,
 } from 'react-router-dom'
 
+import { useLanguage } from '../../../i18n/LanguageContext'
+
 import {
   supabase,
 } from '../../../lib/supabase'
@@ -30,6 +32,10 @@ type FulfillmentType =
   | 'coming_soon'
 
 type ServiceRow = {
+  name_ar?: string | null
+  name_fr?: string | null
+  image_url?: string | null
+
   id: string
   slug: string
   name: string
@@ -48,6 +54,22 @@ type ServiceRow = {
 }
 
 type GroupRow = {
+  name_ar?: string | null
+  name_fr?: string | null
+  short_name_ar?: string | null
+  short_name_fr?: string | null
+  image_url?: string | null
+  description_ar?: string | null
+  description_fr?: string | null
+  instructions_ar?: string | null
+  instructions_fr?: string | null
+  delivery_minutes?: number | null
+  warranty_days?: number | null
+  validity_days?: number | null
+  warranty_full_subscription?: boolean | null
+  description_enabled?: boolean | null
+  instructions_enabled?: boolean | null
+
   id: string
   service_id: string
   group_key: string
@@ -63,6 +85,12 @@ type GroupRow = {
 }
 
 type PlanRow = {
+  label_ar?: string | null
+  label_fr?: string | null
+  duration_unit?: string | null
+  old_price?: number | null
+  duration_value?: number | null
+
   id: string
   group_id: string
   plan_key: string
@@ -391,7 +419,17 @@ function defaultFulfillment(
 const LOGO_BUCKET = 'service-logos'
 const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 
+function DeliveryInput({value,onChange,ar}:{value:number|null|undefined;onChange:(value:number|null)=>void;ar:boolean}) {
+  const [unit,setUnit]=useState(value && value>=2880 && value%1440===0 ? 'days' : value && value%60===0 ? 'hours' : 'minutes')
+  const factor=unit==='days'?1440:unit==='hours'?60:1
+  return <div className="mt-2 flex gap-2"><input aria-label={ar?'مدة التسليم':'Délai de livraison'} type="number" min="0" step="any" value={value==null?'':value/factor} onChange={e=>onChange(e.target.value===''?null:Math.round(Number(e.target.value)*factor))} className="min-w-0 w-full rounded-xl border border-slate-200 bg-white p-3"/><select aria-label={ar?'الوحدة':'Unité'} value={unit} onChange={e=>setUnit(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-2"><option value="minutes">{ar?'دقيقة':'min'}</option><option value="hours">{ar?'ساعة':'h'}</option><option value="days">{ar?'يوم':'jours'}</option></select></div>
+}
+
 function AdminServiceEditPage() {
+  const { language } = useLanguage()
+  const ar = language === 'ar'
+  const tr = (fr: string, arabic: string) => ar ? arabic : fr
+  const [imageBusy, setImageBusy] = useState<string | null>(null)
   const {
     serviceSlug,
   } = useParams()
@@ -645,6 +683,7 @@ function AdminServiceEditPage() {
               `
                 id,
                 slug,
+                name_ar, name_fr, image_url,
                 name,
                 category,
                 availability,
@@ -704,6 +743,7 @@ function AdminServiceEditPage() {
                 id,
                 service_id,
                 group_key,
+                name_ar, name_fr, short_name_ar, short_name_fr, image_url, description_ar, description_fr, instructions_ar, instructions_fr, delivery_minutes, warranty_days, validity_days, warranty_full_subscription, description_enabled, instructions_enabled,
                 name,
                 short_name,
                 availability,
@@ -781,6 +821,7 @@ function AdminServiceEditPage() {
                   id,
                   group_id,
                   plan_key,
+                  label_ar, label_fr, duration_unit, old_price, duration_value,
                   label,
                   price,
                   currency,
@@ -936,6 +977,10 @@ function AdminServiceEditPage() {
           .update({
             name:
               service.name.trim(),
+            name_ar: service.name_ar?.trim() || null,
+            name_fr: service.name_fr?.trim() || null,
+            image_url: service.image_url?.trim() || null,
+
             category:
               service.category.trim(),
             description:
@@ -959,6 +1004,7 @@ function AdminServiceEditPage() {
             'id',
             service.id,
           )
+          .select('id').single()
 
       setIsSavingService(
         false,
@@ -985,7 +1031,7 @@ function AdminServiceEditPage() {
           'Service enregistré',
       })
 
-      await loadService()
+      // Keep other unsaved fields in the editor.
     }
 
   const handleCreateGroup =
@@ -997,7 +1043,7 @@ function AdminServiceEditPage() {
       }
 
       const groupKey =
-        newGroup.groupKey
+        (newGroup.groupKey.trim() || newGroup.name.trim() || crypto.randomUUID())
           .trim()
           .toLowerCase()
           .replace(
@@ -1007,7 +1053,7 @@ function AdminServiceEditPage() {
           .replace(
             /^-+|-+$/g,
             '',
-          )
+          ) || `offer-${crypto.randomUUID()}`
 
       if (
         !groupKey ||
@@ -1058,7 +1104,7 @@ function AdminServiceEditPage() {
                 newGroup.fulfillmentType,
               ),
             active:
-              true,
+              false,
             sort_order:
               groups.length,
           })
@@ -1111,9 +1157,11 @@ function AdminServiceEditPage() {
       group:
         GroupWithPlans,
     ) => {
-      setSavingGroupId(
-        group.id,
-      )
+      if (imageBusy || savingGroupId) return
+      if (!group.name.trim() || !group.short_name.trim() || [group.delivery_minutes,group.warranty_days,group.validity_days].some(n=>n!=null&&(!Number.isSafeInteger(n)||n<0))) {
+        showToast({type:'error',title:tr('Vérifiez les valeurs du produit','تحقق من بيانات المنتج')}); return
+      }
+      setSavingGroupId(group.id)
 
       const {
         error,
@@ -1125,6 +1173,22 @@ function AdminServiceEditPage() {
           .update({
             name:
               group.name.trim(),
+            name_ar: group.name_ar?.trim() || null,
+            name_fr: group.name_fr?.trim() || null,
+            short_name_ar: group.short_name_ar?.trim() || null,
+            short_name_fr: group.short_name_fr?.trim() || null,
+            image_url: group.image_url?.trim() || null,
+            description_ar: group.description_ar?.trim() || null,
+            description_fr: group.description_fr?.trim() || null,
+            instructions_ar: group.instructions_ar?.trim() || null,
+            instructions_fr: group.instructions_fr?.trim() || null,
+            delivery_minutes: group.delivery_minutes ?? null,
+            warranty_days: group.warranty_days ?? null,
+            validity_days: group.validity_days ?? null,
+            warranty_full_subscription: group.warranty_full_subscription ?? null,
+            description_enabled: group.description_enabled ?? true,
+            instructions_enabled: group.instructions_enabled ?? true,
+
             short_name:
               group.short_name.trim(),
             description:
@@ -1144,6 +1208,7 @@ function AdminServiceEditPage() {
             'id',
             group.id,
           )
+          .select('id').single()
 
       setSavingGroupId(
         null,
@@ -1170,7 +1235,7 @@ function AdminServiceEditPage() {
           'Groupe enregistré',
       })
 
-      await loadService()
+      // Keep other unsaved fields in the editor.
     }
 
   const updateGroup =
@@ -1197,6 +1262,28 @@ function AdminServiceEditPage() {
           ),
       )
     }
+
+  const uploadOfferImage = async (groupId: string, file?: File) => {
+    if (!service || !file || imageBusy || savingGroupId) return
+    if (!LOGO_TYPES.includes(file.type) || file.size > 3 * 1024 * 1024) {
+      showToast({type:'error',title:tr('Image non acceptée','صورة غير مقبولة'),message:'PNG, JPG, WEBP · 3 MB'})
+      return
+    }
+    setImageBusy(groupId)
+    const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
+    const path = `${service.slug}/offers/${groupId}/${crypto.randomUUID()}.${ext}`
+    try {
+      const uploaded = await supabase.storage.from(LOGO_BUCKET).upload(path, file, {contentType:file.type,upsert:false})
+      if (uploaded.error) throw uploaded.error
+      const url = supabase.storage.from(LOGO_BUCKET).getPublicUrl(path).data.publicUrl
+      const saved = await supabase.from('digital_service_groups').update({image_url:url}).eq('id',groupId).eq('service_id',service.id).select('id').single()
+      if (saved.error) { await supabase.storage.from(LOGO_BUCKET).remove([path]); throw saved.error }
+      updateGroup(groupId,{image_url:url})
+      showToast({type:'success',title:tr('Image enregistrée','تم حفظ الصورة')})
+    } catch (e) {
+      showToast({type:'error',title:tr('Échec de l’image','تعذر حفظ الصورة'),message:typeof e === 'object' && e && 'message' in e ? String(e.message) : String(e)})
+    } finally {setImageBusy(null)}
+  }
 
   const openPlanModal =
     (
@@ -1399,9 +1486,11 @@ function AdminServiceEditPage() {
         return
       }
 
-      setSavingPlanId(
-        plan.id,
-      )
+      if (savingPlanId) return
+      if ((plan.old_price != null && (!Number.isFinite(Number(plan.old_price)) || Number(plan.old_price)<Number(plan.price))) || (plan.duration_value == null) !== !plan.duration_unit || (plan.duration_value != null && (!Number.isSafeInteger(plan.duration_value)||plan.duration_value<=0))) {
+        showToast({type:'error',title:tr('Vérifiez la durée et le prix barré','تحقق من المدة والسعر القديم')}); return
+      }
+      setSavingPlanId(plan.id)
 
       const {
         error,
@@ -1413,6 +1502,12 @@ function AdminServiceEditPage() {
           .update({
             label:
               plan.label.trim(),
+            label_ar: plan.label_ar?.trim() || null,
+            label_fr: plan.label_fr?.trim() || null,
+            duration_unit: plan.duration_unit?.trim() || null,
+            old_price: plan.old_price ?? null,
+            duration_value: plan.duration_value ?? null,
+
             price:
               Number(
                 plan.price,
@@ -1438,6 +1533,7 @@ function AdminServiceEditPage() {
             'id',
             plan.id,
           )
+          .select('id').single()
 
       setSavingPlanId(
         null,
@@ -1464,7 +1560,7 @@ function AdminServiceEditPage() {
           'Plan enregistré',
       })
 
-      await loadService()
+      // Keep other unsaved fields in the editor.
     }
 
   const handleDelete =
@@ -1650,7 +1746,7 @@ function AdminServiceEditPage() {
           </button>
           <button type="button" role="tab" aria-selected={detailsTab === 'catalog'} onClick={() => setDetailsTab('catalog')}
             className={`rounded-xl px-4 py-2.5 text-sm font-bold ${detailsTab === 'catalog' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-            Groupes & forfaits ({totalPlans})
+            {tr('Produits et forfaits','المنتجات والباقات')} ({totalPlans})
           </button>
         </div>
       </header>
@@ -1806,6 +1902,9 @@ function AdminServiceEditPage() {
               />
             </label>
 
+            <div className="md:col-span-2 grid gap-3 sm:grid-cols-2">
+              {(['name_ar','name_fr'] as const).map(field => <label key={field} className="block text-sm font-bold text-slate-700">{field === 'name_ar' ? 'الاسم بالعربية' : 'Nom français'}<input dir={field === 'name_ar' ? 'rtl' : 'ltr'} value={service[field] ?? ''} onChange={e=>updateServiceField(field,e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3"/></label>)}
+            </div>
             <div className="md:col-span-2 rounded-2xl border border-blue-100 bg-blue-50/50 p-5 space-y-4">
               <div><h3 className="font-black text-slate-900">Descriptions bilingues / الوصف بلغتين</h3><p className="text-xs text-slate-500 mt-1">Une ligne par avantage. Les retours à la ligne sont conservés. / كل ميزة في سطر مستقل.</p></div>
               {([['description_ar','الوصف بالعربية','rtl'],['description_fr','Description en français','ltr']] as const).map(([field,label,dir]) => (
@@ -1906,7 +2005,7 @@ function AdminServiceEditPage() {
         <div className="mb-4 flex items-end justify-between gap-4">
           <div>
             <h2 className="text-xl font-black text-slate-950">
-              Groupes et plans
+              {tr('Produits et forfaits','المنتجات والباقات')}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               Modifiez les prix, disponibilités et plans sans toucher au code source.
@@ -1922,7 +2021,7 @@ function AdminServiceEditPage() {
             }
             className="rounded-[12px] border border-indigo-100 bg-indigo-50 px-4 py-2.5 text-sm font-black text-indigo-700 hover:bg-indigo-100"
           >
-            + Groupe
+            {tr('+ Produit','+ منتج')}
           </button>
         </div>
 
@@ -1941,7 +2040,7 @@ function AdminServiceEditPage() {
                   <div className="grid gap-3 lg:grid-cols-[1.3fr_1fr_180px_auto] lg:items-end">
                     <label>
                       <span className="text-xs font-black uppercase text-slate-400">
-                        Nom du groupe
+                        {tr('Nom du produit','اسم المنتج')}
                       </span>
                       <input
                         type="text"
@@ -2079,7 +2178,7 @@ function AdminServiceEditPage() {
                           )
                         }
                       />
-                      Groupe actif
+                      {tr('Produit actif','منتج نشط')}
                     </label>
 
                     <span className="text-xs text-slate-400">
@@ -2102,6 +2201,29 @@ function AdminServiceEditPage() {
                     </span>
                   </div>
                 </div>
+
+                <details className="border-b border-slate-200 p-5" >
+                  <summary className="cursor-pointer font-black text-blue-600">{tr('Contenu et paramètres du produit','محتوى وإعدادات المنتج')}</summary>
+                  <div className="mt-4 space-y-4">
+                    <div className="flex flex-wrap items-center gap-3">
+                      {group.image_url && <img src={group.image_url} alt="" className="h-24 w-24 rounded-xl border object-contain"/>}
+                      <label className="cursor-pointer rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white">{imageBusy === group.id ? tr('Chargement…','جارٍ الرفع…') : tr('Image du produit','صورة المنتج')}<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={!!imageBusy || !!savingGroupId} onChange={e=>{void uploadOfferImage(group.id,e.target.files?.[0]);e.currentTarget.value=''}}/></label>
+                      {group.image_url && <button type="button" className="text-sm font-bold text-rose-600" onClick={()=>updateGroup(group.id,{image_url:null})}>{tr('Retirer (puis enregistrer)','إزالة ثم حفظ')}</button>}
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {(['name_ar','name_fr','short_name_ar','short_name_fr'] as const).map(field=><label key={field} className="text-sm font-bold text-slate-700">{({name_ar:'الاسم بالعربية',name_fr:'Nom français',short_name_ar:'الاسم المختصر بالعربية',short_name_fr:'Nom court français'})[field]}<input dir={field.endsWith('_ar')?'rtl':'ltr'} value={group[field]??''} onChange={e=>updateGroup(group.id,{[field]:e.target.value})} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3"/></label>)}
+                    </div>
+                    {(['description','instructions'] as const).map(kind=><div key={kind} className="space-y-3 rounded-xl border border-slate-200 p-3">
+                      <label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={group[`${kind}_enabled`]??true} onChange={e=>updateGroup(group.id,{[`${kind}_enabled`]:e.target.checked})}/>{kind==='description'?tr('Afficher la description','إظهار الوصف'):tr('Afficher les instructions','إظهار التعليمات')}</label>
+                      {(['ar','fr'] as const).map(lang=>{const field=`${kind}_${lang}` as const;return <label key={field} className="block text-sm font-bold">{lang==='ar'?(kind==='description'?'الوصف بالعربية':'التعليمات بالعربية'):(kind==='description'?'Description française':'Instructions françaises')}<textarea dir={lang==='ar'?'rtl':'ltr'} rows={5} value={group[field]??''} onChange={e=>updateGroup(group.id,{[field]:e.target.value})} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3"/>{group[field]&&<div dir={lang==='ar'?'rtl':'ltr'} className="mt-2 whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-3 text-sm font-normal">{group[field]}</div>}</label>})}
+                    </div>)}
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {(['delivery_minutes','warranty_days','validity_days'] as const).map(field=><label key={field} className="text-sm font-bold">{field==='delivery_minutes'?tr('Délai de livraison','مدة التسليم'):field==='warranty_days'?tr('Garantie (jours)','الضمان بالأيام'):tr('Validité (jours)','الصلاحية بالأيام')}{field==='delivery_minutes'?<DeliveryInput value={group[field]} onChange={v=>updateGroup(group.id,{delivery_minutes:v})} ar={ar}/>:<input type="number" min="0" step="1" value={group[field]??''} onChange={e=>updateGroup(group.id,{[field]:e.target.value===''?null:Number(e.target.value)})} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3"/>}</label>)}
+                    </div>
+                    <label className="block text-sm font-bold">{tr('Garantie intégrale','الضمان طوال الاشتراك')}<select value={group.warranty_full_subscription==null?'inherit':String(group.warranty_full_subscription)} onChange={e=>updateGroup(group.id,{warranty_full_subscription:e.target.value==='inherit'?null:e.target.value==='true'})} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3"><option value="inherit">{tr('Hériter','اعتماد الخدمة الأم')}</option><option value="true">{tr('Oui','نعم')}</option><option value="false">{tr('Non','لا')}</option></select></label>
+                    <button type="button" disabled={!!imageBusy || !!savingGroupId} onClick={()=>void handleSaveGroup(group)} className="w-full rounded-xl bg-blue-600 px-4 py-3 font-bold text-white disabled:opacity-50">{tr('Enregistrer le produit','حفظ المنتج')}</button>
+                  </div>
+                </details>
 
                 <div className="p-5">
                   <div className="flex items-center justify-between gap-4">
@@ -2135,6 +2257,15 @@ function AdminServiceEditPage() {
                             }
                             className="rounded-[16px] border border-slate-200 bg-slate-50 p-4"
                           >
+                            <details className="mb-3 rounded-xl border border-slate-200 bg-white p-3">
+                              <summary className="cursor-pointer text-sm font-bold text-blue-600">{tr('Traductions, durée et promotion','الترجمة والمدة والتخفيض')}</summary>
+                              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                {(['label_ar','label_fr'] as const).map(field=><label key={field} className="text-sm font-bold">{field==='label_ar'?'اسم الباقة بالعربية':'Libellé français'}<input dir={field==='label_ar'?'rtl':'ltr'} value={plan[field]??''} onChange={e=>updatePlan(group.id,plan.id,{[field]:e.target.value})} className="mt-2 w-full rounded-xl border p-3"/></label>)}
+                                <label className="text-sm font-bold">{tr('Durée','المدة')}<input type="number" min="1" step="1" value={plan.duration_value??''} onChange={e=>updatePlan(group.id,plan.id,{duration_value:e.target.value===''?null:Number(e.target.value)})} className="mt-2 w-full rounded-xl border p-3"/></label>
+                                <label className="text-sm font-bold">{tr('Unité','الوحدة')}<select value={plan.duration_unit??''} onChange={e=>updatePlan(group.id,plan.id,{duration_unit:e.target.value||null})} className="mt-2 w-full rounded-xl border p-3"><option value="">—</option>{[['minutes','Minutes','دقائق'],['hours','Heures','ساعات'],['days','Jours','أيام'],['weeks','Semaines','أسابيع'],['months','Mois','أشهر'],['years','Années','سنوات']].map(([v,fr,a])=><option key={v} value={v}>{tr(fr,a)}</option>)}</select></label>
+                                <label className="text-sm font-bold">{tr('Ancien prix (MRU)','السعر القديم (MRU)')}<input type="number" min={plan.price} step="0.01" value={plan.old_price??''} onChange={e=>updatePlan(group.id,plan.id,{old_price:e.target.value===''?null:Number(e.target.value)})} className="mt-2 w-full rounded-xl border p-3"/></label>
+                              </div>
+                            </details>
                             <div className="grid gap-3 lg:grid-cols-[1.2fr_160px_180px_auto] lg:items-end">
                               <label>
                                 <span className="text-xs font-black uppercase text-slate-400">

@@ -40,9 +40,10 @@ import {
 } from '../data/serviceCatalogTranslations'
 
 function DigitalProductDetailsPage() {
-  const { productSlug } = useParams()
+  const { productSlug, offerKey } = useParams()
 
   const navigate = useNavigate()
+  const [allowParentDescription,setAllowParentDescription]=useState(false)
   const [activeTab, setActiveTab] = useState<'plans' | 'description' | 'instructions' | 'reviews'>('plans')
 
   const {
@@ -100,7 +101,7 @@ function DigitalProductDetailsPage() {
       left: 0,
       behavior: 'instant',
     })
-  }, [productSlug])
+  }, [productSlug, offerKey])
 
   useEffect(() => {
     let isMounted = true
@@ -130,9 +131,8 @@ function DigitalProductDetailsPage() {
             )
 
           if (isMounted) {
-            setService(
-              nextService,
-            )
+            setAllowParentDescription(nextService?.groups.length === 1)
+            setService(nextService && offerKey ? (nextService.groups.some(g => g.id === offerKey) ? {...nextService, groups: nextService.groups.filter(g => g.id === offerKey)} : null) : nextService)
           }
         } catch (error) {
           console.error(
@@ -157,7 +157,7 @@ function DigitalProductDetailsPage() {
     return () => {
       isMounted = false
     }
-  }, [productSlug])
+  }, [productSlug, offerKey])
 
   useEffect(() => {
     let isMounted = true
@@ -348,10 +348,10 @@ function DigitalProductDetailsPage() {
     selectedGroup?.plans[0]
 
   // Read the same plan/service fields configured in ADMIN. Plan values override service defaults.
-  const deliveryMinutes = selectedPlan?.delivery_minutes ?? service.delivery_minutes ?? null
-  const validityDays = selectedPlan?.validity_days ?? service.validity_days ?? null
-  const warrantyDays = selectedPlan?.warranty_days ?? service.warranty_days ?? null
-  const fullWarranty = selectedPlan?.warranty_full_subscription ?? service.warranty_full_subscription ?? false
+  const deliveryMinutes = selectedPlan?.delivery_minutes ?? selectedGroup?.delivery_minutes ?? service.delivery_minutes ?? null
+  const validityDays = selectedPlan?.validity_days ?? selectedGroup?.validity_days ?? service.validity_days ?? null
+  const warrantyDays = selectedPlan?.warranty_days ?? selectedGroup?.warranty_days ?? service.warranty_days ?? null
+  const fullWarranty = selectedPlan?.warranty_full_subscription ?? selectedGroup?.warranty_full_subscription ?? service.warranty_full_subscription ?? false
   const durationText = (days: number | null) => {
     if (days === null || !Number.isFinite(days) || days <= 0) return isArabic ? 'غير محددة' : 'Non précisée'
     if (days % 365 === 0) return isArabic ? `${days / 365} سنة` : `${days / 365} an(s)`
@@ -362,24 +362,23 @@ function DigitalProductDetailsPage() {
     ? (isArabic ? 'يحدد عند الطلب' : 'À confirmer')
     : deliveryMinutes === 0
       ? (isArabic ? 'فوري' : 'Immédiate')
-      : deliveryMinutes < 60
-        ? (isArabic ? `خلال ${deliveryMinutes} دقيقة` : `Sous ${deliveryMinutes} min`)
-        : (isArabic ? `خلال ${Math.ceil(deliveryMinutes / 60)} ساعة` : `Sous ${Math.ceil(deliveryMinutes / 60)} h`)
+      : deliveryMinutes >= 2880 && deliveryMinutes % 1440 === 0
+        ? (isArabic ? (deliveryMinutes === 2880 ? 'يومان' : `${deliveryMinutes / 1440} أيام`) : `${deliveryMinutes / 1440} jours`)
+        : deliveryMinutes % 60 === 0
+          ? (isArabic ? `${deliveryMinutes / 60} ساعة` : `${deliveryMinutes / 60} h`)
+          : (isArabic ? `${deliveryMinutes} دقيقة` : `${deliveryMinutes} minutes`)
   const warrantyText = fullWarranty
     ? (isArabic ? 'طوال مدة الخدمة' : 'Toute la durée du service')
-    : durationText(warrantyDays)
+    : warrantyDays === 0 ? (isArabic ? 'بدون ضمان' : 'Sans garantie') : durationText(warrantyDays)
 
-  const localizedServiceName =
+  const localizedServiceName = selectedGroup ? getLocalizedGroupName(selectedGroup, language) :
     getLocalizedServiceName(
       service,
       language,
     )
 
-  const localizedServiceDescription =
-    getLocalizedServiceDescription(
-      service,
-      language,
-    )
+  const localizedServiceDescription = selectedGroup?.description_enabled === false ? '' : (selectedGroup && getLocalizedGroupDescription(service.slug, selectedGroup, language)) || (allowParentDescription ? getLocalizedServiceDescription(service, language) : undefined)
+  const localizedInstructions = selectedGroup && getLocalizedFulfillmentInstructions(service.slug, selectedGroup, language)
 
   const serviceLetter =
     service.name
@@ -619,7 +618,7 @@ function DigitalProductDetailsPage() {
               /
             </span>
 
-            <span className="truncate text-slate-700">
+            <Link to={`/services-numeriques/${service.slug}`} className="shrink-0 hover:text-blue-600">{getLocalizedServiceName(service,language)}</Link><span>/</span><span className="truncate text-slate-700">
               {
                 localizedServiceName
               }
@@ -639,14 +638,14 @@ function DigitalProductDetailsPage() {
                     'linear-gradient(145deg, #2563eb 0%, #4338ca 100%)',
                 }}
               >
-                <ServiceLogo
+                {selectedGroup?.image_url ? <img src={selectedGroup.image_url} alt="" className="h-full w-full object-contain"/> : <ServiceLogo
                   serviceSlug={
                     service.slug
                   }
                   fallback={
                     serviceLetter
                   }
-                />
+                />}
               </div>
 
               <div className="min-w-0">
@@ -717,9 +716,9 @@ function DigitalProductDetailsPage() {
               <section aria-label={isArabic ? 'معلومات الخدمة' : 'Informations du service'} className="mt-4 space-y-2" dir={isArabic ? 'rtl' : 'ltr'}>
                 {[
                   { label: isArabic ? 'مدة التسليم' : 'Délai de livraison', value: deliveryMinutes !== null ? deliveryText : '', Icon: Zap },
-                  { label: isArabic ? 'مدة الاشتراك' : 'Durée de l’abonnement', value: validityDays !== null && validityDays > 0 ? durationText(validityDays) : '', Icon: CalendarDays },
+                  { label: isArabic ? 'مدة الاشتراك' : 'Durée de l’abonnement', value: selectedPlan?.duration_value && selectedPlan.duration_unit ? `${selectedPlan.duration_value} ${isArabic ? ({minutes:"دقيقة",hours:"ساعة",days:"يوم",weeks:"أسبوع",months:"شهر",years:"سنة"} as Record<string,string>)[selectedPlan.duration_unit] ?? selectedPlan.duration_unit : ({minutes:"min",hours:"h",days:"jours",weeks:"semaines",months:"mois",years:"ans"} as Record<string,string>)[selectedPlan.duration_unit] ?? selectedPlan.duration_unit}` : validityDays !== null && validityDays > 0 ? durationText(validityDays) : '', Icon: CalendarDays },
                   { label: isArabic ? 'طريقة الاستلام' : 'Mode de réception', value: selectedGroup && selectedGroup.fulfillment.type !== 'coming_soon' ? getLocalizedFulfillmentLabel(selectedGroup.fulfillment.type, language) : '', Icon: KeyRound },
-                  { label: isArabic ? 'الضمان' : 'Garantie', value: fullWarranty || (warrantyDays !== null && warrantyDays > 0) ? warrantyText : '', Icon: ShieldCheck },
+                  { label: isArabic ? 'الضمان' : 'Garantie', value: fullWarranty || warrantyDays !== null ? warrantyText : '', Icon: ShieldCheck },
                 ].map(({label,value,Icon}) => (
                   <div key={label} className="flex items-center justify-between gap-3 rounded-xl bg-slate-100 px-3 py-3 text-sm sm:px-4">
                     <span className="flex min-w-0 items-center gap-2 text-slate-700"><Icon size={19} className="shrink-0 text-blue-600" aria-hidden="true"/>{label}</span>
@@ -738,11 +737,11 @@ function DigitalProductDetailsPage() {
           <Container className="py-3">
             <nav aria-label={isArabic ? 'أقسام الخدمة' : 'Sections du service'} className="mx-auto flex max-w-6xl gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {([
-                { id: 'plans', label: isArabic ? 'الباقات والأسعار' : 'Formules et prix', Icon: ShoppingBag },
+                { id: 'plans', label: isArabic ? 'الباقات' : 'Forfaits', Icon: ShoppingBag },
                 { id: 'description', label: isArabic ? 'الوصف' : 'Description', Icon: FileText },
                 { id: 'instructions', label: isArabic ? 'التعليمات' : 'Instructions', Icon: BookOpen },
-                { id: 'reviews', label: isArabic ? `التقييمات (${validReviews.length})` : `Avis (${validReviews.length})`, Icon: Star },
-              ] as const).map(({id,label,Icon}) => (
+                { id: 'reviews', label: isArabic ? `تقييمات الخدمة (${validReviews.length})` : `Avis du service (${validReviews.length})`, Icon: Star },
+              ] as const).filter(t => t.id !== 'description' || !!localizedServiceDescription).filter(t => t.id !== 'instructions' || !!localizedInstructions).map(({id,label,Icon}) => (
                 <button key={id} type="button" aria-pressed={activeTab === id} onClick={() => setActiveTab(id)} className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold sm:text-sm ${activeTab === id ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-blue-400'}`}>
                   <Icon size={16} aria-hidden="true"/>{label}
                 </button>
@@ -923,56 +922,7 @@ function DigitalProductDetailsPage() {
                       : ''
                   }
                 >
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">
-                    {service.groups
-                      .length >
-                    1
-                      ? isArabic
-                        ? 'الخطوة 2'
-                        : 'ÉTAPE 2'
-                      : isArabic
-                        ? 'الخطط'
-                        : 'FORMULES'}
-                  </p>
-
-                  <h2 className="mt-1 text-[20px] font-black tracking-[-0.02em] text-slate-950 sm:text-2xl">
-                    {getLocalizedGroupName(
-                      selectedGroup,
-                      language,
-                    )}
-                  </h2>
-
-                  {getLocalizedGroupDescription(
-                    service.slug,
-                    selectedGroup,
-                    language,
-                  ) && (
-                    <p className="mt-1 max-w-2xl line-clamp-2 whitespace-pre-line text-sm leading-6 text-slate-500">
-                      {getLocalizedGroupDescription(
-                        service.slug,
-                        selectedGroup,
-                        language,
-                      )}
-                    </p>
-                  )}
-
-                  {selectedGroup
-                    .fulfillment
-                    .type !==
-                    'coming_soon' && (
-                    <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
-
-                      <span className="text-xs font-black text-blue-700">
-                        {getLocalizedFulfillmentLabel(
-                          selectedGroup
-                            .fulfillment
-                            .type,
-                          language,
-                        )}
-                      </span>
-                    </div>
-                  )}
+                  <h2 className="text-lg font-black text-slate-950">{isArabic ? 'اختر الباقة' : 'Choisissez votre forfait'}</h2>
 
                   {selectedGroup.plans
                     .length >
@@ -1088,6 +1038,7 @@ function DigitalProductDetailsPage() {
                                     ' ',
                                   )}
                                 >
+                                  {plan.old_price != null && Number(plan.old_price)>plan.price && <span className="block text-xs font-normal text-slate-400 line-through">{formatPrice(Number(plan.old_price),plan.currency)}</span>}
                                   {formatPrice(
                                     plan.price,
                                     plan.currency,
@@ -1150,14 +1101,13 @@ function DigitalProductDetailsPage() {
                 )}
 
               </>}
-              {activeTab === 'description' && <section>
+              {activeTab === 'description' && localizedServiceDescription && <section>
                 <h2 className="flex items-center gap-2 text-lg font-black text-slate-950"><FileText size={20} className="text-blue-600"/>{isArabic ? 'وصف المنتج' : 'Description du produit'}</h2>
-                {[localizedServiceDescription, selectedGroup ? getLocalizedGroupDescription(service.slug, selectedGroup, language) : ''].filter((value,index,all) => Boolean(value) && all.indexOf(value) === index).map((value,index) => <p key={index} className="mt-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-slate-700">{value}</p>)}
-                {!localizedServiceDescription && !(selectedGroup && getLocalizedGroupDescription(service.slug, selectedGroup, language)) && <p className="mt-4 text-sm text-slate-500">{isArabic ? 'لا يوجد وصف إضافي.' : 'Aucune description supplémentaire.'}</p>}
+                <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-7 text-slate-700">{localizedServiceDescription}</p>
               </section>}
-              {activeTab === 'instructions' && <section>
+              {activeTab === 'instructions' && localizedInstructions && <section>
                 <h2 className="flex items-center gap-2 text-lg font-black text-slate-950"><BookOpen size={20} className="text-blue-600"/>{isArabic ? 'طريقة التفعيل والاستخدام' : 'Activation et utilisation'}</h2>
-                <p className="mt-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-slate-700">{selectedGroup ? (getLocalizedFulfillmentInstructions(service.slug, selectedGroup, language) || (isArabic ? 'لا توجد تعليمات إضافية.' : 'Aucune instruction supplémentaire.')) : (isArabic ? 'اختر الباقة.' : 'Sélectionnez une formule.')}</p>
+                <p className="mt-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-slate-700">{localizedInstructions}</p>
               </section>}
               {activeTab === 'reviews' && <section className="overflow-hidden">
                 <div className="border-b border-slate-100 p-5 sm:p-6">

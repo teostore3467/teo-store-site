@@ -35,6 +35,7 @@ import AdminStoreReviewsPage from './features/admin/pages/AdminStoreReviewsPage'
 // Digital commerce
 import DigitalCheckoutPage from './features/digital-commerce/pages/DigitalCheckoutPage'
 import DigitalOrderStatusPage from './features/digital-commerce/pages/DigitalOrderStatusPage'
+import ServiceOffersPage from './features/digital-commerce/pages/ServiceOffersPage'
 import DigitalProductDetailsPage from './features/digital-commerce/pages/DigitalProductDetailsPage'
 import DigitalStorePage from './features/digital-commerce/pages/DigitalStorePage'
 import EsimCheckoutPage from './features/digital-commerce/pages/EsimCheckoutPage'
@@ -140,8 +141,10 @@ function App() {
 
                 <Route
                   path="/services-numeriques/:productSlug"
-                  element={<DigitalProductDetailsPage />}
+                  element={<ServiceOffersPage />}
                 />
+
+                <Route path="/services-numeriques/:productSlug/offre/:offerKey" element={<DigitalProductDetailsPage />} />
 
                 <Route
                   path="/services-numeriques/:productSlug/commande"

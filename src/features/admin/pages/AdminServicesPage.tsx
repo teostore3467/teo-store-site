@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useLanguage } from '../../../i18n/LanguageContext'
 import { supabase } from '../../../lib/supabase'
 import { serviceCatalog } from '../../digital-commerce/data/serviceCatalog'
 
 type Availability = 'available' | 'out_of_stock' | 'coming_soon'
 type Service = {
+  name_ar?: string | null
+  name_fr?: string | null
+  image_url?: string | null
   id: string
   slug: string
   name: string
@@ -16,12 +20,15 @@ type Service = {
   deleted_at: string | null
   digital_service_groups?: { count: number }[]
 }
-type Draft = { slug: string; name: string; category: string; availability: Availability; description: string }
-const emptyDraft: Draft = { slug: '', name: '', category: '', availability: 'available', description: '' }
+type Draft = { slug: string; name: string; name_ar: string; name_fr: string; category: string; availability: Availability; description: string }
+const emptyDraft: Draft = { slug: '', name: '', name_ar: '', name_fr: '', category: '', availability: 'available', description: '' }
 const statusText: Record<Availability, string> = { available: 'Disponible', out_of_stock: 'Rupture', coming_soon: 'Bientôt' }
 const inputClass = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
 
 export default function AdminServicesPage() {
+  const {language} = useLanguage()
+  const ar = language === 'ar'
+  const tr=(fr:string,a:string)=>ar?a:fr
   const [services, setServices] = useState<Service[]>([])
   const [logos, setLogos] = useState<Record<string, string>>({})
   const [tab, setTab] = useState<'current' | 'trash'>('current')
@@ -37,7 +44,7 @@ export default function AdminServicesPage() {
     try {
       const [result, logoResult] = await Promise.all([
         supabase.from('digital_services')
-          .select('id, slug, name, category, availability, description, active, sort_order, deleted_at, digital_service_groups(count)')
+          .select('id, slug, name, name_ar, name_fr, image_url, category, availability, description, active, sort_order, deleted_at, digital_service_groups(count)')
           .order('sort_order', { ascending: true }).order('name', { ascending: true }),
         supabase.from('service_logos').select('service_slug, logo_path'),
       ])
@@ -69,7 +76,7 @@ export default function AdminServicesPage() {
     const q = query.trim().toLocaleLowerCase()
     return (tab === 'current' ? current : trash).filter(s =>
       (tab === 'trash' || statusFilter === 'all' || (statusFilter === 'active' ? s.active : !s.active)) &&
-      (!q || [s.name, s.slug, s.category, s.description ?? ''].some(v => v.toLocaleLowerCase().includes(q)))
+      (!q || [s.name, s.slug, s.name_ar ?? '', s.name_fr ?? '', s.category, s.description ?? ''].some(v => v.toLocaleLowerCase().includes(q)))
     )
   }, [current, trash, tab, statusFilter, query])
 
@@ -97,14 +104,14 @@ export default function AdminServicesPage() {
 
   const createService = async () => {
     if (busy) return
-    const slug = draft.slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '')
+    const slug = (draft.slug.trim() || draft.name.trim()).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '')
     if (!slug || !draft.name.trim() || !draft.category.trim()) {
       setMessage({ error: true, text: 'Slug, nom et catégorie sont obligatoires.' }); return
     }
     setBusy('create')
     try {
       const { data, error } = await supabase.from('digital_services').insert({
-        slug, name: draft.name.trim(), category: draft.category.trim(), availability: draft.availability,
+        slug, name: draft.name.trim(), name_ar: draft.name_ar.trim() || null, name_fr: draft.name_fr.trim() || null, category: draft.category.trim(), availability: draft.availability,
         description: draft.description.trim() || null, active: false, sort_order: current.length,
       }).select('id')
       if (error) throw error
@@ -136,12 +143,12 @@ export default function AdminServicesPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">TEO STORE · ADMIN</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">Gestion des services</h1>
-          <p className="mt-1 text-sm text-slate-500">Cartes compactes · Tous les paramètres dans chaque service</p>
+          <h1 className="mt-1 text-2xl font-bold text-slate-900">{tr('Services parents','الخدمات الأم')}</h1>
+          <p className="mt-1 text-sm text-slate-500">{tr('Gérez les produits et forfaits de chaque service','أدر المنتجات والباقات التابعة لكل خدمة')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => { setLoading(true); void load() }} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700">Actualiser</button>
-          <button type="button" onClick={() => setCreateOpen(true)} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white">+ Nouveau service</button>
+          <button type="button" onClick={() => setCreateOpen(true)} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white">{tr('+ Nouveau service','+ خدمة أم جديدة')}</button>
         </div>
       </div>
 
@@ -177,7 +184,7 @@ export default function AdminServicesPage() {
           {visible.map(service => <div key={service.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-blue-200 hover:shadow-md">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 text-base font-bold text-slate-500">
-                {logos[service.slug] ? <img src={logos[service.slug]} alt="" className="h-full w-full object-contain" /> : service.name.slice(0, 2).toUpperCase()}
+                {(service.image_url || logos[service.slug]) ? <img src={service.image_url || logos[service.slug]} alt="" className="h-full w-full object-contain" /> : service.name.slice(0, 2).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1"><h2 className="truncate text-sm font-bold text-slate-900" title={service.name}>{service.name}</h2><p className="truncate text-xs text-slate-500">{service.category}</p></div>
               <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${service.deleted_at ? 'bg-slate-400' : service.active ? 'bg-emerald-500' : 'bg-amber-400'}`} title={service.deleted_at ? 'Corbeille' : service.active ? 'Activé' : 'Désactivé'} />
@@ -187,7 +194,7 @@ export default function AdminServicesPage() {
               <span className="shrink-0 text-xs text-slate-400">{service.digital_service_groups?.[0]?.count ?? 0} groupes</span>
             </div>
             {tab === 'current' ? <div className="mt-3 flex gap-2">
-              <Link to={`/admin/services/${service.slug}`} className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-center text-xs font-semibold text-white">Gérer</Link>
+              <Link to={`/admin/services/${service.slug}`} className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-center text-xs font-semibold text-white">{tr('Gérer','إدارة')}</Link>
               <button type="button" disabled={Boolean(busy)} onClick={() => void changeService(service, service.active ? 'deactivate' : 'activate')} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 disabled:opacity-50">{service.active ? 'Désactiver' : 'Activer'}</button>
               <button type="button" disabled={Boolean(busy)} title="Déplacer dans la corbeille" aria-label={`Mettre ${service.name} dans la corbeille`} onClick={() => void changeService(service, 'trash')} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-medium text-rose-600 disabled:opacity-50">Corbeille</button>
             </div> : <div className="mt-3"><button type="button" disabled={Boolean(busy)} onClick={() => void changeService(service, 'restore')} className="w-full rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Restaurer le service</button></div>}
@@ -196,9 +203,11 @@ export default function AdminServicesPage() {
       )}
 
       {createOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" role="dialog" aria-modal="true" aria-label="Nouveau service">
-        <div className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-5 shadow-xl">
+        <div className="max-h-[90vh] overflow-y-auto w-full max-w-lg space-y-4 rounded-2xl bg-white p-5 shadow-xl">
           <div className="flex items-center justify-between"><h2 className="text-lg font-bold text-slate-900">Nouveau service</h2><button type="button" onClick={() => setCreateOpen(false)} className="text-slate-500">Fermer</button></div>
           <label className="block text-sm text-slate-700">Nom<input className={`${inputClass} mt-1`} value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} /></label>
+          <label className="block text-sm text-slate-700">الاسم بالعربية<input dir="rtl" className={`${inputClass} mt-1`} value={draft.name_ar} onChange={e=>setDraft(d=>({...d,name_ar:e.target.value}))}/></label>
+          <label className="block text-sm text-slate-700">Nom français<input className={`${inputClass} mt-1`} value={draft.name_fr} onChange={e=>setDraft(d=>({...d,name_fr:e.target.value}))}/></label>
           <label className="block text-sm text-slate-700">Slug (identifiant URL)<input className={`${inputClass} mt-1`} value={draft.slug} onChange={e => setDraft(d => ({ ...d, slug: e.target.value }))} placeholder="exemple-service" /></label>
           <label className="block text-sm text-slate-700">Catégorie<input className={`${inputClass} mt-1`} value={draft.category} onChange={e => setDraft(d => ({ ...d, category: e.target.value }))} /></label>
           <label className="block text-sm text-slate-700">Disponibilité<select className={`${inputClass} mt-1`} value={draft.availability} onChange={e => setDraft(d => ({ ...d, availability: e.target.value as Availability }))}><option value="available">Disponible</option><option value="out_of_stock">Rupture</option><option value="coming_soon">Bientôt</option></select></label>
