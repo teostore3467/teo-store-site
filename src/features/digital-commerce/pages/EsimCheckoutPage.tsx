@@ -71,6 +71,17 @@ type PaymentMethodRow = {
   instructions_ar: string | null
   is_active: boolean
   sort_order: number
+  name_ar: string | null
+  name_fr: string | null
+  payment_type: string | null
+  beneficiary_name: string | null
+  payment_network: string | null
+  payment_currency: string | null
+  receiver_label_ar: string | null
+  receiver_label_fr: string | null
+  sender_label_ar: string | null
+  sender_label_fr: string | null
+  qr_image_path: string | null
 }
 
 type PaymentMethod = {
@@ -83,6 +94,17 @@ type PaymentMethod = {
   instructionsAr: string
   active: boolean
   sortOrder: number
+  name_ar: string | null
+  name_fr: string | null
+  payment_type: string | null
+  beneficiary_name: string | null
+  payment_network: string | null
+  payment_currency: string | null
+  receiver_label_ar: string | null
+  receiver_label_fr: string | null
+  sender_label_ar: string | null
+  sender_label_fr: string | null
+  qr_image_path: string | null
 }
 
 type ToastState = {
@@ -400,13 +422,25 @@ function EsimCheckoutPage() {
                 instructions_fr,
                 instructions_ar,
                 is_active,
-                sort_order
+                sort_order,
+                name_ar,
+                name_fr,
+                payment_type,
+                beneficiary_name,
+                payment_network,
+                payment_currency,
+                receiver_label_ar,
+                receiver_label_fr,
+                sender_label_ar,
+                sender_label_fr,
+                qr_image_path
               `,
             )
             .eq(
               'is_active',
               true,
             )
+            .eq('payment_currency', 'MRU')
             .order(
               'sort_order',
               {
@@ -475,6 +509,18 @@ function EsimCheckoutPage() {
 
               sortOrder:
                 row.sort_order,
+              name_ar: row.name_ar,
+              name_fr: row.name_fr,
+              payment_type: row.payment_type,
+              beneficiary_name: row.beneficiary_name,
+              payment_network: row.payment_network,
+              payment_currency: row.payment_currency,
+              receiver_label_ar: row.receiver_label_ar,
+              receiver_label_fr: row.receiver_label_fr,
+              sender_label_ar: row.sender_label_ar,
+              sender_label_fr: row.sender_label_fr,
+              qr_image_path: row.qr_image_path,
+
             }),
           )
 
@@ -1195,7 +1241,18 @@ function EsimCheckoutPage() {
                   instructions_fr,
                   instructions_ar,
                   is_active,
-                  sort_order
+                  sort_order,
+                name_ar,
+                name_fr,
+                payment_type,
+                beneficiary_name,
+                payment_network,
+                payment_currency,
+                receiver_label_ar,
+                receiver_label_fr,
+                sender_label_ar,
+                sender_label_fr,
+                qr_image_path
                 `,
               )
               .eq(
@@ -1206,6 +1263,7 @@ function EsimCheckoutPage() {
                 'is_active',
                 true,
               )
+              .eq('payment_currency', 'MRU')
               .maybeSingle(),
           ])
 
@@ -1924,7 +1982,7 @@ function EsimCheckoutPage() {
 
                     {paymentMethods.length >
                     0 ? (
-                      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
                         {paymentMethods.map(
                           (
                             method,
@@ -1944,7 +2002,9 @@ function EsimCheckoutPage() {
                                   method.id
                                 }
                                 type="button"
+                                aria-pressed={selected}
                                 onClick={() => {
+                                  if (!selected) { setProofFile(null); setSenderNumber('') }
                                   setSelectedPaymentCode(
                                     method.code,
                                   )
@@ -1958,11 +2018,11 @@ function EsimCheckoutPage() {
                                   )
                                 }}
                                 className={[
-                                  'relative min-h-[116px] overflow-hidden rounded-[18px] border p-3 transition',
+                                  'relative min-w-0 rounded-xl p-2 transition',
 
                                   selected
-                                    ? 'border-2 border-blue-600 bg-blue-50 shadow-sm'
-                                    : 'border-slate-200 bg-white hover:border-blue-200',
+                                    ? 'bg-blue-50'
+                                    : 'hover:bg-slate-50',
                                 ].join(
                                   ' ',
                                 )}
@@ -1973,7 +2033,7 @@ function EsimCheckoutPage() {
                                   </span>
                                 )}
 
-                                <div className="mx-auto flex h-14 w-14 items-center justify-center overflow-hidden rounded-[16px] border border-slate-100 bg-white">
+                                <div className={`mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-white ring-2 ${selected ? 'ring-blue-600' : 'ring-slate-200'}`}>
                                   {imageUrl ? (
                                     <img
                                       src={
@@ -1998,7 +2058,7 @@ function EsimCheckoutPage() {
 
                                 <p
                                   className={[
-                                    'mt-3 truncate text-sm font-black',
+                                    'mt-2 break-words text-xs font-black',
 
                                     selected
                                       ? 'text-blue-700'
@@ -2008,7 +2068,7 @@ function EsimCheckoutPage() {
                                   )}
                                 >
                                   {
-                                    method.name
+                                    (isArabic ? method.name_ar : method.name_fr) || method.name
                                   }
                                 </p>
                               </button>
@@ -2079,14 +2139,12 @@ function EsimCheckoutPage() {
                         <div className="grid border-t border-white/10 sm:grid-cols-2">
                           <div className="border-b border-white/10 p-4 sm:border-b-0 sm:border-e">
                             <p className="text-xs font-black uppercase text-white/40">
-                              {isArabic
-                                ? 'رقم المستفيد'
-                                : 'Numéro bénéficiaire'}
+                              {(isArabic ? selectedMethod.receiver_label_ar : selectedMethod.receiver_label_fr) || (isArabic ? 'بيانات المستفيد' : 'Identifiant bénéficiaire')}
                             </p>
 
                             <p
                               dir="ltr"
-                              className="mt-2 text-left text-xl font-black"
+                              className="mt-2 break-all text-left text-xl font-black"
                             >
                               {
                                 selectedMethod.paymentNumber
@@ -2153,6 +2211,7 @@ function EsimCheckoutPage() {
                         </div>
                       </section>
 
+                      {(selectedMethod.beneficiary_name || selectedMethod.payment_network || selectedMethod.qr_image_path) && <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">{selectedMethod.beneficiary_name && <p>{isArabic ? 'المستفيد' : 'Bénéficiaire'}: {selectedMethod.beneficiary_name}</p>}{selectedMethod.payment_network && <p>{isArabic ? 'الشبكة' : 'Réseau'}: {selectedMethod.payment_network}</p>}{selectedMethod.qr_image_path && <img className="mx-auto h-32 w-32 rounded-xl bg-white object-contain" alt="QR" src={supabase.storage.from('payment-methods').getPublicUrl(selectedMethod.qr_image_path).data.publicUrl} />}</section>}
                       <section className="rounded-[20px] border border-blue-100 bg-blue-50/60 p-4 sm:p-5">
                         <h3 className="text-sm font-black text-slate-950">
                           {isArabic
@@ -2208,16 +2267,14 @@ function EsimCheckoutPage() {
 
                   <label className="block">
                     <span className="text-sm font-black text-slate-700">
-                      {isArabic
-                        ? 'الرقم الذي دفعت منه'
-                        : 'Numéro utilisé pour payer'}
+                      {(isArabic ? selectedMethod?.sender_label_ar : selectedMethod?.sender_label_fr) || (isArabic ? 'رقم المرسل أو مرجع التحويل' : 'Identifiant expéditeur ou référence')}
                     </span>
 
                     <p className="mt-1 text-xs text-slate-400">
                       {selectedMethod
                         ? isArabic
-                          ? `أدخل رقم حساب ${selectedMethod.name} الذي أرسلت منه المبلغ.`
-                          : `Indiquez le numéro ${selectedMethod.name} utilisé pour envoyer le paiement.`
+                          ? `أدخل معرف المرسل أو مرجع التحويل عبر ${selectedMethod.name}.`
+                          : `Indiquez votre identifiant ou référence de transfert ${selectedMethod.name}.`
                         : isArabic
                           ? 'اختر وسيلة الدفع أولًا.'
                           : 'Choisissez d’abord un moyen de paiement.'}
@@ -2225,7 +2282,7 @@ function EsimCheckoutPage() {
 
                     <input
                       dir="ltr"
-                      type="tel"
+                      type="text"
                       required
                       value={
                         senderNumber

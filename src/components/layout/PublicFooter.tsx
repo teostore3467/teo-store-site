@@ -42,7 +42,7 @@ export default function PublicFooter() {
     async function load() {
       const [s, p] = await Promise.all([
         supabase.from('app_settings').select('setting_key,setting_value').in('setting_key', ['store', 'support', 'footer_public']),
-        supabase.from('payment_methods').select('name,image_path').eq('is_active', true).order('sort_order', { ascending: true }),
+        supabase.from('payment_methods').select('name,image_path').eq('is_active', true).eq('show_in_footer', true).order('sort_order', { ascending: true }),
       ])
       if (!alive) return
       if (!s.error) setSettings(Object.fromEntries((s.data ?? []).map(row => [row.setting_key, row.setting_value])))

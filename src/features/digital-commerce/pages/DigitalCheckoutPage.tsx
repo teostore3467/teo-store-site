@@ -26,6 +26,17 @@ type PaymentMethod = {
   instructions_ar: string | null
   is_active: boolean
   sort_order: number
+  name_ar: string | null
+  name_fr: string | null
+  payment_type: string | null
+  beneficiary_name: string | null
+  payment_network: string | null
+  payment_currency: string | null
+  receiver_label_ar: string | null
+  receiver_label_fr: string | null
+  sender_label_ar: string | null
+  sender_label_fr: string | null
+  qr_image_path: string | null
 }
 
 const PAYMENT_PROOFS_BUCKET = 'payment-proofs'
@@ -110,8 +121,8 @@ function DigitalCheckoutPage() {
 
   const loadPaymentMethods = useCallback(async () => {
     const { data, error } = await supabase.from('payment_methods')
-      .select('id,code,name,payment_number,image_path,instructions_fr,instructions_ar,is_active,sort_order')
-      .eq('is_active', true).order('sort_order', { ascending: true }).order('created_at', { ascending: true })
+      .select('id,code,name,payment_number,image_path,instructions_fr,instructions_ar,is_active,sort_order,name_ar,name_fr,payment_type,beneficiary_name,payment_network,payment_currency,receiver_label_ar,receiver_label_fr,sender_label_ar,sender_label_fr,qr_image_path')
+      .eq('is_active', true).eq('payment_currency', 'MRU').order('sort_order', { ascending: true }).order('created_at', { ascending: true })
     if (error) console.error('Unable to load payment methods:', error)
     const methods = error ? [] : (data ?? []) as PaymentMethod[]
     setPaymentMethods(methods)
@@ -277,7 +288,7 @@ function DigitalCheckoutPage() {
         return
       }
       const { data: method, error: methodError } = await supabase.from('payment_methods')
-        .select('code,payment_number').eq('code', selectedPayment.code).eq('is_active', true).maybeSingle()
+        .select('code,payment_number').eq('code', selectedPayment.code).eq('is_active', true).eq('payment_currency', 'MRU').maybeSingle()
       if (methodError) throw methodError
       if (!method) {
         await loadPaymentMethods()
@@ -355,7 +366,7 @@ function DigitalCheckoutPage() {
     t(`افتح تطبيق ${selectedPayment.name} على هاتفك.`, `Ouvrez l’application ${selectedPayment.name} sur votre téléphone.`),
     t('سجّل الدخول إلى حسابك.', 'Connectez-vous à votre compte.'),
     t('اختر التحويل أو إرسال الأموال.', 'Choisissez le transfert ou l’envoi d’argent.'),
-    t(`أدخل رقم المستفيد الخاص بـ TEO STORE: ${selectedPayment.payment_number}.`, `Saisissez le numéro bénéficiaire TEO STORE : ${selectedPayment.payment_number}.`),
+    t(`أدخل بيانات المستفيد الخاصة بـ TEO STORE: ${selectedPayment.payment_number}.`, `Saisissez l’identifiant bénéficiaire TEO STORE : ${selectedPayment.payment_number}.`),
     t(`أدخل مبلغ الطلب بالضبط: ${totalLabel}.`, `Saisissez exactement le montant : ${totalLabel}.`),
     t('راجع رقم المستفيد والمبلغ جيدًا ثم أكد التحويل.', 'Vérifiez soigneusement le numéro et le montant puis confirmez le transfert.'),
     t('بعد نجاح العملية، التقط صورة واضحة لإثبات الدفع.', 'Après le paiement, faites une capture d’écran claire de la transaction.'),
@@ -429,14 +440,14 @@ function DigitalCheckoutPage() {
           <section className={panel}>
             <SectionTitle number={3} title={t('الدفع', 'Paiement')} subtitle={t('اختر تطبيق الدفع واتبع الخطوات', 'Choisissez votre application et suivez les étapes')} />
             {paymentMethodsLoading ? <div className="mt-5 rounded-2xl bg-slate-50 p-5 text-center text-xs">{t('جارٍ تحميل وسائل الدفع...', 'Chargement des moyens de paiement...')}</div>
-              : paymentMethods.length ? <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">{paymentMethods.map(method => {
+              : paymentMethods.length ? <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">{paymentMethods.map(method => {
                 const selected = method.code === selectedPaymentCode
                 return <button type="button" key={method.id} aria-pressed={selected}
-                  className={`relative rounded-[18px] border p-3 text-center ${selected ? 'border-2 border-blue-600 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                  className={`relative min-w-0 rounded-xl p-2 text-center ${selected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
                   onClick={() => { if (method.code !== selectedPaymentCode) { setPaymentProofFile(null); setPaymentSenderNumber('') }; setSelectedPaymentCode(method.code); setPaymentNumberCopied(false); setSubmissionError(null) }}>
                   {selected && <span className="absolute end-2 top-2 rounded-full bg-blue-600 px-1 text-white">✓</span>}
-                  <span className="mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-slate-50"><PaymentLogo method={method} /></span>
-                  <span className="mt-3 block truncate text-xs font-black">{method.name}</span>
+                  <span className={`mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-white ring-2 ${selected ? 'ring-blue-600' : 'ring-slate-200'}`}><PaymentLogo method={method} /></span>
+                  <span className="mt-2 block break-words text-xs font-black">{(isArabic ? method.name_ar : method.name_fr) || method.name}</span>
                   {selected && <small className="text-blue-600">{t('تم الاختيار', 'Sélectionné')}</small>}
                 </button>
               })}</div> : <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-center text-xs text-amber-700">{t('لا توجد وسيلة دفع متاحة حاليًا.', 'Aucun moyen de paiement n’est disponible actuellement.')}</div>}
@@ -447,9 +458,10 @@ function DigitalCheckoutPage() {
                   <div><p className={`${smallTitle} text-white/50`}>{t('طريقة الدفع', 'Paiement via')}</p><p className="mt-1 font-black">{selectedPayment.name}</p></div>
                 </div><p className="mt-4 text-xs leading-5 text-white/60">{(isArabic ? selectedPayment.instructions_ar : selectedPayment.instructions_fr)?.trim() ||
                   t(`قم بتحويل مبلغ الطلب من تطبيق ${selectedPayment.name} إلى رقم TEO STORE ثم ارفع إثبات الدفع.`, `Effectuez le transfert depuis ${selectedPayment.name} vers le numéro TEO STORE puis ajoutez votre preuve de paiement.`)}</p></div>
+                {selectedPayment.beneficiary_name && <p className="px-4 pb-2 text-sm">{t('المستفيد', 'Bénéficiaire')}: {selectedPayment.beneficiary_name}</p>}{selectedPayment.payment_network && <p className="px-4 pb-2 text-sm">{t('الشبكة', 'Réseau')}: {selectedPayment.payment_network}</p>}{selectedPayment.qr_image_path && <img className="mx-auto mb-4 h-32 w-32 rounded-xl bg-white object-contain" alt="QR" src={supabase.storage.from('payment-methods').getPublicUrl(selectedPayment.qr_image_path).data.publicUrl} />}
                 <div className="grid border-t border-white/10 sm:grid-cols-2">
                   <div className="p-4"><p className={smallTitle}>{t('المبلغ المطلوب', 'Montant à envoyer')}</p><p dir="ltr" className="mt-2 text-xl font-black">{totalLabel}</p></div>
-                  <div className="p-4"><p className={smallTitle}>{t('رقم المستفيد', 'Numéro bénéficiaire')}</p><p dir="ltr" className="mt-2 text-xl font-black">{selectedPayment.payment_number}</p></div>
+                  <div className="p-4"><p className={smallTitle}>{(isArabic ? selectedPayment.receiver_label_ar : selectedPayment.receiver_label_fr) || t('بيانات المستفيد', 'Identifiant bénéficiaire')}</p><p dir="ltr" className="mt-2 break-all text-xl font-black">{selectedPayment.payment_number}</p></div>
                 </div>
                 <div className="border-t border-white/10 p-3"><button type="button" onClick={() => void copyPaymentNumber()} className={`h-11 w-full rounded-xl text-xs font-black ${paymentNumberCopied ? 'bg-emerald-500 text-white' : 'bg-white text-slate-950'}`}>
                   {paymentNumberCopied ? t('تم نسخ الرقم ✓', 'Numéro copié ✓') : t('نسخ رقم المستفيد', 'Copier le numéro')}
@@ -463,9 +475,9 @@ function DigitalCheckoutPage() {
                 <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{t('تأكد من رقم المستفيد والمبلغ قبل تأكيد التحويل. لا ترسل مبلغًا إلى رقم آخر.', 'Vérifiez le numéro du bénéficiaire et le montant avant de confirmer. N’envoyez pas le paiement vers un autre numéro.')}</p>
               </details>
               <label className="block rounded-[20px] border border-slate-200 bg-slate-50 p-4 text-xs font-black">
-                {t('الرقم الذي دفعت منه', 'Numéro utilisé pour payer')} <span className="text-red-500">*</span>
-                <small className="mt-1 block font-normal text-slate-400">{t(`أدخل رقم حساب ${selectedPayment.name} الذي أرسلت منه المبلغ.`, `Indiquez le numéro du compte ${selectedPayment.name} utilisé pour envoyer le paiement.`)}</small>
-                <input dir="ltr" className={inputClass} type="tel" inputMode="numeric" value={paymentSenderNumber} placeholder="Ex. 22 00 00 00" onChange={e => { setPaymentSenderNumber(e.target.value); setSubmissionError(null) }} />
+                {(isArabic ? selectedPayment.sender_label_ar : selectedPayment.sender_label_fr) || t('رقم المرسل أو مرجع التحويل', 'Identifiant expéditeur ou référence')} <span className="text-red-500">*</span>
+                <small className="mt-1 block font-normal text-slate-400">{t(`أدخل معرف المرسل أو مرجع التحويل عبر ${selectedPayment.name}.`, `Indiquez votre identifiant ou référence de transfert ${selectedPayment.name}.`)}</small>
+                <input dir="ltr" className={inputClass} type="text" value={paymentSenderNumber} onChange={e => { setPaymentSenderNumber(e.target.value); setSubmissionError(null) }} />
               </label>
               <div><p className="text-xs font-black">{t('إثبات الدفع', 'Preuve de paiement')} <span className="text-red-500">*</span></p>
                 <p className="mt-1 text-xs text-slate-400">{t('بعد نجاح الدفع، ارفع صورة واضحة تظهر عملية التحويل.', 'Après le paiement, ajoutez une capture d’écran claire de la transaction.')}</p>
