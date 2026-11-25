@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useState,
 } from 'react'
 
@@ -901,23 +900,6 @@ function AdminServiceEditPage() {
 
   const [detailsTab, setDetailsTab] = useState<'general' | 'catalog' | 'legacy'>('catalog')
 
-  const totalPlans =
-    useMemo(
-      () =>
-        groups.reduce(
-          (
-            total,
-            group,
-          ) =>
-            total +
-            group.plans.length,
-          0,
-        ),
-      [
-        groups,
-      ],
-    )
-
   const updateServiceField =
     <K extends keyof ServiceRow>(
       key: K,
@@ -987,10 +969,6 @@ function AdminServiceEditPage() {
               service.description?.trim() || null,
             description_ar: service.description_ar?.trim() || null,
             description_fr: service.description_fr?.trim() || null,
-            delivery_minutes: service.delivery_minutes,
-            warranty_days: service.warranty_days,
-            warranty_full_subscription: service.warranty_full_subscription ?? false,
-            validity_days: service.validity_days,
             availability:
               service.availability,
             active:
@@ -1721,7 +1699,7 @@ function AdminServiceEditPage() {
       )}
 
       <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        <Link to="/admin/services" className="text-sm font-bold text-blue-600 hover:underline">← Retour aux services</Link>
+        <Link to="/admin/services" className="text-sm font-bold text-blue-600 hover:underline">{tr('← Retour aux services','العودة إلى الخدمات →')}</Link>
         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-widest text-slate-400">TEO STORE / Gestion du service</p>
@@ -1761,7 +1739,7 @@ function AdminServiceEditPage() {
                   : <span className="text-xl font-black text-slate-400">{service.name.slice(0, 2).toUpperCase()}</span>}
               </div>
               <div>
-                <h2 className="text-base font-black text-slate-950">Logo du service</h2>
+                <h2 className="text-base font-black text-slate-950">{tr('Image du service','صورة الخدمة')}</h2>
                 <p className="mt-1 text-xs text-slate-500">PNG, JPG ou WEBP · 3 Mo maximum</p>
                 {logoLoadingError && <p className="mt-1 text-xs text-rose-600">{logoLoadingError}</p>}
               </div>
@@ -1777,225 +1755,21 @@ function AdminServiceEditPage() {
             </div>
           </div>
         </div>
-        <section className="rounded-[22px] border border-slate-200 bg-white p-5">
-          <h2 className="text-lg font-black text-slate-950">
-            Informations principales
-          </h2>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <label className="block">
-              <span className="text-sm font-black text-slate-700">
-                Nom
-              </span>
-              <input
-                type="text"
-                value={
-                  service.name
-                }
-                onChange={(
-                  event,
-                ) =>
-                  updateServiceField(
-                    'name',
-                    event.target.value,
-                  )
-                }
-                className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-sm font-semibold outline-none focus:border-blue-500 focus:bg-white"
-              />
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-black text-slate-700">
-                Catégorie
-              </span>
-              <input
-                type="text"
-                value={
-                  service.category
-                }
-                onChange={(
-                  event,
-                ) =>
-                  updateServiceField(
-                    'category',
-                    event.target.value,
-                  )
-                }
-                className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-sm font-semibold outline-none focus:border-blue-500 focus:bg-white"
-              />
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-black text-slate-700">
-                Disponibilité
-              </span>
-              <select
-                value={
-                  service.availability
-                }
-                onChange={(
-                  event,
-                ) =>
-                  updateServiceField(
-                    'availability',
-                    event.target
-                      .value as AvailabilityStatus,
-                  )
-                }
-                className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-sm font-black outline-none focus:border-blue-500"
-              >
-                <option value="available">
-                  Disponible
-                </option>
-                <option value="out_of_stock">
-                  Rupture
-                </option>
-                <option value="coming_soon">
-                  Bientôt
-                </option>
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-black text-slate-700">
-                Ordre
-              </span>
-              <input
-                type="number"
-                min="0"
-                value={
-                  service.sort_order
-                }
-                onChange={(
-                  event,
-                ) =>
-                  updateServiceField(
-                    'sort_order',
-                    Number(
-                      event.target.value,
-                    ),
-                  )
-                }
-                className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-sm font-semibold outline-none focus:border-blue-500"
-              />
-            </label>
-
-            <label className="md:col-span-2">
-              <span className="text-sm font-black text-slate-700">
-                Description
-              </span>
-              <textarea
-                rows={4}
-                value={
-                  service.description ??
-                  ''
-                }
-                onChange={(
-                  event,
-                ) =>
-                  updateServiceField(
-                    'description',
-                    event.target.value,
-                  )
-                }
-                className="mt-2 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 p-4 text-sm font-semibold leading-6 outline-none focus:border-blue-500 focus:bg-white"
-              />
-            </label>
-
-            <div className="md:col-span-2 grid gap-3 sm:grid-cols-2">
-              {(['name_ar','name_fr'] as const).map(field => <label key={field} className="block text-sm font-bold text-slate-700">{field === 'name_ar' ? 'الاسم بالعربية' : 'Nom français'}<input dir={field === 'name_ar' ? 'rtl' : 'ltr'} value={service[field] ?? ''} onChange={e=>updateServiceField(field,e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3"/></label>)}
-            </div>
-            <div className="md:col-span-2 rounded-2xl border border-blue-100 bg-blue-50/50 p-5 space-y-4">
-              <div><h3 className="font-black text-slate-900">Descriptions bilingues / الوصف بلغتين</h3><p className="text-xs text-slate-500 mt-1">Une ligne par avantage. Les retours à la ligne sont conservés. / كل ميزة في سطر مستقل.</p></div>
-              {([['description_ar','الوصف بالعربية','rtl'],['description_fr','Description en français','ltr']] as const).map(([field,label,dir]) => (
-                <label key={field} className="block">
-                  <span className="text-sm font-bold text-slate-700">{label}</span>
-                  <textarea dir={dir} rows={6} value={service[field] ?? ''} onChange={e => updateServiceField(field,e.target.value)} placeholder={dir === 'rtl' ? '✅ ميزة أولى\n✅ ميزة ثانية\nℹ️ شروط الاستخدام' : '✅ Premier avantage\n✅ Deuxième avantage\nℹ️ Conditions'} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm leading-7 outline-none focus:border-blue-500" />
-                  {service[field]?.trim() && <div dir={dir} className="mt-2 whitespace-pre-wrap break-words rounded-xl bg-white p-3 text-sm leading-7 text-slate-700"><span className="block text-xs font-bold text-blue-600 mb-1">{dir === 'rtl' ? 'معاينة الوصف' : 'Aperçu'}</span>{service[field]}</div>}
-                </label>
-              ))}
-            </div>
-            <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
-              <h3 className="font-black text-slate-900">Livraison · Garantie · Validité / التسليم والضمان والصلاحية</h3>
-              <p className="text-xs text-slate-500">Valeurs par défaut du service. Une valeur vide signifie non définie. / اترك الحقل فارغًا إذا لم تحدده.</p>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {([['delivery_minutes','Livraison (minutes) / التسليم بالدقائق'],['warranty_days','Garantie (jours) / الضمان بالأيام'],['validity_days','Validité (jours) / الصلاحية بالأيام']] as const).map(([field,label]) => (
-                  <label key={field} className="block text-xs font-bold text-slate-700">{label}<input type="number" min="0" value={service[field] ?? ''} onChange={e => updateServiceField(field,e.target.value === '' ? null : Math.max(0,Number(e.target.value)))} placeholder="Non défini" className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-blue-500" /></label>
-                ))}
-              </div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" checked={service.warranty_full_subscription ?? false} onChange={e => updateServiceField('warranty_full_subscription',e.target.checked)} /> Garantie pendant tout l'abonnement / الضمان طوال الاشتراك</label>
-              <p className="text-xs text-slate-500">0 minute = livraison instantanée. 0 jour de garantie = sans garantie.</p>
-            </div>
-            <label className="flex items-center gap-3 rounded-[14px] border border-slate-200 bg-slate-50 p-4 md:col-span-2">
-              <input
-                type="checkbox"
-                checked={
-                  service.active
-                }
-                onChange={(
-                  event,
-                ) =>
-                  updateServiceField(
-                    'active',
-                    event.target.checked,
-                  )
-                }
-                className="h-4 w-4"
-              />
-              <div>
-                <p className="text-sm font-black text-slate-800">
-                  Service actif
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Désactivez-le pour le retirer du catalogue public sans supprimer ses données.
-                </p>
-              </div>
-            </label>
+        <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5" dir={ar?'rtl':'ltr'}>
+          <h2 className="text-lg font-black text-slate-950">{tr('Informations du service','معلومات الخدمة')}</h2>
+          <p className="mt-1 text-sm text-slate-500">{tr('Les prix, délais et garanties se règlent dans chaque produit.','الأسعار والتسليم والضمان تُحدد داخل كل منتج.')}</p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-bold">{tr('Nom français','الاسم بالفرنسية')}<input dir="ltr" value={service.name_fr ?? service.name} onChange={e=>{const v=e.target.value;setService(prev=>prev?{...prev,name_fr:v,name:v}:prev)}} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3"/></label>
+            <label className="text-sm font-bold">{tr('Nom arabe','الاسم بالعربية')}<input dir="rtl" value={service.name_ar ?? ''} onChange={e=>updateServiceField('name_ar',e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3"/></label>
+            <label className="text-sm font-bold">{tr('Catégorie','التصنيف')}<input value={service.category} onChange={e=>updateServiceField('category',e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3"/></label>
+            <label className="text-sm font-bold">{tr('Ordre','الترتيب')}<input type="number" min="0" value={service.sort_order} onChange={e=>updateServiceField('sort_order',Number(e.target.value))} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3"/></label>
+            <label className="text-sm font-bold">{tr('Disponibilité','التوفر')}<select value={service.availability} onChange={e=>updateServiceField('availability',e.target.value as AvailabilityStatus)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3"><option value="available">{tr('Disponible','متوفر')}</option><option value="out_of_stock">{tr('Indisponible','غير متوفر')}</option><option value="coming_soon">{tr('Bientôt','قريبًا')}</option></select></label>
+            <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={service.active} onChange={e=>updateServiceField('active',e.target.checked)}/>{tr('Afficher dans le catalogue','إظهار في الكتالوج')}</label>
+            <label className="text-sm font-bold">{tr('Présentation courte (FR)','وصف مختصر بالفرنسية')}<textarea dir="ltr" rows={3} value={service.description_fr ?? service.description ?? ''} onChange={e=>updateServiceField('description_fr',e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3"/></label>
+            <label className="text-sm font-bold">{tr('Présentation courte (AR)','وصف مختصر بالعربية')}<textarea dir="rtl" rows={3} value={service.description_ar ?? ''} onChange={e=>updateServiceField('description_ar',e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3"/></label>
           </div>
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4"><span className="font-bold">{tr('Produits','المنتجات')} ({groups.length})</span><button type="button" onClick={()=>setDetailsTab('catalog')} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white">{tr('Gérer les produits','إدارة المنتجات')}</button></div>
         </section>
-
-        <aside
-          className="rounded-[22px] p-5 text-white xl:sticky xl:top-24"
-          style={{
-            background:
-              'linear-gradient(135deg,#020617 0%,#10265b 55%,#312e81 100%)',
-          }}
-        >
-          <p className="text-xs font-black uppercase tracking-wide text-blue-300">
-            Résumé
-          </p>
-
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-[14px] border border-white/10 bg-white/[0.06] p-3">
-              <p className="text-xs font-black text-white/40">
-                Groupes
-              </p>
-              <p className="mt-1 text-2xl font-black">
-                {groups.length}
-              </p>
-            </div>
-
-            <div className="rounded-[14px] border border-white/10 bg-white/[0.06] p-3">
-              <p className="text-xs font-black text-white/40">
-                Plans
-              </p>
-              <p className="mt-1 text-2xl font-black">
-                {totalPlans}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-3 rounded-[14px] border border-white/10 bg-white/[0.06] p-3">
-            <p className="text-xs font-black text-white/40">
-              État
-            </p>
-            <p className="mt-1 text-sm font-black">
-              {service.active
-                ? 'Actif'
-                : 'Désactivé'}
-            </p>
-          </div>
-        </aside>
       </div>
 
       )}
