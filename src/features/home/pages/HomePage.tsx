@@ -68,12 +68,12 @@ function PreorderShowcase({ ar }: { ar: boolean }) {
   if (!config?.enabled || items.length === 0) return null
   const formatPrice = (price: number) => new Intl.NumberFormat(ar ? 'ar-MR-u-nu-latn' : 'fr-FR-u-nu-latn', { numberingSystem: 'latn', maximumFractionDigits: 2 }).format(price)
   return (
-    <section className="bg-white py-10 sm:py-12">
+    <section className="bg-white py-7 sm:py-10 dark:bg-slate-950">
       <Container>
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <span className="text-[11px] font-bold uppercase tracking-widest text-blue-600">TEO SELECTION</span>
-            <h2 className="mt-1 text-xl font-extrabold text-slate-900 sm:text-2xl">{ar ? config.titleAr : config.titleFr}</h2>
+            <h2 className="mt-1 text-xl font-extrabold text-slate-900 dark:text-white sm:text-2xl">{ar ? config.titleAr : config.titleFr}</h2>
             <p className="mt-1 text-xs text-slate-500">{ar ? 'منتجات مختارة، مع تفاصيل التسليم قبل الطلب' : 'Produits sélectionnés, délais affichés avant commande'}</p>
           </div>
           <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">{ar ? 'حسب الطلب' : 'Sur commande'}</span>
@@ -87,14 +87,14 @@ function PreorderShowcase({ ar }: { ar: boolean }) {
               ? `مرحبًا TEO STORE، أريد طلب المنتج: ${title}\nرمز المنتج: ${code}\nالسعر: ${formatPrice(item.price)} MRU\nأرجو تأكيد التوفر ومدة التسليم وإرسال رمز تتبع طلبي.`
               : `Bonjour TEO STORE, je souhaite commander : ${title}\nRéférence : ${code}\nPrix : ${formatPrice(item.price)} MRU\nMerci de confirmer la disponibilité, le délai et la référence de suivi.`
             return (
-              <article key={item.id} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-blue-200 hover:shadow-lg">
+              <article key={item.id} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-sm transition hover:border-blue-200 hover:shadow-lg">
                 <div className="relative aspect-[16/10] overflow-hidden bg-slate-50">
                   <img src={item.imageUrl} alt={title} loading="lazy" onError={() => setBrokenImages(current => [...current, item.id])} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]" />
                   <span className="absolute end-2 top-2 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-slate-800 shadow-sm">{ar ? 'حسب الطلب' : 'Sur commande'}</span>
                 </div>
                 <div className="p-3 sm:p-4">
-                  <h3 className="line-clamp-2 min-h-10 text-sm font-bold leading-5 text-slate-900">{title}</h3>
-                  <p className="mt-1 text-base font-black text-blue-700">{formatPrice(item.price)} <span className="text-xs font-semibold">MRU</span></p>
+                  <h3 className="line-clamp-2 min-h-10 text-sm font-bold leading-5 text-slate-900 dark:text-white">{title}</h3>
+                  <p className="mt-1 text-base font-black text-blue-700 dark:text-blue-300">{formatPrice(item.price)} <span className="text-xs font-semibold">MRU</span></p>
                   <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500"><Clock3 size={13} />{ar ? `التسليم: ${item.deliveryMinDays}–${item.deliveryMaxDays} يوم` : `Livraison : ${item.deliveryMinDays}–${item.deliveryMaxDays} jours`}</p>
                   {phone ? <a href={`https://wa.me/${phone}?text=${encodeURIComponent(message)}`} target="_blank" rel="noopener noreferrer" className="mt-3 flex min-h-9 items-center justify-center gap-2 rounded-xl bg-[#0758c9] px-2 py-2 text-xs font-bold text-white transition hover:bg-[#0646a0]"><MessageCircle size={15}/>{ar ? 'اطلب عبر واتساب' : 'Commander sur WhatsApp'}</a> : <span className="mt-3 flex min-h-9 items-center justify-center rounded-xl bg-slate-100 text-xs font-semibold text-slate-500">{ar ? 'الطلب غير متاح حاليًا' : 'Commande indisponible'}</span>}
                 </div>

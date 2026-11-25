@@ -47,27 +47,27 @@ export default function DigitalCategoriesSection() {
   }
 
   return (
-    <section className="border-b border-slate-100 bg-white py-8 sm:py-10" dir={isArabic ? 'rtl' : 'ltr'}>
+    <section className="border-b border-slate-100 bg-white py-5 sm:py-8 dark:bg-slate-950 dark:border-slate-800" dir={isArabic ? 'rtl' : 'ltr'}>
       <Container>
         <div className="mb-5 flex items-end justify-between gap-3">
           <div>
             <p className="text-[11px] font-bold tracking-widest text-blue-600">{isArabic ? 'تصفح حسب النوع' : 'PAR CATÉGORIE'}</p>
-            <h2 className="mt-1 text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl">{isArabic ? 'استكشف الخدمات' : 'Explorer les catégories'}</h2>
-            <p className="mt-1 text-xs text-slate-500 sm:text-sm">{isArabic ? 'اختر التصنيف الذي يناسبك' : 'Choisissez les services qui vous intéressent'}</p>
+            <h2 className="mt-1 text-xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-2xl">{isArabic ? 'استكشف الخدمات' : 'Explorer les catégories'}</h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">{isArabic ? 'اختر التصنيف الذي يناسبك' : 'Choisissez les services qui vous intéressent'}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2" dir="ltr">
-            <button type="button" onClick={() => move(-1)} disabled={!canBack} aria-label={isArabic ? 'السابق' : 'Précédent'} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-blue-300 hover:text-blue-600 disabled:opacity-30"><ArrowLeft size={17} /></button>
-            <button type="button" onClick={() => move(1)} disabled={!canNext} aria-label={isArabic ? 'التالي' : 'Suivant'} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-blue-300 hover:text-blue-600 disabled:opacity-30"><ArrowRight size={17} /></button>
+            <button type="button" onClick={() => move(-1)} disabled={!canBack} aria-label={isArabic ? 'السابق' : 'Précédent'} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 transition hover:border-blue-300 hover:text-blue-600 disabled:opacity-30"><ArrowLeft size={17} /></button>
+            <button type="button" onClick={() => move(1)} disabled={!canNext} aria-label={isArabic ? 'التالي' : 'Suivant'} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 transition hover:border-blue-300 hover:text-blue-600 disabled:opacity-30"><ArrowRight size={17} /></button>
           </div>
         </div>
         <div ref={railRef} onScroll={updateArrows} className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent]" style={{ WebkitOverflowScrolling: 'touch' }}>
           {categories.map((category) => {
             const Icon = category.icon
             return (
-              <button key={category.id} type="button" onClick={() => navigate(`/services-numeriques?category=${category.id}`)} className="group flex w-[165px] shrink-0 snap-start flex-col items-start rounded-2xl border border-slate-200 bg-white p-4 text-start shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md sm:w-[190px]">
+              <button key={category.id} type="button" onClick={() => navigate(`/services-numeriques?category=${category.id}`)} className="group flex w-[148px] shrink-0 snap-start flex-col items-start rounded-2xl border border-slate-200 bg-white p-3 dark:bg-slate-900 dark:border-slate-700 text-start shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md sm:w-[190px]">
                 <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${category.tone}`}><Icon size={23} strokeWidth={2.1} aria-hidden="true" /></span>
-                <span className="mt-3 text-sm font-bold text-slate-900">{isArabic ? category.ar : category.fr}</span>
-                <span className="mt-1 text-xs text-slate-500">{isArabic ? category.arDescription : category.frDescription}</span>
+                <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">{isArabic ? category.ar : category.fr}</span>
+                <span className="mt-1 text-xs text-slate-500 dark:text-slate-400">{isArabic ? category.arDescription : category.frDescription}</span>
                 <span className="mt-3 text-xs font-semibold text-blue-600 group-hover:underline">{isArabic ? 'عرض الخدمات' : 'Découvrir'} →</span>
               </button>
             )
