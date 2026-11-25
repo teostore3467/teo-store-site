@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "./styles/tokens.css";
-@import "./components/layout/theme-switch.css";
+@import "./components/layout/Theme-switch.css";
 
 @custom-variant dark (&:where([data-teo-theme="dark"], [data-teo-theme="dark"] *));
 
