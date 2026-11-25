@@ -1,3 +1,4 @@
+import { StoreCampaigns } from '../components/StoreCampaigns'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Clock3, ShoppingBag, Sparkles, MessageCircle } from 'lucide-react'
@@ -128,6 +129,7 @@ function HomePage() {
           </div>
         </Container>
       </section>
+      <StoreCampaigns />
       <DigitalCategoriesSection />
       <FeaturedDigitalSection />
       <PreorderShowcase ar={ar}/>

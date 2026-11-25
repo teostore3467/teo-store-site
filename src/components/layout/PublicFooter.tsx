@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Headphones, MessageCircle, Mail, PackageSearch, Globe, X, ChevronUp, ChevronDown, ArrowUp } from 'lucide-react'
+import { Headphones, MessageCircle, Send, Play, Mail, PackageSearch, Globe, X, ChevronUp, ChevronDown, ArrowUp } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { supabase } from '../../lib/supabase'
 import Container from './Container'
@@ -64,6 +64,9 @@ export default function PublicFooter() {
     {label:'Facebook', icon:Facebook, href:safeUrl(obj(content.settings.socials).facebook)||safeUrl(footer.facebook), color:'#1877f2'},
     {label:'TikTok', icon:TikTok, href:safeUrl(obj(content.settings.socials).tiktok)||safeUrl(footer.tiktok), color:'#111827'},
     {label:'Instagram', icon:Instagram, href:safeUrl(obj(content.settings.socials).instagram)||safeUrl(footer.instagram), color:'#c13584'},
+    {label:'WhatsApp', icon:MessageCircle, href:safeUrl(obj(content.settings.socials).whatsapp), color:'#25d366'},
+    {label:'Telegram', icon:Send, href:safeUrl(obj(content.settings.socials).telegram), color:'#229ed9'},
+    {label:'Play', icon:Play, href:safeUrl(obj(content.settings.socials).youtube), color:'#ff0000'},
   ].filter(item => item.href)
   const visiblePayments = payments.filter(p => hiddenPayments[p.name] !== true && p.logo)
   const name = str(store.storeName) || 'TEO STORE'
@@ -120,7 +123,7 @@ export default function PublicFooter() {
             <span className="text-lg font-black">{name}</span>
           </Link>
           <p className="mt-3 text-sm leading-7" style={{color:'#aabbd2'}}>{str(ar ? obj(content.settings.general).descriptionAr : obj(content.settings.general).descriptionFr) || str(ar ? store.sloganAr : store.sloganFr) || t('خدمات رقمية بسيطة وسريعة','Services numériques simples et rapides')}</p>
-          <div className="mt-4 flex flex-wrap gap-3">{general.showSocials!==false && socials.map(({label,icon:Icon,href,color})=><a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={label} className="flex h-10 w-10 items-center justify-center rounded-full hover:opacity-80" style={{background:color,color:'#fff'}}><Icon size={19}/></a>)}</div>
+          <div className="mt-4 flex flex-wrap gap-3">{general.showSocials!==false && socials.map(({label,icon:Icon,href})=><a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={label} className="flex h-10 w-10 items-center justify-center rounded-full hover:opacity-80" style={{background:'#243249',color:'#fff',border:'1px solid #52617a'}}><Icon size={19}/></a>)}</div>
         </section>
         {groups.map(({key,title,items})=><section key={key} className="border-t pt-3 md:border-0 md:pt-0" style={{borderColor:'#263349'}}>
           <button type="button" className="flex min-h-11 w-full items-center gap-2 text-sm font-bold md:hidden" aria-expanded={expanded.includes(key)} onClick={()=>toggle(key)}>{title}<span className="ms-auto">{expanded.includes(key)?<ChevronUp size={17}/>:<ChevronDown size={17}/>}</span></button>

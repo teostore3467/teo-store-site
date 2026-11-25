@@ -2018,11 +2018,11 @@ function EsimCheckoutPage() {
                                   )
                                 }}
                                 className={[
-                                  'relative min-w-0 rounded-xl p-2 transition',
+                                  'relative min-w-0 p-2 transition',
 
                                   selected
-                                    ? 'bg-blue-50'
-                                    : 'hover:bg-slate-50',
+                                    ? 'bg-transparent'
+                                    : 'bg-transparent',
                                 ].join(
                                   ' ',
                                 )}
@@ -2033,7 +2033,7 @@ function EsimCheckoutPage() {
                                   </span>
                                 )}
 
-                                <div className={`mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-white ring-2 ${selected ? 'ring-blue-600' : 'ring-slate-200'}`}>
+                                <div className={`mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-white ring-2 ${selected ? 'ring-blue-600' : 'ring-slate-200'}`}>
                                   {imageUrl ? (
                                     <img
                                       src={
@@ -2042,7 +2042,7 @@ function EsimCheckoutPage() {
                                       alt={
                                         method.name
                                       }
-                                      className="h-full w-full object-contain p-1"
+                                      className="h-full w-full rounded-full object-cover"
                                     />
                                   ) : (
                                     <span className="text-sm font-black text-blue-600">
@@ -2106,7 +2106,7 @@ function EsimCheckoutPage() {
                                   alt={
                                     selectedMethod.name
                                   }
-                                  className="h-full w-full object-contain p-1"
+                                  className="h-full w-full rounded-full object-cover"
                                 />
                               ) : (
                                 <span className="text-sm font-black text-slate-900">
@@ -2482,7 +2482,7 @@ function EsimCheckoutPage() {
                             alt={
                               selectedMethod.name
                             }
-                            className="h-full w-full object-contain p-1"
+                            className="h-full w-full rounded-full object-cover"
                           />
                         ) : (
                           <span className="text-[10px] font-black text-slate-900">

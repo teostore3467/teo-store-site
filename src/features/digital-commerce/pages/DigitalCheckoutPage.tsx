@@ -55,7 +55,7 @@ function paymentImage(method: PaymentMethod) {
 function PaymentLogo({ method }: { method: PaymentMethod }) {
   const url = paymentImage(method)
   return url
-    ? <img src={url} alt={method.name} className="h-full w-full object-contain p-1.5" />
+    ? <img src={url} alt={method.name} className="h-full w-full rounded-full object-cover" />
     : <span className="text-sm font-black text-slate-900">{method.name.slice(0, 2).toUpperCase()}</span>
 }
 
@@ -443,10 +443,10 @@ function DigitalCheckoutPage() {
               : paymentMethods.length ? <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">{paymentMethods.map(method => {
                 const selected = method.code === selectedPaymentCode
                 return <button type="button" key={method.id} aria-pressed={selected}
-                  className={`relative min-w-0 rounded-xl p-2 text-center ${selected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+                  className={`relative min-w-0 p-2 text-center bg-transparent`}
                   onClick={() => { if (method.code !== selectedPaymentCode) { setPaymentProofFile(null); setPaymentSenderNumber('') }; setSelectedPaymentCode(method.code); setPaymentNumberCopied(false); setSubmissionError(null) }}>
                   {selected && <span className="absolute end-2 top-2 rounded-full bg-blue-600 px-1 text-white">✓</span>}
-                  <span className={`mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-white ring-2 ${selected ? 'ring-blue-600' : 'ring-slate-200'}`}><PaymentLogo method={method} /></span>
+                  <span className={`mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-white ring-2 ${selected ? 'ring-blue-600' : 'ring-slate-200'}`}><PaymentLogo method={method} /></span>
                   <span className="mt-2 block break-words text-xs font-black">{(isArabic ? method.name_ar : method.name_fr) || method.name}</span>
                   {selected && <small className="text-blue-600">{t('تم الاختيار', 'Sélectionné')}</small>}
                 </button>

@@ -1,3 +1,4 @@
+import { CampaignBar } from '../../features/home/components/StoreCampaigns'
 import { useLiveCatalog } from '../../features/digital-commerce/utils/useLiveCatalog'
 import ThemeSwitch from './ThemeSwitch'
 import {
@@ -878,6 +879,7 @@ const toastTimerRef = useRef<number | null>(null)
         </Container>
       </div>
 
+      <CampaignBar />
       <header className="teo-themed-header teo-public-header border-b shadow-sm" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}>
         <Container>
           <div className="hidden xl:block">
