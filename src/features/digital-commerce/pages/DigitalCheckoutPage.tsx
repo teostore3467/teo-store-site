@@ -56,8 +56,8 @@ function paymentImage(method: PaymentMethod) {
 function PaymentLogo({ method }: { method: PaymentMethod }) {
   const url = paymentImage(method)
   return url
-    ? <img src={url} alt={method.name} className="h-full w-full rounded-full object-contain p-2 bg-white" />
-    : <span className="text-sm font-black text-slate-900">{method.name.slice(0, 2).toUpperCase()}</span>
+    ? <img src={url} alt={method.name} className="h-full w-full rounded-full object-contain p-0.5" style={{ backgroundColor: '#ffffff' }} />
+    : <span className="text-xs font-bold" style={{ color: '#0f172a' }}>{method.name.slice(0, 2).toUpperCase()}</span>
 }
 
 const panel = 'rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5'
@@ -427,15 +427,13 @@ function DigitalCheckoutPage() {
           <section className={panel}>
             <SectionTitle number={3} title={t('الدفع', 'Paiement')} subtitle={t('اختر تطبيق الدفع واتبع الخطوات', 'Choisissez votre application et suivez les étapes')} />
             {paymentMethodsLoading ? <div className="mt-5 rounded-2xl bg-slate-50 p-5 text-center text-xs">{t('جارٍ تحميل وسائل الدفع...', 'Chargement des moyens de paiement...')}</div>
-              : paymentMethods.length ? <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">{paymentMethods.map(method => {
+              : paymentMethods.length ? <div className="mt-4 grid grid-cols-4 gap-x-1 gap-y-3 sm:grid-cols-5 sm:gap-x-2">{paymentMethods.map(method => {
                 const selected = method.code === selectedPaymentCode
                 return <button type="button" key={method.id} aria-pressed={selected}
-                  className={`relative min-w-0 p-2 text-center bg-transparent`}
+                  className={`group relative min-w-0 rounded-lg px-0.5 py-1.5 text-center bg-transparent transition hover:bg-blue-500/5 focus-visible:ring-2 focus-visible:ring-blue-500`}
                   onClick={() => { if (method.code !== selectedPaymentCode) { setPaymentProofFile(null); setPaymentSenderNumber('') }; setSelectedPaymentCode(method.code); setPaymentNumberCopied(false); setSubmissionError(null) }}>
-                  {selected && <span className="absolute end-2 top-2 rounded-full bg-blue-600 px-1 text-white">✓</span>}
-                  <span className={`mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-white ring-2 ${selected ? 'ring-blue-600' : 'ring-slate-200'}`}><PaymentLogo method={method} /></span>
-                  <span className="mt-2 block break-words text-xs font-black">{(isArabic ? method.name_ar : method.name_fr) || method.name}</span>
-                  {selected && <small className="text-blue-600">{t('تم الاختيار', 'Sélectionné')}</small>}
+                  <span className={`relative mx-auto flex h-12 w-12 items-center justify-center rounded-full ring-2 transition ${selected ? 'ring-blue-600' : 'ring-slate-300/70'}`} style={{ backgroundColor: '#ffffff' }}><span className="flex h-full w-full items-center justify-center overflow-hidden rounded-full" style={{ color: '#0f172a' }}><PaymentLogo method={method} /></span>{selected && <span aria-hidden="true" className="absolute -end-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white ring-2 ring-white">✓</span>}</span>
+                  <span className="mt-1.5 block break-words text-[10px] leading-tight font-semibold sm:text-xs">{(isArabic ? method.name_ar : method.name_fr) || method.name}</span>
                 </button>
               })}</div> : <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-center text-xs text-amber-700">{t('لا توجد وسيلة دفع متاحة حاليًا.', 'Aucun moyen de paiement n’est disponible actuellement.')}</div>}
             {selectedPayment && <div className="mt-5 space-y-4">

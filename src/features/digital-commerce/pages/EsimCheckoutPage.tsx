@@ -1939,7 +1939,7 @@ function EsimCheckoutPage() {
 
                     {paymentMethods.length >
                     0 ? (
-                      <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+                      <div className="mt-4 grid grid-cols-4 gap-x-1 gap-y-3 sm:grid-cols-5 sm:gap-x-2">
                         {paymentMethods.map(
                           (
                             method,
@@ -1975,7 +1975,7 @@ function EsimCheckoutPage() {
                                   )
                                 }}
                                 className={[
-                                  'relative min-w-0 p-2 transition',
+                                  'relative min-w-0 rounded-lg px-0.5 py-1.5 text-center transition hover:bg-blue-500/5 focus-visible:ring-2 focus-visible:ring-blue-500',
 
                                   selected
                                     ? 'bg-transparent'
@@ -1984,38 +1984,20 @@ function EsimCheckoutPage() {
                                   ' ',
                                 )}
                               >
-                                {selected && (
-                                  <span className="absolute end-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[9px] font-black text-white">
-                                    ✓
+                                <div className={`relative mx-auto flex h-12 w-12 items-center justify-center rounded-full ring-2 transition ${selected ? 'ring-blue-600' : 'ring-slate-300/70'}`} style={{ backgroundColor: '#ffffff' }}>
+                                  <span className="flex h-full w-full items-center justify-center overflow-hidden rounded-full">
+                                    {imageUrl ? (
+                                      <img src={imageUrl} alt={method.name} className="h-full w-full rounded-full object-contain p-0.5" />
+                                    ) : (
+                                      <span className="text-xs font-bold" style={{ color: '#0f172a' }}>{method.name.slice(0, 2).toUpperCase()}</span>
+                                    )}
                                   </span>
-                                )}
-
-                                <div className={`mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-white ring-2 ${selected ? 'ring-blue-600' : 'ring-slate-200'}`}>
-                                  {imageUrl ? (
-                                    <img
-                                      src={
-                                        imageUrl
-                                      }
-                                      alt={
-                                        method.name
-                                      }
-                                      className="h-full w-full rounded-full object-contain p-2 bg-white"
-                                    />
-                                  ) : (
-                                    <span className="text-sm font-black text-blue-600">
-                                      {method.name
-                                        .slice(
-                                          0,
-                                          2,
-                                        )
-                                        .toUpperCase()}
-                                    </span>
-                                  )}
+                                  {selected && <span aria-hidden="true" className="absolute -end-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white ring-2 ring-white">✓</span>}
                                 </div>
 
                                 <p
                                   className={[
-                                    'mt-2 break-words text-xs font-black',
+                                    'mt-1.5 break-words text-[10px] leading-tight font-semibold sm:text-xs',
 
                                     selected
                                       ? 'text-blue-700'
