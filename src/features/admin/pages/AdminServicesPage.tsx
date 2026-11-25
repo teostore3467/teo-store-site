@@ -18,7 +18,7 @@ type Service = {
   active: boolean
   sort_order: number
   deleted_at: string | null
-  digital_service_groups?: { count: number }[]
+  digital_service_groups?: { id: string; active: boolean; availability: Availability; digital_service_plans: { id: string; active: boolean; availability: Availability; price: number | string; currency: string }[] }[]
 }
 type Draft = { slug: string; name: string; name_ar: string; name_fr: string; category: string; availability: Availability; description: string }
 const emptyDraft: Draft = { slug: '', name: '', name_ar: '', name_fr: '', category: '', availability: 'available', description: '' }
@@ -44,7 +44,7 @@ export default function AdminServicesPage() {
     try {
       const [result, logoResult] = await Promise.all([
         supabase.from('digital_services')
-          .select('id, slug, name, name_ar, name_fr, image_url, category, availability, description, active, sort_order, deleted_at, digital_service_groups(count)')
+          .select('id, slug, name, name_ar, name_fr, image_url, category, availability, description, active, sort_order, deleted_at, digital_service_groups(id, active, availability, digital_service_plans(id, active, availability, price, currency))')
           .order('sort_order', { ascending: true }).order('name', { ascending: true }),
         supabase.from('service_logos').select('service_slug, logo_path'),
       ])
@@ -66,10 +66,28 @@ export default function AdminServicesPage() {
     void load()
     const channel = supabase.channel('admin-services-corbeille')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'digital_services' }, () => { void load() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'digital_service_groups' }, () => { void load() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'digital_service_plans' }, () => { void load() })
       .subscribe()
     return () => { void supabase.removeChannel(channel) }
   }, [load])
 
+  const catalogStatus = (s: Service): { ok: boolean; text: string } => {
+    const groups = s.digital_service_groups ?? []
+    if (s.deleted_at) return {ok:false,text:tr('Dans la corbeille','في سلة المحذوفات')}
+    if (!s.active) return {ok:false,text:tr('Service parent désactivé','الخدمة الأم معطلة')}
+    if (s.availability !== 'available') return {ok:false,text:tr('Service parent indisponible','الخدمة الأم غير متوفرة')}
+    if (!groups.length) return {ok:false,text:tr('Aucun produit associé','لا توجد منتجات تابعة')}
+    const active = groups.filter(g=>g.active)
+    if (!active.length) return {ok:false,text:tr('Tous les produits sont masqués','جميع المنتجات مخفية')}
+    const available = active.filter(g=>g.availability==='available')
+    if (!available.length) return {ok:false,text:tr('Aucun produit disponible','لا يوجد منتج متوفر')}
+    const plans = available.flatMap(g=>g.digital_service_plans ?? [])
+    if (!plans.length) return {ok:false,text:tr('Aucun forfait associé','لا توجد باقات')}
+    if (!plans.some(p=>p.active)) return {ok:false,text:tr('Tous les forfaits sont désactivés','جميع الباقات معطلة')}
+    if (!plans.some(p=>p.active && p.availability==='available' && p.currency==='MRU' && Number.isFinite(Number(p.price)) && Number(p.price)>0)) return {ok:false,text:tr('Aucun forfait disponible avec prix MRU valide','لا توجد باقة متوفرة بسعر صالح بالأوقية')}
+    return {ok:true,text:tr('Catalogue : forfait disponible','الكتالوج: توجد باقة متوفرة')}
+  }
   const current = useMemo(() => services.filter(s => !s.deleted_at), [services])
   const trash = useMemo(() => services.filter(s => Boolean(s.deleted_at)), [services])
   const visible = useMemo(() => {
@@ -191,8 +209,9 @@ export default function AdminServicesPage() {
             </div>
             <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
               <span className="truncate text-xs text-slate-500">{service.deleted_at ? 'Dans la corbeille' : `${statusText[service.availability]} · ${service.active ? 'Activé' : 'Désactivé'}`}</span>
-              <span className="shrink-0 text-xs text-slate-400">{service.digital_service_groups?.[0]?.count ?? 0} groupes</span>
+              <span className="shrink-0 text-xs text-slate-400">{service.digital_service_groups?.length ?? 0} groupes</span>
             </div>
+            <p className={`mt-2 rounded-lg px-3 py-2 text-xs font-medium ${catalogStatus(service).ok ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' : 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200'}`}>{catalogStatus(service).text}</p>
             {tab === 'current' ? <div className="mt-3 flex gap-2">
               <Link to={`/admin/services/${service.slug}`} className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-center text-xs font-semibold text-white">{tr('Gérer','إدارة')}</Link>
               <button type="button" disabled={Boolean(busy)} onClick={() => void changeService(service, service.active ? 'deactivate' : 'activate')} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 disabled:opacity-50">{service.active ? 'Désactiver' : 'Activer'}</button>

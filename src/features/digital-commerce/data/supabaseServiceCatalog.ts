@@ -120,7 +120,7 @@ function mapCatalog(
   for (const plan of plans) {
     const parsedPrice = Number(plan.price)
 
-    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0 || plan.currency !== 'MRU') {
       console.warn('Invalid service plan price:', plan.id)
       continue
     }
