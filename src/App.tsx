@@ -1,3 +1,4 @@
+import AdminProPage from './features/admin/pages/AdminProPage'
 import SupportCenter from './features/support/SupportCenter'
 import AdminContent from './features/support/AdminContent'
 import StoreContent from './features/support/StoreContent'
@@ -59,6 +60,7 @@ function App() {
         {/* PROTECTED ADMIN */}
         <Route element={<AdminProtectedRoute />}>
           <Route path="/admin" element={<AdminLayout />}>
+            <Route path="pro" element={<AdminProPage />} />
             <Route path="support" element={<SupportCenter admin />} />
             <Route path="footer" element={<AdminContent />} />
             <Route

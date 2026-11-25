@@ -425,6 +425,7 @@ function AdminLayout() {
         key: 'sales',
         label: ar ? 'المبيعات والمالية' : 'Ventes & finances',
         items: [
+          { label: 'TEO ADMIN PRO', description: ar ? 'المالية والتسويق والأنظمة الجديدة' : 'Finance, marketing et nouveaux modules', to: '/admin/pro', icon: LayoutDashboard },
           {
             label: ar ? 'الطلبات' : 'Commandes',
             description: ar ? 'إدارة طلبات العملاء' : 'Suivi des commandes',
