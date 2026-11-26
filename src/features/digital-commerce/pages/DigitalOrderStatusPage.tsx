@@ -18,6 +18,296 @@ import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 import { supabase } from '../../../lib/supabase'
 
+type EsimDeliveryDetails = {
+  smdp: string
+  iccid: string
+  confirmation: string
+  instructionsAr: string
+  instructionsFr: string
+  activationUrl: string
+}
+
+const ESIM_DELIVERY_PREFIX = 'TEO_ESIM_V1:'
+
+function emptyEsimDelivery(): EsimDeliveryDetails {
+  return {
+    smdp:'',
+    iccid:'',
+    confirmation:'',
+    instructionsAr:'',
+    instructionsFr:'',
+    activationUrl:''
+  }
+}
+
+function decodeEsimDelivery(
+  note: string | null | undefined
+): EsimDeliveryDetails | null {
+  if (!note?.startsWith(ESIM_DELIVERY_PREFIX)) {
+    return null
+  }
+
+  try {
+    const raw = JSON.parse(
+      note.slice(ESIM_DELIVERY_PREFIX.length)
+    )
+
+    if (!raw || typeof raw !== 'object') {
+      return null
+    }
+
+    const result = emptyEsimDelivery()
+
+    for (
+      const key of Object.keys(result) as
+        (keyof EsimDeliveryDetails)[]
+    ) {
+      result[key] =
+        typeof raw[key] === 'string'
+          ? raw[key]
+          : ''
+    }
+
+    return result
+
+  } catch {
+    return null
+  }
+}
+
+function EsimDeliveryPanel({
+  details,
+  code,
+  ar
+}:{
+  details:EsimDeliveryDetails
+  code:string|null
+  ar:boolean
+}) {
+  const [copied,setCopied] = useState('')
+  const [copyError,setCopyError] = useState(false)
+
+  const t = (a:string,f:string) =>
+    ar ? a : f
+
+  const rows = [
+    {
+      key:'smdp',
+      label:'Adresse SM-DP+',
+      value:details.smdp
+    },
+    {
+      key:'code',
+      label:t(
+        'رمز التفعيل اليدوي',
+        'Code d’activation'
+      ),
+      value:code ?? ''
+    },
+    {
+      key:'iccid',
+      label:'ICCID',
+      value:details.iccid
+    },
+    {
+      key:'confirmation',
+      label:t(
+        'رمز التأكيد',
+        'Code de confirmation'
+      ),
+      value:details.confirmation
+    }
+  ].filter(row=>row.value.trim()!=='')
+
+  const instruction =
+    ar
+      ? details.instructionsAr
+      : details.instructionsFr
+
+  const otherInstruction =
+    ar
+      ? details.instructionsFr
+      : details.instructionsAr
+
+  const copyValue = async(
+    key:string,
+    value:string
+  )=>{
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(key)
+      setCopyError(false)
+    } catch {
+      setCopyError(true)
+    }
+  }
+
+  return (
+    <section className="space-y-4">
+
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+        <h3 className="text-lg font-black text-emerald-800">
+          {t(
+            'باقتك eSIM جاهزة!',
+            'Votre eSIM est prête !'
+          )}
+        </h3>
+
+        <p className="mt-2 text-sm text-emerald-700">
+          {t(
+            'احتفظ بمعلومات التفعيل ولا تشاركها مع الآخرين.',
+            'Conservez vos données d’activation en sécurité.'
+          )}
+        </p>
+      </div>
+
+      {rows.length>0&&
+        <div className="space-y-3">
+
+          <h3 className="font-black">
+            {t(
+              'التثبيت اليدوي',
+              'Installation manuelle'
+            )}
+          </h3>
+
+          {rows.map(row=>
+            <div
+              key={row.key}
+              className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+            >
+              <p className="text-xs font-bold text-slate-500">
+                {row.label}
+              </p>
+
+              <div className="mt-2 flex items-center gap-3">
+
+                <p
+                  dir="ltr"
+                  className="min-w-0 flex-1 select-all break-all text-left text-sm font-bold text-slate-950"
+                >
+                  {row.value}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={()=>void copyValue(
+                    row.key,
+                    row.value
+                  )}
+                  className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white"
+                >
+                  {copied===row.key
+                    ?t('تم النسخ','Copié')
+                    :t('نسخ','Copier')}
+                </button>
+
+              </div>
+            </div>
+          )}
+
+          {copyError&&
+            <p className="text-xs text-red-600">
+              {t(
+                'تعذر النسخ تلقائياً. حدد النص وانسخه يدوياً.',
+                'Sélectionnez le texte pour le copier.'
+              )}
+            </p>
+          }
+
+        </div>
+      }
+
+      {/^https:\/\//i.test(details.activationUrl)&&
+        <a
+          href={details.activationUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block rounded-xl bg-blue-600 p-4 text-center font-bold text-white"
+        >
+          {t(
+            'فتح رابط التفعيل',
+            'Ouvrir le lien d’activation'
+          )}
+        </a>
+      }
+
+      {(instruction||otherInstruction)&&
+        <div className="rounded-xl border p-4">
+
+          <h3 className="font-black">
+            {t(
+              'تعليمات التثبيت',
+              'Instructions d’installation'
+            )}
+          </h3>
+
+          {!instruction&&otherInstruction&&
+            <p className="mt-2 text-xs opacity-75">
+              {t(
+                'التعليمات متوفرة بالفرنسية.',
+                'Instructions disponibles en arabe.'
+              )}
+            </p>
+          }
+
+          <p
+            dir={instruction
+              ?ar?'rtl':'ltr'
+              :ar?'ltr':'rtl'}
+            className="mt-3 whitespace-pre-wrap break-words text-sm leading-7"
+          >
+            {instruction||otherInstruction}
+          </p>
+
+        </div>
+      }
+
+      <div className="rounded-xl border p-4">
+
+        <h3 className="font-black">
+          {t('دليل التثبيت','Guide d’installation')}
+        </h3>
+
+        <details className="mt-3">
+          <summary className="cursor-pointer font-bold">
+            iPhone / iOS
+          </summary>
+
+          <p className="mt-2 text-sm leading-7">
+            {t(
+              'افتح الإعدادات، ثم البيانات الخلوية، ثم إضافة eSIM. اختر رمز QR أو إدخال التفاصيل يدوياً.',
+              'Ouvrez Réglages, Données cellulaires, puis Ajouter une eSIM. Scannez le QR Code ou saisissez les informations manuellement.'
+            )}
+          </p>
+        </details>
+
+        <details className="mt-3">
+          <summary className="cursor-pointer font-bold">
+            Android
+          </summary>
+
+          <p className="mt-2 text-sm leading-7">
+            {t(
+              'افتح الإعدادات ثم الشبكة أو إدارة شرائح SIM، واختر إضافة eSIM. تختلف أسماء القوائم حسب الجهاز.',
+              'Ouvrez les paramètres réseau ou le gestionnaire SIM, puis choisissez Ajouter une eSIM. Les menus varient selon le téléphone.'
+            )}
+          </p>
+        </details>
+
+        <p className="mt-4 text-xs leading-6">
+          {t(
+            'راجع سياسة تفعيل باقتك قبل تثبيتها. لا تحذف eSIM بعد التثبيت دون التواصل مع الدعم.',
+            'Vérifiez les conditions d’activation avant installation. Ne supprimez pas votre eSIM sans consulter le support.'
+          )}
+        </p>
+
+      </div>
+
+    </section>
+  )
+}
+
 function PrivateEsimQr({
   path,
   ar
@@ -2091,6 +2381,13 @@ html[data-teo-theme="dark"] .teo-order-status :is(.text-blue-600,.text-blue-500)
     state?.senderNumber ||
     '—'
 
+  const esimDelivery =
+    digitalOrder.service_slug === 'esim'
+      ? decodeEsimDelivery(
+          digitalOrder.fulfillment_note
+        )
+      : null
+
   const fulfillmentAvailable =
     Boolean(
       digitalOrder.fulfillment_email ||
@@ -2527,7 +2824,16 @@ html[data-teo-theme="dark"] .teo-order-status :is(.text-blue-600,.text-blue-500)
                     </div>
 
                     <div className="space-y-3 p-5">
-                      {digitalOrder.fulfillment_email && (
+
+                      {esimDelivery&&
+                        <EsimDeliveryPanel
+                          details={esimDelivery}
+                          code={digitalOrder.fulfillment_code}
+                          ar={isArabic}
+                        />
+                      }
+
+                      {!esimDelivery&&digitalOrder.fulfillment_email && (
                         <div className="rounded-[14px] border border-slate-200 bg-slate-50 p-4">
                           <p className="text-xs font-black uppercase text-slate-400">
                             E-mail
@@ -2561,7 +2867,7 @@ html[data-teo-theme="dark"] .teo-order-status :is(.text-blue-600,.text-blue-500)
                         </div>
                       )}
 
-                      {digitalOrder.fulfillment_password && (
+                      {!esimDelivery&&digitalOrder.fulfillment_password && (
                         <div className="rounded-[14px] border border-slate-200 bg-slate-50 p-4">
                           <p className="text-xs font-black uppercase text-slate-400">
                             {isArabic
@@ -2618,7 +2924,7 @@ html[data-teo-theme="dark"] .teo-order-status :is(.text-blue-600,.text-blue-500)
                         </div>
                       )}
 
-                      {digitalOrder.fulfillment_code && (
+                      {!esimDelivery&&digitalOrder.fulfillment_code && (
                         <div className="rounded-[14px] border border-blue-100 bg-blue-50 p-4">
                           <p className="text-xs font-black uppercase text-blue-500">
                             {digitalOrder.service_slug === 'esim'
@@ -2669,7 +2975,7 @@ html[data-teo-theme="dark"] .teo-order-status :is(.text-blue-600,.text-blue-500)
                         />
                       }
 
-                      {digitalOrder.fulfillment_link &&
+                      {!esimDelivery&&digitalOrder.fulfillment_link &&
                        !digitalOrder.fulfillment_link.startsWith('teo-esim-qr:') && (
                         <div className="rounded-[14px] border border-violet-100 bg-violet-50 p-4">
                           <p className="text-xs font-black uppercase text-violet-500">
@@ -2691,7 +2997,7 @@ html[data-teo-theme="dark"] .teo-order-status :is(.text-blue-600,.text-blue-500)
                         </div>
                       )}
 
-                      {digitalOrder.fulfillment_note && (
+                      {!esimDelivery&&digitalOrder.fulfillment_note && (
                         <div className="rounded-[14px] border border-slate-200 bg-slate-50 p-4">
                           <p className="text-xs font-black uppercase text-slate-400">
                             {isArabic

@@ -15,6 +15,8 @@ import {
   supabase,
 } from '../../../lib/supabase'
 
+import { useLanguage } from '../../../i18n/LanguageContext'
+
 type OrderStatus =
   | 'payment_review'
   | 'payment_partial'
@@ -205,10 +207,88 @@ function normalizeStatus(
   return 'payment_review'
 }
 
+type EsimDeliveryDetails = {
+  smdp: string
+  iccid: string
+  confirmation: string
+  instructionsAr: string
+  instructionsFr: string
+  activationUrl: string
+}
+
+const ESIM_DELIVERY_PREFIX = 'TEO_ESIM_V1:'
+
+function emptyEsimDelivery(): EsimDeliveryDetails {
+  return {
+    smdp:'',
+    iccid:'',
+    confirmation:'',
+    instructionsAr:'',
+    instructionsFr:'',
+    activationUrl:''
+  }
+}
+
+function decodeEsimDelivery(
+  note: string | null | undefined
+): EsimDeliveryDetails | null {
+  if (!note?.startsWith(ESIM_DELIVERY_PREFIX)) {
+    return null
+  }
+
+  try {
+    const raw = JSON.parse(
+      note.slice(ESIM_DELIVERY_PREFIX.length)
+    )
+
+    if (!raw || typeof raw !== 'object') {
+      return null
+    }
+
+    const result = emptyEsimDelivery()
+
+    for (
+      const key of Object.keys(result) as
+        (keyof EsimDeliveryDetails)[]
+    ) {
+      result[key] =
+        typeof raw[key] === 'string'
+          ? raw[key]
+          : ''
+    }
+
+    return result
+
+  } catch {
+    return null
+  }
+}
+
 function AdminOrdersPage() {
   const [esimQrFile,setEsimQrFile] = useState<File|null>(null)
   const [esimQrError,setEsimQrError] = useState('')
   const deliveryLock = useRef(false)
+
+  const {language} = useLanguage()
+  const esimArabic = language === 'ar'
+
+  const et = (a:string,f:string) =>
+    esimArabic ? a : f
+
+  const [esimDetails,setEsimDetails] =
+    useState<EsimDeliveryDetails>(
+      emptyEsimDelivery
+    )
+
+  const updateEsimDetails = (
+    key:keyof EsimDeliveryDetails,
+    value:string
+  ) => {
+    setEsimDetails(current=>({
+      ...current,
+      [key]:value
+    }))
+  }
 
   const locale =
     'fr-FR-u-nu-latn'
@@ -1691,6 +1771,18 @@ function AdminOrdersPage() {
     ) => {
       setEsimQrFile(null)
       setEsimQrError('')
+
+      setEsimDetails(
+        order.service_slug === 'esim'
+          ? decodeEsimDelivery(order.fulfillment_note)
+            ?? {
+              ...emptyEsimDelivery(),
+              instructionsAr:order.fulfillment_note ?? '',
+              instructionsFr:order.fulfillment_note ?? ''
+            }
+          : emptyEsimDelivery()
+      )
+
       setFulfillmentOrder(
         order,
       )
@@ -1751,13 +1843,27 @@ function AdminOrdersPage() {
         return false
       }
 
-      if (fulfillmentOrder.service_slug === 'esim') {
-        return !esimQrError && Boolean(
+      if (fulfillmentOrder?.service_slug === 'esim') {
+        if(esimQrError) return false
+
+        const smdp = esimDetails.smdp.trim()
+        const code = fulfillmentForm.code.trim()
+        const link = fulfillmentForm.link.trim()
+
+        if(smdp && !code) return false
+
+        if(link && !/^https:\/\//i.test(link)) {
+          return false
+        }
+
+        const manualReady =
+          Boolean(smdp && code) ||
+          /^LPA:1\$[^$\s]+\$[^$\s]+/i.test(code)
+
+        return Boolean(
           esimQrFile ||
-          fulfillmentForm.code.trim() ||
-          /^https:\/\//i.test(
-            fulfillmentForm.link.trim()
-          )
+          manualReady ||
+          /^https:\/\//i.test(link)
         )
       }
 
@@ -1831,6 +1937,7 @@ function AdminOrdersPage() {
       fulfillmentOrder,
       esimQrFile,
       esimQrError,
+      esimDetails,
     ])
 
   const requestSendFulfillment =
@@ -1950,7 +2057,17 @@ function AdminOrdersPage() {
               deliveryLink,
 
             fulfillment_note:
-              fulfillmentForm.note.trim() || null,
+              isEsim
+                ? ESIM_DELIVERY_PREFIX +
+                  JSON.stringify({
+                    smdp:esimDetails.smdp.trim(),
+                    iccid:esimDetails.iccid.trim(),
+                    confirmation:esimDetails.confirmation.trim(),
+                    instructionsAr:esimDetails.instructionsAr.trim(),
+                    instructionsFr:esimDetails.instructionsFr.trim(),
+                    activationUrl:fulfillmentForm.link.trim()
+                  })
+                : fulfillmentForm.note.trim() || null,
 
             fulfillment_sent_at:now,
             customer_confirmed_at:null,
@@ -3211,7 +3328,12 @@ function AdminOrdersPage() {
                             }
                             className="mt-4 min-h-[46px] rounded-[13px] bg-blue-600 px-5 text-sm font-black text-white"
                           >
-                            Envoyer au client
+                            {fulfillmentOrder?.service_slug === 'esim'
+                  ? et(
+                      'تسليم باقة eSIM',
+                      'Livrer le forfait eSIM'
+                    )
+                  : 'Envoyer au client'}
                           </button>
                         </div>
                       </div>
@@ -3495,11 +3617,18 @@ function AdminOrdersPage() {
               }
             </p>
 
-            {fulfillmentOrder.service_slug === 'esim' && (
+            {fulfillmentOrder?.service_slug === 'esim' && (
               <section className="mt-5 space-y-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-slate-800">
-                <h3 className="font-black">
-                  Livraison sécurisée eSIM
+                <h3 className="text-lg font-black">
+                  TEO eSIM DELIVERY PRO
                 </h3>
+
+                <p className="text-sm opacity-75">
+                  {et(
+                    'تسليم آمن لباقة eSIM',
+                    'Livraison sécurisée du forfait eSIM'
+                  )}
+                </p>
 
                 <label className="block text-sm font-bold">
                   QR Code eSIM
@@ -3551,15 +3680,192 @@ function AdminOrdersPage() {
                 }
 
                 <p className="text-xs leading-6">
-                  Le QR Code est stocké en privé.
-                  Vous pouvez également ajouter le code
-                  LPA ou les informations SM-DP+
-                  dans les champs de livraison.
+                  {et(
+                    'يتم حفظ رمز QR في مساحة تخزين خاصة.',
+                    'Le QR Code est stocké en privé.'
+                  )}
                 </p>
+
+                <div className="border-t pt-4">
+                  <h4 className="font-black">
+                    {et(
+                      'التثبيت اليدوي',
+                      'Installation manuelle'
+                    )}
+                  </h4>
+                </div>
+
+                <label className="block space-y-2 text-sm">
+                  <span className="font-bold">
+                    Adresse SM-DP+
+                  </span>
+
+                  <input
+                    type="text"
+                    dir="ltr"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={esimDetails.smdp}
+                    disabled={isSendingFulfillment}
+                    onChange={e=>
+                      updateEsimDetails(
+                        'smdp',
+                        e.target.value
+                      )
+                    }
+                    placeholder="SM-DP+"
+                    className="h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  />
+                </label>
+
+                <label className="block space-y-2 text-sm">
+                  <span className="font-bold">
+                    {et(
+                      'رمز التفعيل',
+                      'Code d’activation'
+                    )}
+                  </span>
+
+                  <input
+                    type="text"
+                    dir="ltr"
+                    autoComplete="off"
+                    spellCheck={false}
+                    disabled={isSendingFulfillment}
+                    value={fulfillmentForm.code}
+                    onChange={e=>
+                      setFulfillmentForm(current=>({
+                        ...current,
+                        code:e.target.value
+                      }))
+                    }
+                    placeholder="Code / LPA:1$..."
+                    className="h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  />
+                </label>
+
+                <label className="block space-y-2 text-sm">
+                  <span className="font-bold">
+                    ICCID — {et('اختياري','Facultatif')}
+                  </span>
+
+                  <input
+                    type="text"
+                    dir="ltr"
+                    autoComplete="off"
+                    disabled={isSendingFulfillment}
+                    value={esimDetails.iccid}
+                    onChange={e=>
+                      updateEsimDetails(
+                        'iccid',
+                        e.target.value
+                      )
+                    }
+                    className="h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  />
+                </label>
+
+                <label className="block space-y-2 text-sm">
+                  <span className="font-bold">
+                    {et(
+                      'رمز التأكيد — اختياري',
+                      'Code de confirmation — Facultatif'
+                    )}
+                  </span>
+
+                  <input
+                    type="text"
+                    dir="ltr"
+                    autoComplete="off"
+                    disabled={isSendingFulfillment}
+                    value={esimDetails.confirmation}
+                    onChange={e=>
+                      updateEsimDetails(
+                        'confirmation',
+                        e.target.value
+                      )
+                    }
+                    className="h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  />
+                </label>
+
+                <label className="block space-y-2 text-sm">
+                  <span className="font-bold">
+                    {et(
+                      'رابط التفعيل — اختياري',
+                      'Lien d’activation — Facultatif'
+                    )}
+                  </span>
+
+                  <input
+                    type="url"
+                    dir="ltr"
+                    disabled={isSendingFulfillment}
+                    value={fulfillmentForm.link}
+                    onChange={e=>
+                      setFulfillmentForm(current=>({
+                        ...current,
+                        link:e.target.value
+                      }))
+                    }
+                    placeholder="https://"
+                    className="h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  />
+                </label>
+
+                <label className="block space-y-2 text-sm">
+                  <span className="font-bold">
+                    Instructions en français
+                  </span>
+
+                  <textarea
+                    rows={4}
+                    dir="ltr"
+                    disabled={isSendingFulfillment}
+                    value={esimDetails.instructionsFr}
+                    onChange={e=>
+                      updateEsimDetails(
+                        'instructionsFr',
+                        e.target.value
+                      )
+                    }
+                    placeholder="Instructions d’installation..."
+                    className="w-full rounded-xl border border-slate-300 bg-white p-3 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  />
+                </label>
+
+                <label className="block space-y-2 text-sm">
+                  <span className="font-bold">
+                    التعليمات بالعربية
+                  </span>
+
+                  <textarea
+                    rows={4}
+                    dir="rtl"
+                    disabled={isSendingFulfillment}
+                    value={esimDetails.instructionsAr}
+                    onChange={e=>
+                      updateEsimDetails(
+                        'instructionsAr',
+                        e.target.value
+                      )
+                    }
+                    placeholder="تعليمات التثبيت والتفعيل..."
+                    className="w-full rounded-xl border border-slate-300 bg-white p-3 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  />
+                </label>
+
+                <div className="rounded-xl border p-3 text-sm">
+                  {et(
+                    'أضف QR Code أو عنوان SM-DP+ مع رمز التفعيل أو رابط HTTPS صالح. يمكنك الجمع بينها.',
+                    'Ajoutez un QR Code, une adresse SM-DP+ avec code, ou un lien HTTPS valide.'
+                  )}
+                </div>
               </section>
             )}
 
-            {fulfillmentOrder.fulfillment_type ===
+            {fulfillmentOrder.service_slug !== 'esim' && <>
+{fulfillmentOrder.fulfillment_type ===
               'account_credentials' && (
               <div className="mt-5 space-y-3">
                 <input
@@ -3695,7 +4001,9 @@ function AdminOrdersPage() {
               className="mt-5 w-full rounded-[16px] border border-slate-200 p-4"
             />
 
-            <div className="mt-6 grid grid-cols-2 gap-2">
+            
+</>}
+<div className="mt-6 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={
@@ -3717,7 +4025,12 @@ function AdminOrdersPage() {
                 }
                 className="h-12 rounded-[14px] bg-blue-600 font-black text-white disabled:opacity-40"
               >
-                Envoyer au client
+                {fulfillmentOrder?.service_slug === 'esim'
+                  ? et(
+                      'تسليم باقة eSIM',
+                      'Livrer le forfait eSIM'
+                    )
+                  : 'Envoyer au client'}
               </button>
             </div>
           </div>
