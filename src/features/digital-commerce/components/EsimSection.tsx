@@ -1,3 +1,4 @@
+import EsimFlag from './EsimFlag'
 import {
   useEffect,
   useState,
@@ -253,10 +254,11 @@ function EsimSection() {
                           />
 
                           <span className="relative text-[38px] sm:text-5xl">
-                            {
-                              country.flag
-                            }
-                          </span>
+<EsimFlag
+  flag={country.flag}
+  code={country.code}
+  path={country.flag_image_path}
+/>                          </span>
 
                           <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/35 to-transparent" />
                         </>
@@ -272,9 +274,7 @@ function EsimSection() {
                           ' ',
                         )}
                       >
-                        {
-                          country.code
-                        }
+                        <EsimFlag flag={country.flag} code={country.code} path={country.flag_image_path}/>
                       </span>
 
                       {countryImage && (
