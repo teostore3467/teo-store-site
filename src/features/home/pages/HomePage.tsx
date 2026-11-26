@@ -1,3 +1,4 @@
+import FlashDealsSection from '../components/FlashDealsSection'
 import { StoreCampaigns } from '../components/StoreCampaigns'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -130,6 +131,7 @@ function HomePage() {
         </Container>
       </section>
       <StoreCampaigns />
+      <FlashDealsSection />
       <DigitalCategoriesSection />
       <FeaturedDigitalSection />
       <PreorderShowcase ar={ar}/>

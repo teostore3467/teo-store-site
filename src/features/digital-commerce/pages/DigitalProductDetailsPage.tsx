@@ -10,6 +10,7 @@ import {
   Link,
   useNavigate,
   useParams,
+  useSearchParams,
 } from 'react-router-dom'
 
 import Container from '../../../components/layout/Container'
@@ -44,6 +45,8 @@ import {
 function DigitalProductDetailsPage() {
   const { productSlug, offerKey } = useParams()
 
+  const [searchParams] = useSearchParams()
+  const requestedPlan = searchParams.get('plan')
   const navigate = useNavigate()
   const [allowParentDescription,setAllowParentDescription]=useState(false)
   const [activeTab, setActiveTab] = useState<'plans' | 'description' | 'instructions' | 'reviews'>('plans')
@@ -239,6 +242,7 @@ function DigitalProductDetailsPage() {
     }
 
     const defaultPlan =
+      firstAvailableGroup.plans.find(plan => plan.databaseId === requestedPlan && plan.availability === 'available') ??
       firstAvailableGroup.plans.find(
         (plan) =>
           plan.availability ===
@@ -259,7 +263,7 @@ function DigitalProductDetailsPage() {
     setSelectedPlanId(
       defaultPlan?.id ?? '',
     )
-  }, [service])
+  }, [service, requestedPlan])
 
   const {offers:flashOffers,now:flashNow}=useFlashOffers(service?.groups.flatMap(g=>g.plans.map(p=>p.databaseId))??[])
 
@@ -1110,7 +1114,7 @@ function DigitalProductDetailsPage() {
               </section>}
               {activeTab === 'instructions' && localizedInstructions && <section>
                 <h2 className="flex items-center gap-2 text-lg font-black text-slate-950"><BookOpen size={20} className="text-blue-600"/>{isArabic ? 'طريقة التفعيل والاستخدام' : 'Activation et utilisation'}</h2>
-                <p className="mt-4 whitespace-pre-wrap  [overflow-wrap:anywhere] text-sm leading-7 text-slate-700">{localizedInstructions}</p>
+                <p className="mt-4 whitespace-pre-wrap [overflow-wrap:anywhere] text-sm leading-7 text-slate-700">{localizedInstructions}</p>
               </section>}
               {activeTab === 'reviews' && <section className="overflow-hidden">
                 <div className="border-b border-slate-100 p-5 sm:p-6">
