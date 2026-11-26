@@ -1,3 +1,5 @@
+import { useFlashOffers } from '../utils/useFlashOffers'
+import FlashOfferInfo from '../components/FlashOfferInfo'
 import { ShieldCheck, CalendarDays, Zap, KeyRound, FileText, BookOpen, Star, ShoppingBag } from 'lucide-react'
 import {
   useEffect,
@@ -259,6 +261,8 @@ function DigitalProductDetailsPage() {
     )
   }, [service])
 
+  const {offers:flashOffers,now:flashNow}=useFlashOffers(service?.groups.flatMap(g=>g.plans.map(p=>p.databaseId))??[])
+
   if (isLoadingService) {
     return (
       <main className="min-h-screen bg-[#f7f9fc] py-8 sm:py-12">
@@ -346,6 +350,8 @@ function DigitalProductDetailsPage() {
         'available',
     ) ??
     selectedGroup?.plans[0]
+
+  const selectedFlash=selectedPlan?.databaseId && flashOffers[selectedPlan.databaseId]?.original_price===selectedPlan.price?flashOffers[selectedPlan.databaseId]:undefined
 
   // Read the same plan/service fields configured in ADMIN. Plan values override service defaults.
   const deliveryMinutes = selectedPlan?.delivery_minutes ?? selectedGroup?.delivery_minutes ?? service.delivery_minutes ?? null
@@ -1039,11 +1045,7 @@ function DigitalProductDetailsPage() {
                                     ' ',
                                   )}
                                 >
-                                  {plan.old_price != null && Number(plan.old_price)>plan.price && <span className="block text-xs font-normal text-slate-400 line-through">{formatPrice(Number(plan.old_price),plan.currency)}</span>}
-                                  {formatPrice(
-                                    plan.price,
-                                    plan.currency,
-                                  )}
+                                  {plan.databaseId && flashOffers[plan.databaseId]?.original_price===plan.price ? <FlashOfferInfo offer={flashOffers[plan.databaseId]} now={flashNow} ar={isArabic}/> : <>{plan.old_price != null && Number(plan.old_price)>plan.price && <span className="block text-xs font-normal text-slate-400 line-through">{formatPrice(Number(plan.old_price),plan.currency)}</span>}{formatPrice(plan.price,plan.currency)}</>}
                                 </p>
 
                                 <span
@@ -1108,7 +1110,7 @@ function DigitalProductDetailsPage() {
               </section>}
               {activeTab === 'instructions' && localizedInstructions && <section>
                 <h2 className="flex items-center gap-2 text-lg font-black text-slate-950"><BookOpen size={20} className="text-blue-600"/>{isArabic ? 'طريقة التفعيل والاستخدام' : 'Activation et utilisation'}</h2>
-                <p className="mt-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-slate-700">{localizedInstructions}</p>
+                <p className="mt-4 whitespace-pre-wrap  [overflow-wrap:anywhere] text-sm leading-7 text-slate-700">{localizedInstructions}</p>
               </section>}
               {activeTab === 'reviews' && <section className="overflow-hidden">
                 <div className="border-b border-slate-100 p-5 sm:p-6">
@@ -1359,7 +1361,7 @@ function DigitalProductDetailsPage() {
                           className="mt-1 text-lg font-black text-blue-300"
                         >
                           {formatPrice(
-                            selectedPlan.price,
+                            selectedFlash?.flash_price ?? selectedPlan.price,
                             selectedPlan.currency,
                           )}
                         </p>
@@ -1440,7 +1442,7 @@ function DigitalProductDetailsPage() {
           <div className="mx-auto flex max-w-6xl items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs text-slate-500">{getLocalizedPlanLabel(selectedPlan, language)}</p>
-              <p className="break-words text-xl font-black text-blue-600">{formatPrice(selectedPlan.price, selectedPlan.currency)}</p>
+              <p className="break-words text-xl font-black text-blue-600">{formatPrice(selectedFlash?.flash_price ?? selectedPlan.price, selectedPlan.currency)}</p>
             </div>
             <button type="button" onClick={handleContinue} disabled={service.availability !== 'available' || selectedGroup.availability !== 'available' || selectedPlan.availability !== 'available'} className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"><ShoppingBag size={19}/>{service.availability !== 'available' || selectedGroup.availability !== 'available' || selectedPlan.availability !== 'available' ? (isArabic ? 'غير متوفر' : 'Indisponible') : (isArabic ? 'اشترِ الآن' : 'Acheter maintenant')}</button>
           </div>
