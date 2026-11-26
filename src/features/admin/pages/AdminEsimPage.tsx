@@ -3,10 +3,45 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { useLanguage } from '../../../i18n/LanguageContext'
 type Row = Record<string, string | number | boolean | null>
-const countryFields=['country_slug','name_ar','name_fr','iso_code','flag','description_ar','description_fr','compatibility_ar','compatibility_fr','instructions_ar','instructions_fr','terms_ar','terms_fr']
+const countryFields=['country_slug','name_ar','name_fr','iso_code','flag','region_ar','region_fr','description_ar','description_fr','compatibility_ar','compatibility_fr','instructions_ar','instructions_fr','terms_ar','terms_fr']
 const planFields=['label_ar','label_fr','data_ar','data_fr','duration_ar','duration_fr','network_name','network_type','activation_policy_ar','activation_policy_fr','fair_usage_ar','fair_usage_fr','description_ar','description_fr','warranty_ar','warranty_fr']
 const settingFields=['installation_guide_ar','installation_guide_fr','compatible_devices_ar','compatible_devices_fr','terms_ar','terms_fr']
 const names:Record<string,[string,string]>={country_slug:['معرف الدولة','Identifiant pays'],name_ar:['اسم الدولة بالعربية','Nom arabe'],name_fr:['اسم الدولة بالفرنسية','Nom français'],iso_code:['رمز الدولة','Code ISO'],flag:['العلم','Drapeau'],price:['سعر البيع MRU','Prix MRU'],old_price:['السعر السابق','Ancien prix'],data_gb:['حجم البيانات GB','Données GB'],validity_days:['الصلاحية بالأيام','Validité (jours)'],daily_high_speed_gb:['الحصة اليومية GB','Quota rapide / jour (GB)'],reduced_speed:['السرعة بعد الحصة','Débit après quota'],reset_hours:['تجديد الحصة بالساعات','Réinitialisation (heures)'],delivery_minutes:['التسليم بالدقائق','Livraison (minutes)'],network_name:['الشبكة','Réseau'],network_type:['نوع الشبكة','Type réseau'],sort_order:['الترتيب','Ordre'],active:['مفعّل','Actif'],popular:['مميز','Populaire'],featured:['مميز','Vedette'],unlimited:['غير محدود','Illimité'],hotspot_supported:['مشاركة الإنترنت','Partage de connexion'],topup_supported:['إعادة الشحن','Recharge']}
+Object.assign(names, {
+  label_ar: ['اسم الباقة بالعربية', 'Nom du forfait en arabe'],
+  label_fr: ['اسم الباقة بالفرنسية', 'Nom du forfait en français'],
+  data_ar: ['عرض حجم البيانات بالعربية', 'Volume affiché en arabe'],
+  data_fr: ['عرض حجم البيانات بالفرنسية', 'Volume affiché en français'],
+  duration_ar: ['مدة الصلاحية بالعربية', 'Durée en arabe'],
+  duration_fr: ['مدة الصلاحية بالفرنسية', 'Durée en français'],
+  description_ar: ['الوصف بالعربية', 'Description arabe'],
+  description_fr: ['الوصف بالفرنسية', 'Description française'],
+  compatibility_ar: ['التوافق بالعربية', 'Compatibilité arabe'],
+  compatibility_fr: ['التوافق بالفرنسية', 'Compatibilité française'],
+  instructions_ar: ['التعليمات بالعربية', 'Instructions arabes'],
+  instructions_fr: ['التعليمات بالفرنسية', 'Instructions françaises'],
+  terms_ar: ['الشروط بالعربية', 'Conditions arabes'],
+  terms_fr: ['الشروط بالفرنسية', 'Conditions françaises'],
+  warranty_ar: ['الضمان بالعربية', 'Garantie arabe'],
+  warranty_fr: ['الضمان بالفرنسية', 'Garantie française'],
+  activation_policy_ar: ['سياسة التفعيل بالعربية', 'Activation en arabe'],
+  activation_policy_fr: ['سياسة التفعيل بالفرنسية', 'Activation en français'],
+  fair_usage_ar: ['الاستخدام العادل بالعربية', 'Politique FUP arabe'],
+  fair_usage_fr: ['الاستخدام العادل بالفرنسية', 'Politique FUP française'],
+  installation_guide_ar: ['دليل التثبيت بالعربية', 'Guide installation arabe'],
+  installation_guide_fr: ['دليل التثبيت بالفرنسية', 'Guide installation français'],
+  compatible_devices_ar: ['الأجهزة المتوافقة بالعربية', 'Appareils compatibles arabe'],
+  compatible_devices_fr: ['الأجهزة المتوافقة بالفرنسية', 'Appareils compatibles français'],
+  show_networks: ['إظهار الشبكات', 'Afficher les réseaux'],
+  show_compatibility: ['إظهار التوافق', 'Afficher la compatibilité'],
+  show_installation_guide: ['إظهار دليل التثبيت', 'Afficher le guide'],
+  show_terms: ['إظهار الشروط', 'Afficher les conditions'],
+  speed_tier: ['فئة السرعة', 'Classe de débit'],
+  region_ar: ['المنطقة بالعربية', 'Région arabe'],
+  region_fr: ['المنطقة بالفرنسية', 'Région française'],
+  plan_id: ['معرف الباقة', 'Identifiant du forfait']
+})
+
 const cls='w-full rounded-lg border border-slate-300 bg-transparent p-2 text-sm dark:border-slate-600';const btn='rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50';const panel='rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 space-y-4 shadow-sm dark:border-slate-700 dark:bg-slate-900'
 function validateUnlimitedPlan(
   plan: Record<string, string | number | boolean | null>,
@@ -43,10 +78,157 @@ function validateUnlimitedPlan(
   }
 }
 
+function hasEsimFup(plan: Row): boolean {
+  return (
+    plan.speed_tier != null &&
+    String(plan.speed_tier).trim() !== ''
+  ) || (
+    plan.daily_high_speed_gb != null
+  ) || (
+    plan.reduced_speed != null &&
+    String(plan.reduced_speed).trim() !== ''
+  ) || (
+    plan.reset_hours != null
+  )
+}
+
+function getEsimPlanType(plan: Row): string {
+  if (plan.unlimited !== true) return 'limited'
+  return hasEsimFup(plan)
+    ? 'unlimited_fup'
+    : 'unlimited_standard'
+}
+
+function validateEsimCommercialFields(
+  plan: Row,
+  ar: boolean
+): void {
+
+  const fail = (a: string, f: string) => {
+    throw new Error(ar ? a : f)
+  }
+
+  const price = Number(plan.price)
+
+  if (!Number.isFinite(price) || price <= 0) {
+    fail(
+      'سعر البيع يجب أن يكون أكبر من صفر',
+      'Le prix doit être supérieur à zéro'
+    )
+  }
+
+  if (plan.old_price != null) {
+    const oldPrice = Number(plan.old_price)
+
+    if (
+      !Number.isFinite(oldPrice) ||
+      oldPrice <= price
+    ) {
+      fail(
+        'السعر السابق يجب أن يكون أكبر من سعر البيع',
+        'L’ancien prix doit dépasser le prix de vente'
+      )
+    }
+  }
+
+  if (plan.delivery_minutes != null) {
+    const delivery = Number(plan.delivery_minutes)
+
+    if (
+      !Number.isInteger(delivery) ||
+      delivery < 0
+    ) {
+      fail(
+        'مدة التسليم غير صالحة',
+        'Délai de livraison invalide'
+      )
+    }
+  }
+
+  if (plan.unlimited !== true) {
+    const volume = Number(plan.data_gb)
+
+    if (
+      !Number.isFinite(volume) ||
+      volume <= 0
+    ) {
+      fail(
+        'أدخل حجم البيانات الصحيح',
+        'Volume de données invalide'
+      )
+    }
+  }
+
+  validateUnlimitedPlan(plan, ar)
+}
+
 export default function AdminEsimPage(){const {language}=useLanguage();const ar=language==='ar';const t=(a:string,f:string)=>ar?a:f;const label=(k:string)=>names[k]?.[ar?0:1]||k.replace(/_/g,' ');const [countries,setCountries]=useState<Row[]>([]),[plans,setPlans]=useState<Row[]>([]),[country,setCountry]=useState<Row|null>(null),[plan,setPlan]=useState<Row|null>(null),[settings,setSettings]=useState<Row|null>(null),[selected,setSelected]=useState(''),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[tab,setTab]=useState('countries');
  const [search,setSearch]=useState(''),[statusFilter,setStatusFilter]=useState('all');
  const [cost,setCost]=useState(''),[margin,setMargin]=useState(''),[extra,setExtra]=useState('0'),[quote,setQuote]=useState<Record<string,unknown>|null>(null);
- useEffect(()=>{setCost('');setMargin('');setExtra('0');setQuote(null)},[plan?.plan_id]);
+ const [costLoading,setCostLoading]=useState(false);
+ const [costError,setCostError]=useState('');
+ const [costSaved,setCostSaved]=useState(false);
+ const [savedRate,setSavedRate]=useState<number|null>(null);
+
+ const costCountry=plan?.country_slug;
+ const costPlan=plan?.plan_id;
+
+ useEffect(()=>{
+   let alive=true;
+
+   setCost('');
+   setMargin('');
+   setExtra('0');
+   setQuote(null);
+   setCostError('');
+   setCostSaved(false);
+   setSavedRate(null);
+   setCostLoading(false);
+
+   if(!costCountry||!costPlan) {
+     return ()=>{alive=false};
+   }
+
+   setCostLoading(true);
+
+   const fetchCost=async()=>{
+     try {
+       const {data,error}=await supabase
+         .from('teo_esim_costs')
+         .select('cost_usd,usd_mru,margin_percent,extra_mru')
+         .eq('country_slug',costCountry)
+         .eq('plan_id',costPlan)
+         .maybeSingle();
+
+       if(error) throw Error(error.message);
+       if(!alive) return;
+
+       if(data){
+         setCost(String(data.cost_usd??''));
+         setMargin(String(data.margin_percent??''));
+         setExtra(String(data.extra_mru??0));
+         setSavedRate(Number(data.usd_mru));
+         setCostSaved(true);
+       }
+
+     } catch(e) {
+       if(alive){
+         setCostError(
+           e instanceof Error
+             ? e.message
+             : String(e)
+         );
+       }
+     } finally {
+       if(alive) setCostLoading(false);
+     }
+   };
+
+   void fetchCost();
+
+   return ()=>{alive=false};
+
+ },[costCountry,costPlan]);
  const load=async()=>{const [c,p,s]=await Promise.all([supabase.from('esim_country_settings').select('*').order('sort_order'),supabase.from('esim_plan_settings').select('*').order('sort_order'),supabase.from('teo_esim_settings').select('*').eq('id',true).single()]);if(c.error||p.error||s.error)throw Error(c.error?.message||p.error?.message||s.error?.message);setCountries(c.data as Row[]);setPlans(p.data as Row[]);setSettings(s.data as Row)};
  useEffect(()=>{void load().catch(e=>setMsg(String(e)))},[]);
  const run=async(fn:()=>Promise<void>)=>{setBusy(true);setMsg('');try{await fn();await load();setMsg(t('تم الحفظ','Enregistré'))}catch(e){setMsg(e instanceof Error?e.message:String(e))}finally{setBusy(false)}};
@@ -56,6 +238,207 @@ export default function AdminEsimPage(){const {language}=useLanguage();const ar=
  const check=(r:Row,set:(v:Row)=>void,k:string)=><label key={k} className="flex gap-2 items-center text-sm"><input type="checkbox" checked={r[k]===true} onChange={e=>set({...r,[k]:e.target.checked,...(k==='unlimited'&&e.target.checked?{data_gb:null}:{})})}/>{label(k)}</label>;
  return <div dir={ar?'rtl':'ltr'} className="space-y-4 pb-10"><div className="rounded-2xl bg-slate-900 p-6 text-white"><h1 className="text-2xl font-black">TEO eSIM PRO</h1><p className="mt-2 text-sm text-slate-300">{t('إدارة الدول والباقات والتسعير','Gestion des destinations, forfaits et tarifs')}</p><div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">{[[t('الدول','Pays'),countries.length],[t('الباقات','Forfaits'),plans.length],[t('مسودات','Brouillons'),plans.filter(p=>!p.active).length],[t('منشورة','Publiés'),plans.filter(p=>p.active===true).length]].map(([k,v])=><div key={String(k)} className="rounded-xl bg-white/10 p-3"><div className="text-xs">{k}</div><div className="text-xl font-bold">{v}</div></div>)}</div></div><div className="flex flex-wrap gap-2">{[['countries',t('الدول','Pays')],['plans',t('الباقات','Forfaits')],['settings',t('التعليمات والإعدادات','Guides et paramètres')]].map(([k,v])=><button key={k} className={tab===k?btn:cls+' !w-auto'} onClick={()=>setTab(k)}>{v}</button>)}</div>{msg&&<p role="status" className="rounded-xl border border-slate-300 p-3 text-sm dark:border-slate-600">{msg}</p>}<section className={panel}><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold">{t('نشر الكتالوج','Publication du catalogue')}</h2><p className="text-sm opacity-75">{settings?.catalog_v5_enabled?t('الكتالوج منشور','Catalogue publié'):t('الكتالوج مخفي','Catalogue masqué')} · {settings?.checkout_v5_enabled?t('الشراء مفعّل','Achat actif'):t('الشراء معطل','Achat inactif')}</p></div><button className={btn} disabled={busy||!settings||(!settings.catalog_v5_enabled&&!plans.some(p=>p.active===true))} onClick={()=>void run(async()=>{const next=settings?.catalog_v5_enabled!==true;if(!window.confirm(t('تغيير ظهور الكتالوج للعملاء؟','Modifier la visibilité du catalogue ?')))throw Error(t('تم الإلغاء','Annulé'));const {data,error}=await supabase.rpc('teo_v6_admin_set_control',{p_system:'catalog',p_enabled:next});if(error)throw Error(error.message);if(data!==next)throw Error(t('لم يؤكد الخادم حالة الكتالوج','Publication non confirmée'))})}>{settings?.catalog_v5_enabled?t('إخفاء الكتالوج','Masquer le catalogue'):t('نشر الكتالوج','Publier le catalogue')}</button></div><p className="text-xs opacity-70">{t('راجع الأسعار وفعّل الباقات المطلوبة أولاً. نشر الكتالوج لا يفعّل الشراء.','Vérifiez les prix et activez les forfaits souhaités. Publier le catalogue ne permet pas encore les achats.')}</p></section>
  {tab==='countries'&&<section className={panel}><button className={btn} onClick={()=>setCountry({country_slug:'',active:false,featured:false,sort_order:0})}>{t('إضافة دولة','Ajouter un pays')}</button><div className="grid gap-2 sm:grid-cols-3">{countries.map(c=><button key={String(c.country_slug)} className="overflow-hidden rounded-xl border border-slate-200 p-3 text-start dark:border-slate-700" onClick={()=>setCountry({...c})}>{c.image_path&&<img src={supabase.storage.from('esim-country-images').getPublicUrl(String(c.image_path)).data.publicUrl} className="mb-2 aspect-video w-full rounded-lg object-cover" alt=""/>}<div className="flex items-center gap-2"><EsimFlag flag={String(c.flag??'')} code={String(c.iso_code??'')} path={c.flag_image_path?String(c.flag_image_path):null}/><span className="font-bold">{String(c[ar?'name_ar':'name_fr']||c.country_slug)}</span></div><div className="mt-2 text-xs opacity-70">{c.active?t('مفعلة','Actif'):t('معطلة','Inactif')} · {plans.filter(p=>p.country_slug===c.country_slug).length} {t('باقات','forfaits')}</div></button>)}</div>{country&&<div className="space-y-3 border-t pt-4"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-bold">{t('تحرير الدولة','Modifier le pays')}</h2><button className={btn} onClick={()=>{setSelected(String(country.country_slug));setPlan(null);setTab('plans')}}>{t('إدارة باقات الدولة','Gérer ses forfaits')}</button></div><div className="grid gap-3 sm:grid-cols-2">{countryFields.slice(0,5).map(k=>field(country,setCountry,k,false,k==='country_slug'&&countries.some(c=>c.country_slug===country.country_slug)))}{countryFields.slice(5).map(k=>area(country,setCountry,k))}{field(country,setCountry,'sort_order',true)}{check(country,setCountry,'active')}{check(country,setCountry,'featured')}</div><label className="block text-sm">{t('صورة العلم','Image du drapeau')}{country.flag_image_path&&<img className="h-10 w-16 object-contain" src={supabase.storage.from('esim-country-images').getPublicUrl(String(country.flag_image_path)).data.publicUrl} alt=""/>}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={e=>{const f=e.target.files?.[0];if(!f)return;void run(async()=>{if(!/^[a-z0-9-]+$/.test(String(country.country_slug))||!['image/png','image/jpeg','image/webp'].includes(f.type)||f.size>2*1024*1024)throw Error(t('صورة أو معرف غير صالح','Image ou identifiant invalide'));const path=`${country.country_slug}/flag-${crypto.randomUUID()}.${f.type.split('/')[1]}`;const {error}=await supabase.storage.from('esim-country-images').upload(path,f);if(error)throw Error(error.message);setCountry({...country,flag_image_path:path})})}}/></label>{country.image_path&&<img className="h-28 rounded-lg object-cover" src={supabase.storage.from('esim-country-images').getPublicUrl(String(country.image_path)).data.publicUrl}/>}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={e=>{const file=e.target.files?.[0];if(!file)return;void run(async()=>{if(!/^[a-z0-9-]+$/.test(String(country.country_slug)))throw Error('Identifiant invalide');if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>5*1024*1024)throw Error('Image invalide');const path=`${country.country_slug}/${crypto.randomUUID()}.${file.type.split('/')[1]}`;const {error}=await supabase.storage.from('esim-country-images').upload(path,file);if(error)throw Error(error.message);setCountry({...country,image_path:path});})}}/><button className={btn} disabled={busy} onClick={()=>void run(async()=>{if(!/^[a-z0-9-]+$/.test(String(country.country_slug))||!country.name_ar||!country.name_fr)throw Error(t('أكمل اسم ومعرف الدولة','Identifiant et noms requis'));await save('esim_country_settings',country,'country_slug')})}>{t('حفظ الدولة','Enregistrer le pays')}</button></div>}</section>}
- {tab==='plans'&&<section className={panel}><select className={cls} value={selected} onChange={e=>{setSelected(e.target.value);setPlan(null)}}><option value="">{t('كل الدول','Tous les pays')}</option>{countries.map(c=><option key={String(c.country_slug)} value={String(c.country_slug)}>{String(c[ar?'name_ar':'name_fr']||c.country_slug)}</option>)}</select><button className={btn} disabled={!selected} onClick={()=>setPlan({country_slug:selected,plan_id:crypto.randomUUID(),price:0,active:false,unlimited:false,popular:false,sort_order:0,speed_tier:null})}>{t('إضافة باقة','Ajouter un forfait')}</button><div className="grid gap-2 sm:grid-cols-2"><input className={cls} value={search} onChange={e=>setSearch(e.target.value)} placeholder={t('ابحث عن باقة','Rechercher un forfait')}/><select className={cls} value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">{t('كل الحالات','Tous les statuts')}</option><option value="draft">{t('المسودات','Brouillons')}</option><option value="active">{t('المنشورة','Publiés')}</option></select></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{plans.filter(p=>(!selected||p.country_slug===selected)&&(statusFilter==='all'||(statusFilter==='active'?p.active===true:p.active!==true))&&[p.label_ar,p.label_fr,p.country_slug,p.plan_id].some(v=>String(v??'').toLowerCase().includes(search.toLowerCase()))).map(p=><button key={`${p.country_slug}:${p.plan_id}`} className="rounded-xl border border-slate-200 p-4 text-start dark:border-slate-700" onClick={()=>{setPlan({...p});setSelected(String(p.country_slug))}}><p className="text-xs opacity-70">{String(countries.find(c=>c.country_slug===p.country_slug)?.[ar?'name_ar':'name_fr']||p.country_slug)}</p><p className="mt-1 font-bold">{String(p[ar?'label_ar':'label_fr']||p.plan_id)}</p><p className="mt-2 font-bold text-blue-600 dark:text-blue-300">{p.price} MRU</p><p className="mt-1 text-xs">{p.active?t('منشورة','Publié'):t('مسودة','Brouillon')} · {p.unlimited?t('غير محدودة','Illimité'):t('محدودة','Limité')}</p></button>)}</div>{plan&&<div className="space-y-3 border-t pt-4"><h2 className="text-lg font-bold">{t('تحرير الباقة','Modifier le forfait')} · {String(plan[ar?'label_ar':'label_fr']||'')}</h2>{plans.some(p=>p.country_slug===plan.country_slug&&p.plan_id===plan.plan_id)&&<div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700"><span className="text-sm font-bold">{plans.find(p=>p.country_slug===plan.country_slug&&p.plan_id===plan.plan_id)?.active===true?t('منشورة','Publié'):t('مسودة','Brouillon')}</span><button type="button" className={btn} disabled={busy} onClick={()=>void run(async()=>{const stored=plans.find(p=>p.country_slug===plan.country_slug&&p.plan_id===plan.plan_id);if(!stored)throw Error(t('احفظ الباقة أولاً','Enregistrez le forfait d’abord'));const next=stored.active!==true;if(next&&(!stored.label_ar||!stored.label_fr||!Number.isFinite(Number(stored.price))||Number(stored.price)<=0||!Number.isInteger(Number(stored.validity_days))||Number(stored.validity_days)<=0))throw Error(t('راجع بيانات الباقة المحفوظة','Vérifiez les données enregistrées'));if(next) validateUnlimitedPlan(stored, ar);if(!window.confirm(next?t('نشر البيانات والأسعار المحفوظة فقط؟','Publier les données et tarifs déjà enregistrés ?'):t('إلغاء نشر الباقة؟','Retirer le forfait ?')))return;const {data,error}=await supabase.from('esim_plan_settings').update({active:next,updated_at:new Date().toISOString()}).eq('country_slug',stored.country_slug).eq('plan_id',stored.plan_id).select('active,updated_at').single();if(error)throw Error(error.message);if(data?.active!==next)throw Error(t('لم يؤكد الخادم النشر','Publication non confirmée'));setPlan(current=>current?{...current,active:next,updated_at:data.updated_at}:current)})}>{plans.find(p=>p.country_slug===plan.country_slug&&p.plan_id===plan.plan_id)?.active===true?t('إلغاء نشر الباقة','Dépublier le forfait'):t('نشر الباقة','Publier le forfait')}</button><p className="text-xs opacity-75">{t('احفظ تعديلات السعر والمواصفات أولاً.','Enregistrez les modifications avant de publier.')}</p></div>}<div className="grid gap-3 sm:grid-cols-2">{planFields.map(k=>k.includes('description')||k.includes('policy')||k.includes('fair_usage')?area(plan,setPlan,k):field(plan,setPlan,k))}{['price','old_price','data_gb','validity_days','delivery_minutes','sort_order'].map(k=>field(k==='data_gb'&&plan.unlimited?{...plan,data_gb:null}:plan,setPlan,k,true,))}{['unlimited','active','popular','hotspot_supported','topup_supported'].map(k=>check(plan,setPlan,k))}</div>{plan.unlimited&&<div className="grid gap-3 sm:grid-cols-2"><select className={cls} value={String(plan.speed_tier??'')} onChange={e=>setPlan({...plan,speed_tier:e.target.value||null})}><option value="">{t('اختر فئة السرعة','Classe de débit')}</option>{['Fast','Faster','Fastest'].map(k=><option key={k}>{k}</option>)}</select>{field(plan,setPlan,'daily_high_speed_gb',true)}{field(plan,setPlan,'reduced_speed')}{field(plan,setPlan,'reset_hours',true)}</div>}<button className={btn} disabled={busy} onClick={()=>void run(async()=>{if(!plan.label_ar||!plan.label_fr||!Number.isFinite(Number(plan.price))||Number(plan.price)<=0||!Number.isInteger(Number(plan.validity_days))||Number(plan.validity_days)<=0)throw Error(t('تحقق من الأسماء والسعر والصلاحية','Noms, prix et validité requis'));const p={...plan};if(p.unlimited)p.data_gb=null;else if(!Number.isFinite(Number(p.data_gb))||Number(p.data_gb)<=0)throw Error(t('أدخل حجم بيانات أكبر من صفر','Saisissez un volume de données supérieur à zéro'));if(!p.unlimited)Object.assign(p,{speed_tier:null,daily_high_speed_gb:null,reduced_speed:null,reset_hours:null});else if(p.active) validateUnlimitedPlan(p, ar);if(p.active&&!plans.some(old=>old.country_slug===p.country_slug&&old.plan_id===p.plan_id&&old.active===true)&&!window.confirm(t('هل راجعت السعر والمواصفات وتريد نشر هذه الباقة؟','Prix et caractéristiques vérifiés : publier ce forfait ?')))throw Error(t('تم الإلغاء','Annulé'));await save('esim_plan_settings',p,'country_slug,plan_id');setPlan(p)})}>{t('حفظ الباقة','Enregistrer le forfait')}</button>{msg&&<p role="status" className="rounded-lg border border-slate-300 p-3 text-sm dark:border-slate-600">{msg}</p>}{plans.some(p=>p.plan_id===plan.plan_id&&p.country_slug===plan.country_slug)&&<section className={panel}><h2 className="font-bold">TEO Smart Pricing</h2><div className="grid gap-3 sm:grid-cols-3">{[[t('تكلفة الشراء USD','Coût USD'),cost,setCost],[t('الهامش %','Marge %'),margin,setMargin],[t('مصاريف MRU','Frais MRU'),extra,setExtra]].map(([title,value,setter])=><label key={String(title)}>{String(title)}<input className={cls} type="number" step="any" value={String(value)} onChange={e=>{(setter as (v:string)=>void)(e.target.value);setQuote(null)}}/></label>)}</div><div className="flex flex-wrap gap-2">{[false,true].map(apply=><button className={btn} key={String(apply)} disabled={busy||!cost} onClick={()=>void run(async()=>{if(apply&&!window.confirm(t('تأكيد حفظ السعر والتكلفة؟','Enregistrer le prix et le coût ?')))return;const {data,error}=await supabase.rpc('teo_v5_admin_price_esim',{p_country_slug:plan.country_slug,p_plan_id:plan.plan_id,p_cost_usd:Number(cost),p_margin:margin===''?null:Number(margin),p_extra_mru:Number(extra),p_apply:apply});if(error)throw Error(error.message);setQuote(data);if(apply)setPlan({...plan,price:Number(data.selling_price_mru),old_price:Number(plan.old_price)>Number(data.selling_price_mru)?plan.old_price:null})})}>{apply?t('حفظ السعر والتكلفة','Appliquer le prix et coût'):t('حساب السعر','Calculer le prix')}</button>)}</div>{quote&&<p>{t('التكلفة','Coût')}: {String(quote.cost_mru)} MRU · {t('السعر','Prix')}: {String(quote.selling_price_mru)} MRU · {t('الربح','Marge brute')}: {String(quote.gross_profit_mru)} MRU</p>}</section>}</div>}</section>}
+ {tab==='plans'&&<section className={panel}><select className={cls} value={selected} onChange={e=>{setSelected(e.target.value);setPlan(null)}}><option value="">{t('كل الدول','Tous les pays')}</option>{countries.map(c=><option key={String(c.country_slug)} value={String(c.country_slug)}>{String(c[ar?'name_ar':'name_fr']||c.country_slug)}</option>)}</select><button className={btn} disabled={!selected} onClick={()=>setPlan({country_slug:selected,plan_id:crypto.randomUUID(),price:0,active:false,unlimited:false,popular:false,sort_order:0,speed_tier:null})}>{t('إضافة باقة','Ajouter un forfait')}</button><div className="grid gap-2 sm:grid-cols-2"><input className={cls} value={search} onChange={e=>setSearch(e.target.value)} placeholder={t('ابحث عن باقة','Rechercher un forfait')}/><select className={cls} value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">{t('كل الحالات','Tous les statuts')}</option><option value="draft">{t('المسودات','Brouillons')}</option><option value="active">{t('المنشورة','Publiés')}</option></select></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{plans.filter(p=>(!selected||p.country_slug===selected)&&(statusFilter==='all'||(statusFilter==='active'?p.active===true:p.active!==true))&&[p.label_ar,p.label_fr,p.country_slug,p.plan_id].some(v=>String(v??'').toLowerCase().includes(search.toLowerCase()))).map(p=><button key={`${p.country_slug}:${p.plan_id}`} className="rounded-xl border border-slate-200 p-4 text-start dark:border-slate-700" onClick={()=>{setPlan({...p});setSelected(String(p.country_slug))}}><p className="text-xs opacity-70">{String(countries.find(c=>c.country_slug===p.country_slug)?.[ar?'name_ar':'name_fr']||p.country_slug)}</p><p className="mt-1 font-bold">{String(p[ar?'label_ar':'label_fr']||p.plan_id)}</p><p className="mt-2 font-bold text-blue-600 dark:text-blue-300">{p.price} MRU</p><p className="mt-1 text-xs">{p.active?t('منشورة','Publié'):t('مسودة','Brouillon')} · {getEsimPlanType(p)==='limited'
+  ?t('محدودة','Limité')
+  :getEsimPlanType(p)==='unlimited_fup'
+    ?t('غير محدودة FUP','Illimité FUP')
+    :t('غير محدودة عادية','Illimité Standard')}</p></button>)}</div>{plan&&<div className="space-y-3 border-t pt-4"><h2 className="text-lg font-bold">{t('تحرير الباقة','Modifier le forfait')} · {String(plan[ar?'label_ar':'label_fr']||'')}</h2>{plans.some(p=>p.country_slug===plan.country_slug&&p.plan_id===plan.plan_id)&&<div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700"><span className="text-sm font-bold">{plans.find(p=>p.country_slug===plan.country_slug&&p.plan_id===plan.plan_id)?.active===true?t('منشورة','Publié'):t('مسودة','Brouillon')}</span><button type="button" className={btn} disabled={busy} onClick={()=>void run(async()=>{const stored=plans.find(p=>p.country_slug===plan.country_slug&&p.plan_id===plan.plan_id);if(!stored)throw Error(t('احفظ الباقة أولاً','Enregistrez le forfait d’abord'));const next=stored.active!==true;if(next&&(!stored.label_ar||!stored.label_fr||!Number.isFinite(Number(stored.price))||Number(stored.price)<=0||!Number.isInteger(Number(stored.validity_days))||Number(stored.validity_days)<=0))throw Error(t('راجع بيانات الباقة المحفوظة','Vérifiez les données enregistrées'));if(next) validateEsimCommercialFields(stored, ar);if(!window.confirm(next?t('نشر البيانات والأسعار المحفوظة فقط؟','Publier les données et tarifs déjà enregistrés ?'):t('إلغاء نشر الباقة؟','Retirer le forfait ?')))return;const {data,error}=await supabase.from('esim_plan_settings').update({active:next,updated_at:new Date().toISOString()}).eq('country_slug',stored.country_slug).eq('plan_id',stored.plan_id).select('active,updated_at').single();if(error)throw Error(error.message);if(data?.active!==next)throw Error(t('لم يؤكد الخادم النشر','Publication non confirmée'));setPlan(current=>current?{...current,active:next,updated_at:data.updated_at}:current)})}>{plans.find(p=>p.country_slug===plan.country_slug&&p.plan_id===plan.plan_id)?.active===true?t('إلغاء نشر الباقة','Dépublier le forfait'):t('نشر الباقة','Publier le forfait')}</button><p className="text-xs opacity-75">{t('احفظ تعديلات السعر والمواصفات أولاً.','Enregistrez les modifications avant de publier.')}</p></div>}<div className="grid gap-3 sm:grid-cols-2">{planFields.map(k=>k.includes('description')||k.includes('policy')||k.includes('fair_usage')?area(plan,setPlan,k):field(plan,setPlan,k))}{['price','old_price','data_gb','validity_days','delivery_minutes','sort_order'].map(k=>field(plan,setPlan,k,true,k==='data_gb'&&plan.unlimited===true))}{['unlimited','active','popular','hotspot_supported','topup_supported'].map(k=>check(plan,setPlan,k))}</div>{plan.unlimited===true&&
+ <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/30">
+   <p className="font-bold">
+     {t('نوع الباقة غير المحدودة','Type de forfait illimité')}
+   </p>
+   <p className="text-sm">
+     {hasEsimFup(plan)
+       ?t('غير محدودة مع سياسة الاستخدام العادل','Illimité avec FUP')
+       :t('غير محدودة عادية','Illimité Standard')}
+   </p>
+   <button
+     type="button"
+     className={btn}
+     disabled={busy}
+     onClick={()=>setPlan({
+       ...plan,
+       unlimited:true,
+       data_gb:null,
+       speed_tier:null,
+       daily_high_speed_gb:null,
+       reduced_speed:null,
+       reset_hours:null
+     })}
+   >
+     {t('مسح خصائص FUP واختيار Standard','Effacer les paramètres FUP')}
+   </button>
+   <p className="text-xs opacity-75">
+     {t(
+       'للباقة العادية اترك جميع خصائص FUP فارغة. وللباقة ذات الاستخدام العادل أكمل جميع الخصائص.',
+       'Pour Standard, laissez les champs FUP vides. Pour FUP, complétez tous les paramètres.'
+     )}
+   </p>
+ </div>
+}
+{plan.unlimited===true&&<div className="grid gap-3 sm:grid-cols-2"><select className={cls} value={String(plan.speed_tier??'')} onChange={e=>setPlan({...plan,speed_tier:e.target.value||null})}><option value="">{t('اختر فئة السرعة','Classe de débit')}</option>{['Fast','Faster','Fastest'].map(k=><option key={k}>{k}</option>)}</select>{field(plan,setPlan,'daily_high_speed_gb',true)}{field(plan,setPlan,'reduced_speed')}{field(plan,setPlan,'reset_hours',true)}</div>}<button className={btn} disabled={busy} onClick={()=>void run(async()=>{if(!plan.label_ar||!plan.label_fr||!Number.isFinite(Number(plan.price))||Number(plan.price)<=0||!Number.isInteger(Number(plan.validity_days))||Number(plan.validity_days)<=0)throw Error(t('تحقق من الأسماء والسعر والصلاحية','Noms, prix et validité requis'));const p={...plan};if(p.unlimited)p.data_gb=null;else if(!Number.isFinite(Number(p.data_gb))||Number(p.data_gb)<=0)throw Error(t('أدخل حجم بيانات أكبر من صفر','Saisissez un volume de données supérieur à zéro'));if(!p.unlimited)Object.assign(p,{speed_tier:null,daily_high_speed_gb:null,reduced_speed:null,reset_hours:null});else if(p.active) validateUnlimitedPlan(p, ar);if(p.active) validateEsimCommercialFields(p, ar);if(p.active&&!plans.some(old=>old.country_slug===p.country_slug&&old.plan_id===p.plan_id&&old.active===true)&&!window.confirm(t('هل راجعت السعر والمواصفات وتريد نشر هذه الباقة؟','Prix et caractéristiques vérifiés : publier ce forfait ?')))throw Error(t('تم الإلغاء','Annulé'));await save('esim_plan_settings',p,'country_slug,plan_id');setPlan(p)})}>{t('حفظ الباقة','Enregistrer le forfait')}</button>{msg&&<p role="status" className="rounded-lg border border-slate-300 p-3 text-sm dark:border-slate-600">{msg}</p>}{plans.some(p=>p.plan_id===plan.plan_id&&p.country_slug===plan.country_slug)&&<section className={panel}><h2 className="font-bold">TEO Smart Pricing</h2>
+
+{costLoading&&
+  <p className="text-sm opacity-75">
+    {t('جارٍ استرجاع التكلفة','Chargement du coût')}
+  </p>
+}
+
+{costError&&
+  <p role="alert" className="rounded-lg bg-red-100 p-3 text-sm text-red-800">
+    {costError}
+  </p>
+}
+
+{!costLoading&&!costError&&
+  <p className="text-sm font-medium">
+    {costSaved
+      ?t('توجد تكلفة محفوظة لهذه الباقة','Coût enregistré pour ce forfait')
+      :t('لم تسجل تكلفة لهذه الباقة بعد','Aucun coût enregistré')}
+  </p>
+}
+
+{savedRate!==null&&
+  <p className="text-xs opacity-75">
+    {t('سعر الصرف المحفوظ','Taux de change enregistré')}:
+    {' 1 USD = '+savedRate+' MRU'}
+  </p>
+}<div className="grid gap-3 sm:grid-cols-3">{[[t('تكلفة الشراء USD','Coût USD'),cost,setCost],[t('الهامش %','Marge %'),margin,setMargin],[t('مصاريف MRU','Frais MRU'),extra,setExtra]].map(([title,value,setter])=><label key={String(title)}>{String(title)}<input className={cls} type="number" step="any" value={String(value)} onChange={e=>{(setter as (v:string)=>void)(e.target.value);setQuote(null);setCostSaved(false)}}/></label>)}</div><div className="flex flex-wrap gap-2">{(['calculate','save_cost','apply_price'] as const).map(action=>
+  <button
+    type="button"
+    key={action}
+    className={btn}
+    disabled={
+      busy ||
+      costLoading ||
+      !!costError ||
+      cost.trim()===''
+    }
+    onClick={()=>void run(async()=>{
+
+      const costValue=Number(cost);
+      const marginValue=margin.trim()===''
+        ?null
+        :Number(margin);
+      const extraValue=Number(extra);
+
+      if(
+        !Number.isFinite(costValue) ||
+        costValue<=0 ||
+        !Number.isFinite(extraValue) ||
+        extraValue<0 ||
+        (
+          marginValue!==null &&
+          (
+            !Number.isFinite(marginValue) ||
+            marginValue<0 ||
+            marginValue>=100
+          )
+        )
+      ){
+        throw Error(
+          t(
+            'راجع التكلفة والهامش والمصاريف',
+            'Vérifiez le coût, la marge et les frais'
+          )
+        );
+      }
+
+      if(action==='apply_price'&&
+        !window.confirm(
+          t(
+            'تأكيد تغيير سعر البيع وحفظ التكلفة؟',
+            'Confirmer le nouveau prix et le coût ?'
+          )
+        )
+      ) return;
+
+      const args={
+        p_country_slug:plan.country_slug,
+        p_plan_id:plan.plan_id,
+        p_cost_usd:costValue,
+        p_margin:marginValue,
+        p_extra_mru:extraValue
+      };
+
+      const response=
+        action==='save_cost'
+          ?await supabase.rpc(
+             'teo_v6_admin_save_esim_cost',
+             args
+           )
+          :await supabase.rpc(
+             'teo_v5_admin_price_esim',
+             {
+               ...args,
+               p_apply:action==='apply_price'
+             }
+           );
+
+      if(response.error){
+        throw Error(response.error.message);
+      }
+
+      const data=response.data;
+
+      if(
+        !data ||
+        !Number.isFinite(Number(data.cost_mru)) ||
+        !Number.isFinite(Number(data.selling_price_mru))
+      ){
+        throw Error(
+          t('نتيجة التسعير غير صالحة','Résultat invalide')
+        );
+      }
+
+      if(action==='save_cost'){
+        if(data.cost_saved!==true ||
+           data.price_updated!==false){
+          throw Error('COST_SAVE_NOT_CONFIRMED');
+        }
+
+        setCostSaved(true);
+        setSavedRate(Number(data.exchange_rate));
+      }
+
+      if(action==='apply_price'){
+        if(data.applied!==true){
+          throw Error('PRICE_UPDATE_NOT_CONFIRMED');
+        }
+
+        const newPrice=Number(data.selling_price_mru);
+
+        setPlan(current=>{
+          if(!current ||
+             current.country_slug!==plan.country_slug ||
+             current.plan_id!==plan.plan_id){
+            return current;
+          }
+
+          return {
+            ...current,
+            price:newPrice,
+            old_price:
+              Number(current.old_price)>newPrice
+                ?current.old_price
+                :null
+          };
+        });
+
+        setCostSaved(true);
+        setSavedRate(Number(data.exchange_rate));
+      }
+
+      setQuote(data);
+
+    })}
+  >
+    {action==='calculate'
+      ?t('حساب السعر','Calculer le prix')
+      :action==='save_cost'
+        ?t('حفظ التكلفة فقط','Enregistrer le coût seul')
+        :t('تطبيق السعر والتكلفة','Appliquer prix et coût')}
+  </button>
+)}</div>{quote&&<p>{t('التكلفة','Coût')}: {String(quote.cost_mru)} MRU · {t('السعر','Prix')}: {String(quote.selling_price_mru)} MRU · {t('الربح','Marge brute')}: {String(quote.gross_profit_mru)} MRU</p>}</section>}</div>}</section>}
  {tab==='settings'&&settings&&<section className={panel}>{settingFields.map(k=>area(settings,setSettings,k))}{['show_networks','show_compatibility','show_installation_guide','show_terms'].map(k=>check(settings,setSettings,k))}<button className={btn} disabled={busy} onClick={()=>void run(async()=>{const {error}=await supabase.from('teo_esim_settings').update(Object.fromEntries([...settingFields,'show_networks','show_compatibility','show_installation_guide','show_terms'].map(k=>[k,settings[k]]))).eq('id',true);if(error)throw Error(error.message)})}>{t('حفظ التعليمات','Enregistrer les guides')}</button><p>{t('تفعيل البيع يبقى منفصلاً حتى الاختبار.','Activation commerciale séparée après validation.')}</p></section>}
  </div>}
