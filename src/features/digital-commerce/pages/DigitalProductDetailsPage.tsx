@@ -1360,6 +1360,7 @@ function DigitalProductDetailsPage() {
                           dir="ltr"
                           className="mt-1 text-lg font-black text-blue-300"
                         >
+                          {!selectedFlash&&Number(selectedPlan.old_price)>selectedPlan.price&&<span className="block text-xs font-normal text-slate-300 line-through">{formatPrice(Number(selectedPlan.old_price),selectedPlan.currency)}</span>}
                           {formatPrice(
                             selectedFlash?.flash_price ?? selectedPlan.price,
                             selectedPlan.currency,
@@ -1442,7 +1443,7 @@ function DigitalProductDetailsPage() {
           <div className="mx-auto flex max-w-6xl items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs text-slate-500">{getLocalizedPlanLabel(selectedPlan, language)}</p>
-              <p className="break-words text-xl font-black text-blue-600">{formatPrice(selectedFlash?.flash_price ?? selectedPlan.price, selectedPlan.currency)}</p>
+              <p className="break-words text-xl font-black text-blue-600">{!selectedFlash&&Number(selectedPlan.old_price)>selectedPlan.price&&<span className="block text-xs text-slate-500 line-through">{formatPrice(Number(selectedPlan.old_price),selectedPlan.currency)}</span>}{formatPrice(selectedFlash?.flash_price ?? selectedPlan.price, selectedPlan.currency)}</p>
             </div>
             <button type="button" onClick={handleContinue} disabled={service.availability !== 'available' || selectedGroup.availability !== 'available' || selectedPlan.availability !== 'available'} className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"><ShoppingBag size={19}/>{service.availability !== 'available' || selectedGroup.availability !== 'available' || selectedPlan.availability !== 'available' ? (isArabic ? 'غير متوفر' : 'Indisponible') : (isArabic ? 'اشترِ الآن' : 'Acheter maintenant')}</button>
           </div>

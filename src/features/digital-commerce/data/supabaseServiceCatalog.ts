@@ -36,6 +36,9 @@ export type PublicServiceCatalogItem = Omit<ServiceCatalogItem, 'groups'> & {
 type ServiceRow = {
   id: string
   slug: string
+  name_ar: string | null
+  name_fr: string | null
+  image_url: string | null
   name: string
   category: string
   availability: ServiceCatalogItem['availability']
@@ -53,6 +56,21 @@ type GroupRow = {
   id: string
   service_id: string
   group_key: string
+  name_ar: string | null
+  name_fr: string | null
+  short_name_ar: string | null
+  short_name_fr: string | null
+  image_url: string | null
+  description_ar: string | null
+  description_fr: string | null
+  instructions_ar: string | null
+  instructions_fr: string | null
+  description_enabled: boolean | null
+  instructions_enabled: boolean | null
+  delivery_minutes: number | null
+  warranty_days: number | null
+  warranty_full_subscription: boolean | null
+  validity_days: number | null
   name: string
   short_name: string
   availability: ServiceGroup['availability']
@@ -65,6 +83,11 @@ type PlanRow = {
   id: string
   group_id: string
   plan_key: string
+  label_ar: string | null
+  label_fr: string | null
+  old_price: number | string | null
+  duration_value: number | null
+  duration_unit: string | null
   label: string
   price: number | string
   currency: string
@@ -106,6 +129,9 @@ function mapCatalog(
       databaseId: plan.id,
       label: plan.label,
       price: parsedPrice,
+      old_price: plan.old_price == null ? null : Number(plan.old_price),
+      label_ar: plan.label_ar, label_fr: plan.label_fr,
+      duration_value: plan.duration_value, duration_unit: plan.duration_unit,
       currency: 'MRU',
       availability: plan.availability,
       popular: plan.popular,
@@ -128,6 +154,13 @@ function mapCatalog(
       databaseId: group.id,
       name: group.name,
       shortName: group.short_name,
+      name_ar: group.name_ar, name_fr: group.name_fr,
+      short_name_ar: group.short_name_ar, short_name_fr: group.short_name_fr,
+      image_url: group.image_url, description_ar: group.description_ar, description_fr: group.description_fr,
+      instructions_ar: group.instructions_ar, instructions_fr: group.instructions_fr,
+      description_enabled: group.description_enabled, instructions_enabled: group.instructions_enabled,
+      delivery_minutes: group.delivery_minutes, warranty_days: group.warranty_days,
+      warranty_full_subscription: group.warranty_full_subscription, validity_days: group.validity_days,
       availability: group.availability,
       fulfillment: group.fulfillment,
       plans: plansByGroup.get(group.id) ?? [],
@@ -139,6 +172,7 @@ function mapCatalog(
 
   return services.map((service) => ({
     slug: service.slug,
+    name_ar: service.name_ar, name_fr: service.name_fr, image_url: service.image_url,
     name: service.name,
     category: service.category,
     availability: service.availability,
@@ -162,6 +196,7 @@ export async function fetchPublicServiceCatalog(): Promise<
       .select(`
         id,
         slug,
+        name_ar, name_fr, image_url,
         name,
         category,
         availability,
@@ -197,6 +232,9 @@ export async function fetchPublicServiceCatalog(): Promise<
         id,
         service_id,
         group_key,
+        name_ar, name_fr, short_name_ar, short_name_fr, image_url,
+        description_ar, description_fr, instructions_ar, instructions_fr,
+        description_enabled, instructions_enabled, delivery_minutes, warranty_days, warranty_full_subscription, validity_days,
         name,
         short_name,
         availability,
@@ -230,6 +268,7 @@ export async function fetchPublicServiceCatalog(): Promise<
         id,
         group_id,
         plan_key,
+        label_ar, label_fr, old_price, duration_value, duration_unit,
         label,
         price,
         currency,

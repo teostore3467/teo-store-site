@@ -13,7 +13,7 @@ export default function ServiceLogo({serviceSlug, fallback, fallbackUrl, classNa
     setFailed([])
     const load=async()=>{
       try {
-        const {data,error}=await supabase.from('service_logos').select('logo_path,logo_light_path,logo_dark_path').eq('service_slug',serviceSlug).maybeSingle()
+        const {data,error}=await supabase.from('service_logos').select('*').eq('service_slug',serviceSlug).maybeSingle()
         if(current) setRow({slug:serviceSlug,data:error?null:data as LogoRow|null})
       } catch { if(current)setRow({slug:serviceSlug,data:null}) }
     }
