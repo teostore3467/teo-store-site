@@ -19,9 +19,7 @@ import {
   supabase,
 } from '../../../lib/supabase'
 
-import {
-  getEsimCountryBySlug,
-} from '../data/esimCatalog'
+import { useEsimCatalog, type LiveCountry } from '../data/useEsimCatalog'
 
 type CountrySettingRow = {
   country_slug: string
@@ -61,16 +59,10 @@ function EsimCountryPage() {
     language ===
     'ar'
 
-  const country =
-    useMemo(
-      () =>
-        getEsimCountryBySlug(
-          countrySlug,
-        ),
-      [
-        countrySlug,
-      ],
-    )
+  const { countries, loading: catalogLoading, error: catalogError } = useEsimCatalog()
+  const country = useMemo<LiveCountry>(() => countries.find(c => c.slug === countrySlug) ?? {slug:countrySlug ?? '',code:'',name:{ar:'',fr:''},flag:'🌐',description:{ar:'',fr:''},imageLabel:{ar:'',fr:''},plans:[],active:false,image_path:null}, [countries,countrySlug])
+  const [speedTier,setSpeedTier] = useState('')
+
 
   const [
     countrySetting,
@@ -292,9 +284,7 @@ function EsimCountryPage() {
   const checkoutEnabled = publicSettings?.catalog_enabled === true && publicSettings?.checkout_enabled === true
 
   const countryActive =
-    countrySetting
-      ?.active ??
-    false
+    country.active && countrySetting?.active === true
 
   const countryImageUrl =
     useMemo(
@@ -432,15 +422,15 @@ function EsimCountryPage() {
           (
             plan,
           ) =>
-            plan.type ===
-            planType,
+            plan.type === planType && (planType !== 'unlimited' || !speedTier || plan.tier === speedTier),
         ),
       [
         effectivePlans,
-        planType,
+        planType, speedTier,
       ],
     )
 
+  const tiers = Array.from(new Set(unlimitedPlans.map(p=>p.tier).filter(Boolean)))
   const defaultPlan =
     availablePlans.find(
       (
@@ -448,8 +438,7 @@ function EsimCountryPage() {
       ) =>
         plan.popular,
     ) ??
-    availablePlans[0] ??
-    effectivePlans[0]
+    availablePlans[0]
 
   const [
     selectedPlanId,
@@ -461,7 +450,7 @@ function EsimCountryPage() {
     )
 
   const selectedPlan =
-    effectivePlans.find(
+    availablePlans.find(
       (
         plan,
       ) =>
@@ -487,8 +476,7 @@ function EsimCountryPage() {
         (
           plan,
         ) =>
-          plan.type ===
-          planType,
+          plan.type === planType && (planType !== 'unlimited' || !speedTier || plan.tier === speedTier),
       )
 
     if (
@@ -563,7 +551,7 @@ function EsimCountryPage() {
     limitedPlans,
     unlimitedPlans,
     planType,
-    selectedPlanId,
+    selectedPlanId, speedTier,
   ])
 
   const handlePlanTypeChange =
@@ -588,6 +576,7 @@ function EsimCountryPage() {
         return
       }
 
+      setSpeedTier('')
       setPlanType(
         type,
       )
@@ -648,7 +637,7 @@ function EsimCountryPage() {
     }
 
   if (
-    isSettingsLoading
+    catalogLoading || (isSettingsLoading && Boolean(country.slug))
   ) {
     return (
       <main className="min-h-screen bg-[#f6f8fc]">
@@ -668,7 +657,7 @@ function EsimCountryPage() {
   }
 
   if (
-    !countryActive
+    !countryActive || Boolean(catalogError)
   ) {
     return (
       <main className="min-h-screen bg-[#f6f8fc]">
@@ -710,7 +699,7 @@ function EsimCountryPage() {
   : "Retour à l'accueil"}
             </button>
           </div>
-          <EsimGuide ar={isArabic} settings={publicSettings} />
+          <EsimGuide ar={isArabic} settings={{...publicSettings,...Object.fromEntries(Object.entries(country.guide??{}).filter(([,v])=>Boolean(v)))}} />
         </Container>
       </main>
     )
@@ -1044,6 +1033,7 @@ function EsimCountryPage() {
                     </div>
                   </div>
 
+                  {planType === 'unlimited' && tiers.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{['', ...tiers].map(tier => <button key={tier} type="button" onClick={()=>{setSpeedTier(tier);setSelectedPlanId('')}} className={`rounded-full px-4 py-2 text-sm font-bold ${speedTier===tier?'bg-blue-600 text-white':'bg-slate-100 text-slate-700'}`}>{tier || (isArabic?'الكل':'Tous')}</button>)}</div>}
                   <div className="mt-6">
                     <div className="flex items-end justify-between gap-3">
                       <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">
@@ -1142,6 +1132,7 @@ function EsimCountryPage() {
                                 }
                               </p>
 
+                              {plan.type === 'unlimited' && plan.tier && <div className="mt-2 text-xs text-slate-600"><strong>{plan.tier}</strong><p>{isArabic?'الحصة اليومية':'Quota rapide / jour'}: {plan.daily} GB</p><p>{isArabic?'بعد الحصة':'Après quota'}: {plan.reduced}</p><p>{isArabic?'التجديد':'Réinitialisation'}: {plan.reset} h</p></div>}
                               {plan.speed && (
                                 <p
                                   dir={
@@ -1398,7 +1389,7 @@ function EsimCountryPage() {
                 : 'Votre téléphone doit prendre en charge la technologie eSIM avant l’achat.'}
             </p>
           </div>
-          <EsimGuide ar={isArabic} settings={publicSettings} />
+          <EsimGuide ar={isArabic} settings={{...publicSettings,...Object.fromEntries(Object.entries(country.guide??{}).filter(([,v])=>Boolean(v)))}} />
         </Container>
       </section>
     </main>

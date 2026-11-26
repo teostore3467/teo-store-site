@@ -9,7 +9,7 @@ import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 import { supabase } from '../../../lib/supabase'
 
-import { esimCountries } from '../data/esimCatalog'
+import { useEsimCatalog } from '../data/useEsimCatalog'
 
 type CountrySettingRow = {
   country_slug: string
@@ -51,6 +51,8 @@ function getCountryImageUrl(
 }
 
 function EsimSection() {
+  const { countries } = useEsimCatalog()
+  const esimCountries = countries.filter(c => c.active)
   const { language } =
     useLanguage()
 

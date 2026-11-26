@@ -1,3 +1,4 @@
+import { useEsimPublicSettings } from '../components/EsimGuide'
 import { copyText as copyToClipboard } from '../../../lib/copyText'
 import {
   useCallback,
@@ -17,7 +18,7 @@ import {
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 import { supabase } from '../../../lib/supabase'
-import { getEsimCountryBySlug } from '../data/esimCatalog'
+import { useEsimCatalog } from '../data/useEsimCatalog'
 
 type EsimCheckoutState = {
   countrySlug?: string
@@ -114,10 +115,6 @@ type ToastState = {
   message?: string
 }
 
-type PriceValue =
-  | string
-  | number
-
 const PAYMENT_PROOFS_BUCKET =
   'payment-proofs'
 
@@ -126,47 +123,6 @@ const PAYMENT_METHODS_BUCKET =
 
 const MAX_PROOF_SIZE =
   5 * 1024 * 1024
-
-function parsePrice(
-  value: PriceValue,
-) {
-  if (
-    typeof value ===
-    'number'
-  ) {
-    return Number.isFinite(
-      value,
-    )
-      ? value
-      : 0
-  }
-
-  const normalized =
-    value
-      .replace(
-        /\s/g,
-        '',
-      )
-      .replace(
-        ',',
-        '.',
-      )
-      .replace(
-        /[^0-9.-]/g,
-        '',
-      )
-
-  const parsed =
-    Number(
-      normalized,
-    )
-
-  return Number.isFinite(
-    parsed,
-  )
-    ? parsed
-    : 0
-}
 
 function getFileExtension(
   file: File,
@@ -241,16 +197,8 @@ function EsimCheckoutPage() {
     ) ??
     null
 
-  const country =
-    useMemo(
-      () =>
-        getEsimCountryBySlug(
-          countrySlug,
-        ),
-      [
-        countrySlug,
-      ],
-    )
+  const { countries, loading: catalogLoading } = useEsimCatalog()
+  const country = useMemo(()=>countries.find(c=>c.slug===countrySlug && c.active),[countries,countrySlug])
 
   const requestedPlan =
     useMemo(
@@ -821,6 +769,9 @@ function EsimCheckoutPage() {
     ],
   )
 
+  const publicSettings = useEsimPublicSettings()
+  const checkoutEnabled = publicSettings?.catalog_enabled === true && publicSettings?.checkout_enabled === true
+
   const verifiedPrice =
     useMemo(
       () => {
@@ -838,9 +789,7 @@ function EsimCheckoutPage() {
           )
         }
 
-        return parsePrice(
-          requestedPlan.price,
-        )
+        return 0
       },
       [
         planSetting,
@@ -851,12 +800,12 @@ function EsimCheckoutPage() {
   const countryActive =
     countrySetting
       ?.active ??
-    true
+    false
 
   const planActive =
     planSetting
       ?.active ??
-    true
+    false
 
   const selectedMethod =
     useMemo(
@@ -951,7 +900,7 @@ function EsimCheckoutPage() {
 
   const canSubmit =
     Boolean(
-      country &&
+      checkoutEnabled && country &&
         requestedPlan &&
         countryActive &&
         planActive &&
@@ -1148,6 +1097,8 @@ function EsimCheckoutPage() {
         null
 
       try {
+        const gate = await supabase.rpc('teo_v5_get_esim_settings')
+        if (gate.error || gate.data?.catalog_enabled !== true || gate.data?.checkout_enabled !== true) throw new Error(isArabic ? 'شراء eSIM غير متاح حاليًا' : 'Achat eSIM indisponible')
         const [
           countryResult,
           planResult,
@@ -1240,13 +1191,13 @@ function EsimCheckoutPage() {
             countryResult
               .data
               ?.active ??
-            true
+            false
           ) ||
           !(
             planResult
               .data
               ?.active ??
-            true
+            false
           )
         ) {
           throw new Error(
@@ -1265,9 +1216,7 @@ function EsimCheckoutPage() {
                   .data
                   .price,
               )
-            : parsePrice(
-                requestedPlan.price,
-              )
+            : 0
 
         if (
           !Number.isFinite(
@@ -1572,7 +1521,7 @@ function EsimCheckoutPage() {
     }
 
   if (
-    isVerifying
+    isVerifying || catalogLoading
   ) {
     return (
       <main className="min-h-screen bg-[#f7f9fc]">
@@ -1663,7 +1612,7 @@ function EsimCheckoutPage() {
   }
 
   if (
-    !countryActive ||
+    !checkoutEnabled || !countryActive ||
     !planActive
   ) {
     return (

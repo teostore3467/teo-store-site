@@ -195,7 +195,8 @@ async function readAll<T>(
       .select(columns)
       .order(orderBy, { ascending: false })
 
-    if (orderBy !== 'id') {
+    if (table === 'esim_plan_settings') query = query.order('country_slug', { ascending: false })
+    if (orderBy !== 'id' && !table.startsWith('esim_')) {
       query = query.order('id', { ascending: false })
     }
 
@@ -372,7 +373,7 @@ function AdminDashboardPage() {
       columns: string,
     ): Promise<T[] | null> => {
       try {
-        return await readAll<T>(table, columns)
+        return await readAll<T>(table, columns, table === 'esim_country_settings' ? 'country_slug' : table === 'esim_plan_settings' ? 'plan_id' : 'id')
       } catch (e) {
         errors.push(
           e instanceof Error ? e.message : table,
@@ -419,9 +420,9 @@ function AdminDashboardPage() {
 
         optional<RecordId>('digital_service_plans', 'id'),
 
-        optional<RecordId>('esim_countries', 'id'),
+        optional<RecordId>('esim_country_settings', 'country_slug'),
 
-        optional<RecordId>('esim_plans', 'id'),
+        optional<RecordId>('esim_plan_settings', 'plan_id'),
 
         supabase.rpc('admin_customer_stats'),
       ])
@@ -507,8 +508,8 @@ function AdminDashboardPage() {
       'digital_service_plans',
       'store_reviews',
       'digital_order_reviews',
-      'esim_countries',
-      'esim_plans',
+      'esim_country_settings',
+      'esim_plan_settings',
     ]
 
     tables.forEach(table => {
