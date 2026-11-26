@@ -206,6 +206,10 @@ function normalizeStatus(
 }
 
 function AdminOrdersPage() {
+  const [esimQrFile,setEsimQrFile] = useState<File|null>(null)
+  const [esimQrError,setEsimQrError] = useState('')
+  const deliveryLock = useRef(false)
+
   const locale =
     'fr-FR-u-nu-latn'
 
@@ -1685,6 +1689,8 @@ function AdminOrdersPage() {
       order:
         DigitalOrderRow,
     ) => {
+      setEsimQrFile(null)
+      setEsimQrError('')
       setFulfillmentOrder(
         order,
       )
@@ -1739,6 +1745,20 @@ function AdminOrdersPage() {
         !fulfillmentOrder
       ) {
         return false
+      }
+
+      if (fulfillmentOrder.status !== 'processing') {
+        return false
+      }
+
+      if (fulfillmentOrder.service_slug === 'esim') {
+        return !esimQrError && Boolean(
+          esimQrFile ||
+          fulfillmentForm.code.trim() ||
+          /^https:\/\//i.test(
+            fulfillmentForm.link.trim()
+          )
+        )
       }
 
       const type =
@@ -1809,6 +1829,8 @@ function AdminOrdersPage() {
     }, [
       fulfillmentForm,
       fulfillmentOrder,
+      esimQrFile,
+      esimQrError,
     ])
 
   const requestSendFulfillment =
@@ -1829,128 +1851,165 @@ function AdminOrdersPage() {
       })
     }
 
-  const handleSendFulfillment =
-    async () => {
-      if (
-        !fulfillmentOrder ||
-        !canSendFulfillment
-      ) {
-        return
+  const handleSendFulfillment = async () => {
+    if (
+      !fulfillmentOrder ||
+      !canSendFulfillment ||
+      deliveryLock.current
+    ) {
+      return
+    }
+
+    deliveryLock.current = true
+    setConfirmation(null)
+    setIsSendingFulfillment(true)
+
+    try {
+      const order = fulfillmentOrder
+      const isEsim = order.service_slug === 'esim'
+
+      const {data: current,error: readError} =
+        await supabase
+          .from('digital_orders')
+          .select('id,status')
+          .eq('id',order.id)
+          .single()
+
+      if (readError) throw readError
+
+      if (current?.status !== 'processing') {
+        throw new Error(
+          'Cette commande ne peut pas être livrée.'
+        )
       }
 
-      setConfirmation(
-        null,
-      )
+      let deliveryLink =
+        fulfillmentForm.link.trim() || null
 
-      setIsSendingFulfillment(
-        true,
-      )
+      if (isEsim && esimQrFile) {
+        const file = esimQrFile
 
-      const now =
-        new Date().toISOString()
+        const extensions: Record<string,string> = {
+          'image/png':'png',
+          'image/jpeg':'jpg',
+          'image/webp':'webp'
+        }
 
-      const orderNumber =
-        fulfillmentOrder.order_number
+        const extension = extensions[file.type]
 
-      const {
-        error,
-      } =
+        if (
+          !extension ||
+          file.size <= 0 ||
+          file.size > 5*1024*1024
+        ) {
+          throw new Error('Image QR invalide')
+        }
+
+        const path =
+          `${order.id}/${crypto.randomUUID()}.${extension}`
+
+        const {error: uploadError} =
+          await supabase.storage
+            .from('teo-esim-qr')
+            .upload(path,file,{
+              upsert:false,
+              contentType:file.type,
+              cacheControl:'0'
+            })
+
+        if (uploadError) {
+          throw uploadError
+        }
+
+        deliveryLink = `teo-esim-qr:${path}`
+      }
+
+      const now = new Date().toISOString()
+
+      const {data: updated,error} =
         await supabase
-          .from(
-            'digital_orders',
-          )
+          .from('digital_orders')
           .update({
-            status:
-              'fulfillment_sent',
-
-            fulfillment_status:
-              'sent',
+            status:'fulfillment_sent',
+            fulfillment_status:'sent',
 
             fulfillment_email:
-              fulfillmentForm.email.trim() ||
-              null,
+              isEsim
+                ? null
+                : fulfillmentForm.email.trim() || null,
 
             fulfillment_password:
-              fulfillmentForm.password.trim() ||
-              null,
+              isEsim
+                ? null
+                : fulfillmentForm.password.trim() || null,
 
             fulfillment_code:
-              fulfillmentForm.code.trim() ||
-              null,
+              fulfillmentForm.code.trim() || null,
 
             fulfillment_link:
-              fulfillmentForm.link.trim() ||
-              null,
+              deliveryLink,
 
             fulfillment_note:
-              fulfillmentForm.note.trim() ||
-              null,
+              fulfillmentForm.note.trim() || null,
 
-            fulfillment_sent_at:
-              now,
-
-            customer_confirmed_at:
-              null,
-
-            updated_at:
-              now,
+            fulfillment_sent_at:now,
+            customer_confirmed_at:null,
+            updated_at:now
           })
-          .eq(
-            'id',
-            fulfillmentOrder.id,
-          )
+          .eq('id',order.id)
+          .eq('status','processing')
+          .select('id')
+          .maybeSingle()
 
-      if (error) {
-        showToast({
-          type:
-            'error',
+      if (error) throw error
 
-          title:
-            'Envoi impossible',
-
-          message:
-            error.message,
-        })
-
-        setIsSendingFulfillment(
-          false,
+      if (!updated) {
+        throw new Error(
+          'Livraison non confirmée. Vérifiez la commande.'
         )
-
-        return
       }
 
-      setIsSendingFulfillment(
-        false,
-      )
-
-      setFulfillmentOrder(
-        null,
-      )
+      setFulfillmentOrder(null)
+      setEsimQrFile(null)
+      setEsimQrError('')
 
       setFulfillmentForm({
-        email: '',
-        password: '',
-        code: '',
-        link: '',
-        note: '',
+        email:'',
+        password:'',
+        code:'',
+        link:'',
+        note:''
       })
 
-      await loadOrders(
-        false,
-        false,
-      )
+      await loadOrders(false,false)
 
       showToast({
-        type:
-          'success',
-
-        title:
-          'Commande envoyée',
-
+        type:'success',
+        title:'Commande envoyée',
         message:
-          `${orderNumber} est maintenant en attente de confirmation client.`,
+          `${order.order_number} est en attente de confirmation du client.`
       })
+
+    } catch(e) {
+
+      showToast({
+        type:'error',
+        title:'Envoi impossible',
+        message:
+          e instanceof Error
+            ? e.message
+            : typeof e === 'object' &&
+              e !== null &&
+              'message' in e
+                ? String(e.message)
+                : 'Vérifiez la commande avant de réessayer.'
+      })
+
+    } finally {
+      deliveryLock.current = false
+      setIsSendingFulfillment(false)
     }
+  }
 
   const openDisputeModal =
     (
@@ -3435,6 +3494,70 @@ function AdminOrdersPage() {
                 fulfillmentOrder.order_number
               }
             </p>
+
+            {fulfillmentOrder.service_slug === 'esim' && (
+              <section className="mt-5 space-y-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-slate-800">
+                <h3 className="font-black">
+                  Livraison sécurisée eSIM
+                </h3>
+
+                <label className="block text-sm font-bold">
+                  QR Code eSIM
+
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={isSendingFulfillment}
+                    className="mt-2 block w-full text-sm"
+                    onChange={event=>{
+                      const file = event.target.files?.[0]
+
+                      setEsimQrError('')
+                      setEsimQrFile(null)
+
+                      if (!file) return
+
+                      if (
+                        ![
+                          'image/png',
+                          'image/jpeg',
+                          'image/webp'
+                        ].includes(file.type) ||
+                        file.size <= 0 ||
+                        file.size > 5*1024*1024
+                      ) {
+                        setEsimQrError(
+                          'Image PNG, JPG ou WEBP — maximum 5 MB'
+                        )
+                        event.target.value=''
+                        return
+                      }
+
+                      setEsimQrFile(file)
+                    }}
+                  />
+                </label>
+
+                {esimQrFile &&
+                  <p className="break-all text-sm font-bold text-emerald-600">
+                    {esimQrFile.name}
+                  </p>
+                }
+
+                {esimQrError &&
+                  <p role="alert" className="text-sm text-red-600">
+                    {esimQrError}
+                  </p>
+                }
+
+                <p className="text-xs leading-6">
+                  Le QR Code est stocké en privé.
+                  Vous pouvez également ajouter le code
+                  LPA ou les informations SM-DP+
+                  dans les champs de livraison.
+                </p>
+              </section>
+            )}
 
             {fulfillmentOrder.fulfillment_type ===
               'account_credentials' && (

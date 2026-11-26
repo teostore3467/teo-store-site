@@ -292,7 +292,7 @@ function DigitalCheckoutPage() {
     if (field.type === 'email' && typeof value === 'string' && value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) return false
     return !field.required || (field.type === 'checkbox' ? value === true : typeof value === 'string' && value.trim().length > 0)
   })
-  const quoteReady = Boolean(quote && quote.plan_id === planDatabaseId && !quoteBusy && quote.original_price === Number(selectedPlan.price))
+  const quoteReady = Boolean(quote && quote.checkout_enabled === true && quote.plan_id === planDatabaseId && !quoteBusy && quote.original_price === Number(selectedPlan.price))
   const canConfirmPayment = Boolean(quoteReady && customerName.trim() && customerPhone.trim() && selectedPayment &&
     paymentSenderNumber.trim() && paymentProofFile && fieldsComplete && !isSubmitting && !uncertainSubmission)
 
@@ -327,9 +327,9 @@ function DigitalCheckoutPage() {
       if (latest?.availability !== 'available' || latestGroup?.availability !== 'available' || latestPlan?.availability !== 'available' || Number(latestPlan.price) !== Number(selectedPlan.price) || latestPlan.currency !== selectedPlan.currency) {
         throw new Error(t('تغير السعر أو توفر الخدمة. تواصل مع الدعم إذا دفعت بالفعل، ولا تكرر الدفع.', 'Le prix ou la disponibilité a changé. Si vous avez déjà payé, contactez le support sans repayer.'))
       }
-      if (!quote || !isDatabaseId(planDatabaseId)) throw new Error('QUOTE_UNAVAILABLE')
+      if (!quote || quote.checkout_enabled !== true || !isDatabaseId(planDatabaseId)) throw new Error('CHECKOUT_DISABLED')
       const currentQuote = await fetchCheckoutQuote(planDatabaseId, appliedCoupon)
-      if (currentQuote.total_mru !== quote.total_mru || currentQuote.checkout_enabled !== quote.checkout_enabled || currentQuote.discount_type !== quote.discount_type) throw new Error(t('تغير السعر. إذا دفعت بالفعل تواصل مع الدعم ولا تدفع مرة أخرى.', 'Le prix a changé. Si vous avez déjà payé, contactez le support sans repayer.'))
+      if (currentQuote.checkout_enabled !== true || currentQuote.total_mru !== quote.total_mru || currentQuote.checkout_enabled !== quote.checkout_enabled || currentQuote.discount_type !== quote.discount_type) throw new Error(t('تغير السعر. إذا دفعت بالفعل تواصل مع الدعم ولا تدفع مرة أخرى.', 'Le prix a changé. Si vous avez déjà payé, contactez le support sans repayer.'))
       const extension = paymentProofFile.type === 'image/png' ? 'png' : paymentProofFile.type === 'image/webp' ? 'webp' : 'jpg'
       const reference = Math.floor(100000 + Math.random() * 900000)
       const path = `${auth.user.id}/TEO-${reference}-${Date.now()}.${extension}`
@@ -341,7 +341,7 @@ function DigitalCheckoutPage() {
       const emailValue = emailField ? customerValues[emailField.id] : undefined
       const customerEmail = typeof emailValue === 'string' && emailValue.trim() ? emailValue.trim() : auth.user.email ?? ''
       rpcStarted = true
-      const { data, error, status } = await supabase.rpc(quote.checkout_enabled ? 'customer_create_digital_order_v6' : 'customer_create_digital_order', {
+      const { data, error, status } = await supabase.rpc('customer_create_digital_order_v6', {
         p_service_slug: service.slug,
         p_group_id: groupDatabaseId,
         p_plan_id: planDatabaseId,
@@ -352,7 +352,7 @@ function DigitalCheckoutPage() {
         p_payment_method: method.code,
         p_payment_sender_number: paymentSenderNumber.trim(),
         p_payment_proof_path: path,
-        ...(quote.checkout_enabled ? { p_expected_total: quote.total_mru, p_coupon_code: appliedCoupon } : {}),
+        p_expected_total: quote.total_mru, p_coupon_code: appliedCoupon,
       })
       if (error) {
         // A lost response can follow a committed order. Keep its receipt in that case.
@@ -467,7 +467,15 @@ function DigitalCheckoutPage() {
           <section className={panel}>
             <SectionTitle number={3} title={t('الدفع', 'Paiement')} subtitle={t('اختر تطبيق الدفع واتبع الخطوات', 'Choisissez votre application et suivez les étapes')} />
             <div className="mt-4 rounded-xl border border-slate-200 p-3 text-sm">
-              {quoteBusy && <p role="status">{t('جارٍ التحقق من السعر...', 'Vérification du prix…')}</p>}
+              {quote?.checkout_enabled === false &&
+  <p role="alert" className="mb-3 rounded-xl bg-amber-100 p-3 font-bold text-amber-900">
+    {t(
+      'الشراء والدفع غير متاحين حاليًا. يرجى عدم تحويل أي مبلغ.',
+      'Les achats et paiements sont indisponibles. Ne transférez aucun montant.'
+    )}
+  </p>
+}
+{quoteBusy && <p role="status">{t('جارٍ التحقق من السعر...', 'Vérification du prix…')}</p>}
               {!quoteBusy && !quoteReady && <><p role="alert">{t('تعذر تأكيد السعر. لا تدفع الآن.', 'Prix non confirmé. Ne payez pas maintenant.')}</p><button type="button" className="mt-2 font-bold text-blue-600" onClick={() => void applyCoupon(null)} disabled={Boolean(selectedPaymentCode)}>{t('إعادة المحاولة', 'Réessayer')}</button></>}
               {quoteReady && quote?.checkout_enabled && quote.discount_type !== 'flash_sale' && <><label className="font-bold">{t('رمز التخفيض', 'Code promotionnel')}</label><div className="mt-2 flex gap-2"><input className={inputClass} maxLength={40} value={couponInput} disabled={Boolean(selectedPaymentCode) || quote.discount_type === 'flash_sale'} onChange={e => setCouponInput(e.target.value)} /><button type="button" className="rounded-xl bg-blue-600 px-3 text-white disabled:opacity-50" disabled={Boolean(selectedPaymentCode) || !couponInput.trim() || quote.discount_type === 'flash_sale'} onClick={() => void applyCoupon(couponInput.trim().toUpperCase())}>{t('تطبيق', 'Appliquer')}</button></div>{appliedCoupon && <p className="mt-2 text-sm font-semibold text-emerald-600">{t('الكوبون المطبق', 'Code appliqué')} : {appliedCoupon}</p>}{appliedCoupon && <button type="button" disabled={Boolean(selectedPaymentCode)} className="mt-2 text-blue-600" onClick={() => void applyCoupon(null)}>{t('إزالة الكوبون', 'Retirer le code')}</button>}{quote.discount_mru > 0 && <p className="mt-2 font-bold text-emerald-600">{t('التخفيض', 'Réduction')} : {quote.discount_mru} MRU</p>}</>}
               {quoteError && <p role="alert" className="mt-2 text-red-600">{t('تعذر تطبيق السعر أو الكوبون. تحقق من صلاحيته.', 'Prix ou code non validé. Vérifiez sa disponibilité.')}</p>}

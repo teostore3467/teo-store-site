@@ -90,16 +90,25 @@ export function useFlashOffers(
               : []
 
           } else {
-            const live = await supabase.rpc(
-              'teo_v6_public_flash_offers',
-              { p_plan_ids: batch }
+            const gate = await supabase.rpc(
+              'teo_v6_get_flash_display_status'
             )
 
-            if (live.error) throw live.error
+            let liveRows: any[] = []
 
-            const liveRows = Array.isArray(live.data)
-              ? live.data
-              : []
+            if (
+              !gate.error &&
+              gate.data?.purchase_allowed === true
+            ) {
+              const live = await supabase.rpc(
+                'teo_v6_public_flash_offers',
+                { p_plan_ids: batch }
+              )
+
+              if (!live.error && Array.isArray(live.data)) {
+                liveRows = live.data
+              }
+            }
 
             rows = liveRows
               .filter(row =>

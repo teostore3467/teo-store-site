@@ -18,6 +18,131 @@ import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 import { supabase } from '../../../lib/supabase'
 
+function PrivateEsimQr({
+  path,
+  ar
+}:{
+  path:string
+  ar:boolean
+}) {
+  const [visible,setVisible] = useState(false)
+  const [url,setUrl] = useState('')
+  const [loading,setLoading] = useState(false)
+  const [error,setError] = useState('')
+  const [retry,setRetry] = useState(0)
+
+  useEffect(()=>{
+    if(!visible) return
+
+    let active = true
+    let objectUrl = ''
+
+    setUrl('')
+    setError('')
+    setLoading(true)
+
+    const load = async()=>{
+      try {
+        const {data,error} =
+          await supabase.storage
+            .from('teo-esim-qr')
+            .download(path)
+
+        if(error) throw error
+
+        if(!data || !active) return
+
+        objectUrl = URL.createObjectURL(data)
+        setUrl(objectUrl)
+
+      } catch {
+        if(active) {
+          setError(
+            ar
+              ? 'تعذر فتح رمز التفعيل.'
+              : 'Impossible de charger le QR Code.'
+          )
+        }
+      } finally {
+        if(active) setLoading(false)
+      }
+    }
+
+    void load()
+
+    return ()=>{
+      active=false
+      if(objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+
+  },[visible,path,ar,retry])
+
+  return (
+    <section className="rounded-2xl border border-blue-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900">
+
+      <h3 className="font-black">
+        {ar?'رمز تفعيل eSIM':'QR Code eSIM'}
+      </h3>
+
+      <p className="mt-2 text-xs leading-6 text-slate-500 dark:text-slate-300">
+        {ar
+          ?'هذا الرمز خاص بطلبك. لا تشاركه مع أي شخص.'
+          :'Ce QR Code est personnel. Ne le partagez pas.'}
+      </p>
+
+      <button
+        type="button"
+        onClick={()=>setVisible(v=>!v)}
+        className="mt-3 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white"
+      >
+        {visible
+          ?(ar?'إخفاء الرمز':'Masquer')
+          :(ar?'إظهار رمز التفعيل':'Afficher le QR Code')}
+      </button>
+
+      {visible&&loading&&
+        <p className="mt-3 text-sm">
+          {ar?'جارٍ التحميل...':'Chargement...'}
+        </p>
+      }
+
+      {visible&&error&&
+        <div className="mt-3 space-y-2">
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+          <button
+            type="button"
+            className="text-blue-600"
+            onClick={()=>setRetry(n=>n+1)}
+          >
+            {ar?'إعادة المحاولة':'Réessayer'}
+          </button>
+        </div>
+      }
+
+      {visible&&url&&!loading&&
+        <div className="mt-4 space-y-3">
+          <img
+            src={url}
+            alt="eSIM QR Code"
+            className="mx-auto aspect-square w-full max-w-[280px] rounded-xl bg-white object-contain p-3"
+          />
+
+          <a
+            href={url}
+            download="TEO-eSIM-QR"
+            className="inline-block rounded-xl border px-4 py-2 text-sm font-bold"
+          >
+            {ar?'حفظ الصورة':'Enregistrer le QR Code'}
+          </a>
+        </div>
+      }
+
+    </section>
+  )
+}
+
 type LocalizedText = {
   fr: string
   ar: string
@@ -2496,9 +2621,11 @@ html[data-teo-theme="dark"] .teo-order-status :is(.text-blue-600,.text-blue-500)
                       {digitalOrder.fulfillment_code && (
                         <div className="rounded-[14px] border border-blue-100 bg-blue-50 p-4">
                           <p className="text-xs font-black uppercase text-blue-500">
-                            {isArabic
-                              ? 'الكود'
-                              : 'Code'}
+                            {digitalOrder.service_slug === 'esim'
+                              ? (isArabic
+                                  ? 'رمز التفعيل اليدوي'
+                                  : 'Code d’activation manuelle')
+                              : (isArabic?'الكود':'Code')}
                           </p>
 
                           <div className="mt-2 flex items-center justify-between gap-3">
@@ -2529,7 +2656,21 @@ html[data-teo-theme="dark"] .teo-order-status :is(.text-blue-600,.text-blue-500)
                         </div>
                       )}
 
-                      {digitalOrder.fulfillment_link && (
+                      {digitalOrder.service_slug === 'esim' &&
+                       digitalOrder.fulfillment_link?.startsWith('teo-esim-qr:') &&
+                        <PrivateEsimQr
+                          key={digitalOrder.fulfillment_link}
+                          path={
+                            digitalOrder.fulfillment_link.slice(
+                              'teo-esim-qr:'.length
+                            )
+                          }
+                          ar={isArabic}
+                        />
+                      }
+
+                      {digitalOrder.fulfillment_link &&
+                       !digitalOrder.fulfillment_link.startsWith('teo-esim-qr:') && (
                         <div className="rounded-[14px] border border-violet-100 bg-violet-50 p-4">
                           <p className="text-xs font-black uppercase text-violet-500">
                             {isArabic
