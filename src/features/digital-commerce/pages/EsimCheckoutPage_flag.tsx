@@ -1,3 +1,4 @@
+import { copyText as copyToClipboard } from '../../../lib/copyText'
 import {
   useCallback,
   useEffect,
@@ -14,18 +15,9 @@ import {
 } from 'react-router-dom'
 
 import Container from '../../../components/layout/Container'
-
-import {
-  useLanguage,
-} from '../../../i18n/LanguageContext'
-
-import {
-  supabase,
-} from '../../../lib/supabase'
-
-import {
-  getEsimCountryBySlug,
-} from '../data/esimCatalog'
+import { useLanguage } from '../../../i18n/LanguageContext'
+import { supabase } from '../../../lib/supabase'
+import { getEsimCountryBySlug } from '../data/esimCatalog'
 
 type EsimCheckoutState = {
   countrySlug?: string
@@ -70,12 +62,54 @@ type PlanSettingRow = {
   updated_at: string
 }
 
-type ToastState = {
-  type:
-    | 'success'
-    | 'error'
-    | 'info'
+type PaymentMethodRow = {
+  id: string
+  code: string
+  name: string
+  payment_number: string
+  image_path: string | null
+  instructions_fr: string | null
+  instructions_ar: string | null
+  is_active: boolean
+  sort_order: number
+  name_ar: string | null
+  name_fr: string | null
+  payment_type: string | null
+  beneficiary_name: string | null
+  payment_network: string | null
+  payment_currency: string | null
+  receiver_label_ar: string | null
+  receiver_label_fr: string | null
+  sender_label_ar: string | null
+  sender_label_fr: string | null
+  qr_image_path: string | null
+}
 
+type PaymentMethod = {
+  id: string
+  code: string
+  name: string
+  paymentNumber: string
+  imagePath: string | null
+  instructionsFr: string
+  instructionsAr: string
+  active: boolean
+  sortOrder: number
+  name_ar: string | null
+  name_fr: string | null
+  payment_type: string | null
+  beneficiary_name: string | null
+  payment_network: string | null
+  payment_currency: string | null
+  receiver_label_ar: string | null
+  receiver_label_fr: string | null
+  sender_label_ar: string | null
+  sender_label_fr: string | null
+  qr_image_path: string | null
+}
+
+type ToastState = {
+  type: 'success' | 'error' | 'info'
   title: string
   message?: string
 }
@@ -87,28 +121,11 @@ type PriceValue =
 const PAYMENT_PROOFS_BUCKET =
   'payment-proofs'
 
-const paymentMethods = [
-  {
-    id: 'bankily',
-    name: 'Bankily',
-    paymentNumber:
-      '37109097',
-  },
+const PAYMENT_METHODS_BUCKET =
+  'payment-methods'
 
-  {
-    id: 'masrvi',
-    name: 'Masrvi',
-    paymentNumber:
-      '37109097',
-  },
-
-  {
-    id: 'sedad',
-    name: 'Sedad',
-    paymentNumber:
-      '37109097',
-  },
-] as const
+const MAX_PROOF_SIZE =
+  5 * 1024 * 1024
 
 function parsePrice(
   value: PriceValue,
@@ -154,26 +171,6 @@ function parsePrice(
 function getFileExtension(
   file: File,
 ) {
-  const extension =
-    file.name
-      .split('.')
-      .pop()
-      ?.toLowerCase()
-      .replace(
-        /[^a-z0-9]/g,
-        '',
-      )
-      .slice(
-        0,
-        8,
-      )
-
-  if (
-    extension
-  ) {
-    return extension
-  }
-
   if (
     file.type ===
     'application/pdf'
@@ -198,25 +195,7 @@ function getFileExtension(
   return 'jpg'
 }
 
-function getCountryFlag(value: string) {
-  const normalized = value
-    .trim()
-    .toUpperCase()
-
-  if (/^[A-Z]{2}$/.test(normalized)) {
-    return String.fromCodePoint(
-      ...[...normalized].map(
-        (character) =>
-          127397 +
-          character.charCodeAt(0),
-      ),
-    )
-  }
-
-  return value
-}
-
-function createOrderNumber() {
+function createProofReference() {
   const timestamp =
     Date.now()
 
@@ -273,6 +252,32 @@ function EsimCheckoutPage() {
       ],
     )
 
+  const requestedPlan =
+    useMemo(
+      () => {
+        if (
+          !country ||
+          !navigationState
+            ?.planId
+        ) {
+          return undefined
+        }
+
+        return country.plans.find(
+          (
+            plan,
+          ) =>
+            plan.id ===
+            navigationState.planId,
+        )
+      },
+      [
+        country,
+        navigationState
+          ?.planId,
+      ],
+    )
+
   const [
     countrySetting,
     setCountrySetting,
@@ -288,6 +293,14 @@ function EsimCheckoutPage() {
     useState<
       PlanSettingRow | null
     >(null)
+
+  const [
+    paymentMethods,
+    setPaymentMethods,
+  ] =
+    useState<
+      PaymentMethod[]
+    >([])
 
   const [
     isVerifying,
@@ -322,8 +335,8 @@ function EsimCheckoutPage() {
     useState('')
 
   const [
-    selectedPaymentMethod,
-    setSelectedPaymentMethod,
+    selectedPaymentCode,
+    setSelectedPaymentCode,
   ] =
     useState('')
 
@@ -342,8 +355,14 @@ function EsimCheckoutPage() {
     >(null)
 
   const [
-    copiedPaymentNumber,
-    setCopiedPaymentNumber,
+    copiedNumber,
+    setCopiedNumber,
+  ] =
+    useState(false)
+
+  const [
+    copiedAmount,
+    setCopiedAmount,
   ] =
     useState(false)
 
@@ -383,83 +402,160 @@ function EsimCheckoutPage() {
       [],
     )
 
-  const requestedPlan =
-    useMemo(
-      () => {
-        if (
-          !country ||
-          !navigationState
-            ?.planId
-        ) {
-          return undefined
-        }
+  const loadPaymentMethods =
+    useCallback(
+      async () => {
+        const {
+          data,
+          error,
+        } =
+          await supabase
+            .from(
+              'payment_methods',
+            )
+            .select(
+              `
+                id,
+                code,
+                name,
+                payment_number,
+                image_path,
+                instructions_fr,
+                instructions_ar,
+                is_active,
+                sort_order,
+                name_ar,
+                name_fr,
+                payment_type,
+                beneficiary_name,
+                payment_network,
+                payment_currency,
+                receiver_label_ar,
+                receiver_label_fr,
+                sender_label_ar,
+                sender_label_fr,
+                qr_image_path
+              `,
+            )
+            .eq(
+              'is_active',
+              true,
+            )
+            .eq('payment_currency', 'MRU')
+            .order(
+              'sort_order',
+              {
+                ascending:
+                  true,
+              },
+            )
+            .order(
+              'created_at',
+              {
+                ascending:
+                  true,
+              },
+            )
 
-        return country.plans.find(
-          (
-            plan,
-          ) =>
-            plan.id ===
-            navigationState
-              .planId,
-        )
-      },
-      [
-        country,
-        navigationState
-          ?.planId,
-      ],
-    )
-
-  const verifiedPrice =
-    useMemo(
-      () => {
-        if (
-          !requestedPlan
-        ) {
-          return 0
-        }
-
-        if (
-          planSetting
-        ) {
-          return Number(
-            planSetting.price,
+        if (error) {
+          console.error(
+            'Unable to load eSIM payment methods:',
+            error,
           )
+
+          setPaymentMethods(
+            [],
+          )
+
+          setSelectedPaymentCode(
+            '',
+          )
+
+          return
         }
 
-        return parsePrice(
-          requestedPlan.price,
+        const methods =
+          (
+            (data ??
+              []) as PaymentMethodRow[]
+          ).map(
+            (
+              row,
+            ) => ({
+              id:
+                row.id,
+
+              code:
+                row.code,
+
+              name:
+                row.name,
+
+              paymentNumber:
+                row.payment_number,
+
+              imagePath:
+                row.image_path,
+
+              instructionsFr:
+                row.instructions_fr ??
+                '',
+
+              instructionsAr:
+                row.instructions_ar ??
+                '',
+
+              active:
+                row.is_active,
+
+              sortOrder:
+                row.sort_order,
+              name_ar: row.name_ar,
+              name_fr: row.name_fr,
+              payment_type: row.payment_type,
+              beneficiary_name: row.beneficiary_name,
+              payment_network: row.payment_network,
+              payment_currency: row.payment_currency,
+              receiver_label_ar: row.receiver_label_ar,
+              receiver_label_fr: row.receiver_label_fr,
+              sender_label_ar: row.sender_label_ar,
+              sender_label_fr: row.sender_label_fr,
+              qr_image_path: row.qr_image_path,
+
+            }),
+          )
+
+        setPaymentMethods(
+          methods,
+        )
+
+        setSelectedPaymentCode(
+          (
+            current,
+          ) => {
+            if (
+              !current
+            ) {
+              return ''
+            }
+
+            const stillAvailable =
+              methods.some(
+                (
+                  method,
+                ) =>
+                  method.code ===
+                  current &&
+                  method.active,
+              )
+
+            return stillAvailable
+              ? current
+              : ''
+          },
         )
       },
-      [
-        requestedPlan,
-        planSetting,
-      ],
-    )
-
-  const countryActive =
-    countrySetting
-      ?.active ??
-    true
-
-  const planActive =
-    planSetting
-      ?.active ??
-    true
-
-  const selectedMethod =
-    useMemo(
-      () =>
-        paymentMethods.find(
-          (
-            method,
-          ) =>
-            method.id ===
-            selectedPaymentMethod,
-        ),
-      [
-        selectedPaymentMethod,
-      ],
+      [],
     )
 
   const loadVerifiedPlan =
@@ -573,13 +669,287 @@ function EsimCheckoutPage() {
       ],
     )
 
-  useEffect(() => {
-    void loadVerifiedPlan()
-  }, [
-    loadVerifiedPlan,
-  ])
+  useEffect(
+    () => {
+      void Promise.all([
+        loadVerifiedPlan(),
+        loadPaymentMethods(),
+      ])
+    },
+    [
+      loadPaymentMethods,
+      loadVerifiedPlan,
+    ],
+  )
 
-  const isReady =
+  useEffect(
+    () => {
+      const channel =
+        supabase
+          .channel(
+            `esim-payment-methods-${Date.now()}`,
+          )
+          .on(
+            'postgres_changes',
+            {
+              event:
+                '*',
+
+              schema:
+                'public',
+
+              table:
+                'payment_methods',
+            },
+            () => {
+              void loadPaymentMethods()
+            },
+          )
+          .subscribe()
+
+      return () => {
+        void supabase
+          .removeChannel(
+            channel,
+          )
+      }
+    },
+    [
+      loadPaymentMethods,
+    ],
+  )
+
+  useEffect(
+    () => {
+      let active =
+        true
+
+      const loadUser =
+        async () => {
+          const {
+            data,
+          } =
+            await supabase.auth
+              .getUser()
+
+          if (
+            !active
+          ) {
+            return
+          }
+
+          const user =
+            data.user
+
+          if (
+            !user
+          ) {
+            navigate(
+              '/connexion',
+              {
+                state: {
+                  from:
+                    location.pathname,
+
+                  checkoutState:
+                    location.state,
+                },
+              },
+            )
+
+            return
+          }
+
+          const metadataName =
+            typeof user
+              .user_metadata
+              ?.full_name ===
+            'string'
+              ? user
+                  .user_metadata
+                  .full_name
+              : ''
+
+          const metadataPhone =
+            typeof user
+              .user_metadata
+              ?.phone ===
+            'string'
+              ? user
+                  .user_metadata
+                  .phone
+              : ''
+
+          setFullName(
+            (
+              current,
+            ) =>
+              current ||
+              metadataName,
+          )
+
+          setPhone(
+            (
+              current,
+            ) =>
+              current ||
+              user.phone ||
+              metadataPhone,
+          )
+
+          setEmail(
+            (
+              current,
+            ) =>
+              current ||
+              user.email ||
+              '',
+          )
+        }
+
+      void loadUser()
+
+      return () => {
+        active =
+          false
+      }
+    },
+    [
+      location.pathname,
+      location.state,
+      navigate,
+    ],
+  )
+
+  const verifiedPrice =
+    useMemo(
+      () => {
+        if (
+          !requestedPlan
+        ) {
+          return 0
+        }
+
+        if (
+          planSetting
+        ) {
+          return Number(
+            planSetting.price,
+          )
+        }
+
+        return parsePrice(
+          requestedPlan.price,
+        )
+      },
+      [
+        planSetting,
+        requestedPlan,
+      ],
+    )
+
+  const countryActive =
+    countrySetting
+      ?.active ??
+    true
+
+  const planActive =
+    planSetting
+      ?.active ??
+    true
+
+  const selectedMethod =
+    useMemo(
+      () => {
+        if (
+          !selectedPaymentCode
+        ) {
+          return null
+        }
+
+        return (
+          paymentMethods.find(
+            (
+              method,
+            ) =>
+              method.code ===
+              selectedPaymentCode &&
+              method.active,
+          ) ??
+          null
+        )
+      },
+      [
+        paymentMethods,
+        selectedPaymentCode,
+      ],
+    )
+
+  const getPaymentImageUrl =
+    useCallback(
+      (
+        imagePath:
+          | string
+          | null,
+      ) => {
+        if (
+          !imagePath
+        ) {
+          return null
+        }
+
+        const {
+          data,
+        } =
+          supabase.storage
+            .from(
+              PAYMENT_METHODS_BUCKET,
+            )
+            .getPublicUrl(
+              imagePath,
+            )
+
+        return (
+          data.publicUrl ||
+          null
+        )
+      },
+      [],
+    )
+
+  const formatAmount =
+    useCallback(
+      (
+        value:
+          number,
+      ) => {
+        const formatted =
+          new Intl.NumberFormat(
+            isArabic
+              ? 'ar-MR-u-nu-latn'
+              : 'fr-FR-u-nu-latn',
+            {
+              numberingSystem:
+                'latn',
+
+              maximumFractionDigits:
+                2,
+            },
+          ).format(
+            value,
+          )
+
+        return formatCurrencyText(
+          `${formatted} MRU`,
+        )
+      },
+      [
+        formatCurrencyText,
+        isArabic,
+      ],
+    )
+
+  const canSubmit =
     Boolean(
       country &&
         requestedPlan &&
@@ -587,34 +957,26 @@ function EsimCheckoutPage() {
         planActive &&
         verifiedPrice >
           0 &&
-        !verificationError,
-    )
-
-  const canSubmit =
-    isReady &&
-    !isVerifying &&
-    !isSubmitting &&
-    fullName
-      .trim()
-      .length >
-      1 &&
-    phone
-      .trim()
-      .length >
-      0 &&
-    email
-      .trim()
-      .length >
-      0 &&
-    selectedPaymentMethod
-      .length >
-      0 &&
-    senderNumber
-      .trim()
-      .length >
-      0 &&
-    Boolean(
-      proofFile,
+        !verificationError &&
+        fullName
+          .trim()
+          .length >
+          1 &&
+        phone
+          .trim()
+          .length >
+          0 &&
+        email
+          .trim()
+          .length >
+          0 &&
+        selectedMethod &&
+        senderNumber
+          .trim()
+          .length >
+          0 &&
+        proofFile &&
+        !isSubmitting,
     )
 
   const handleProofChange =
@@ -636,26 +998,25 @@ function EsimCheckoutPage() {
         return
       }
 
-      const allowedTypes =
-        [
-          'image/jpeg',
-          'image/jpg',
-          'image/png',
-          'image/webp',
-          'application/pdf',
-        ]
+      const allowedTypes = [
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/webp',
+        'application/pdf',
+      ]
 
       if (
         !allowedTypes.includes(
           file.type,
         )
       ) {
+        event.target.value =
+          ''
+
         setProofFile(
           null,
         )
-
-        event.target.value =
-          ''
 
         showToast({
           type:
@@ -677,16 +1038,14 @@ function EsimCheckoutPage() {
 
       if (
         file.size >
-        5 *
-          1024 *
-          1024
+        MAX_PROOF_SIZE
       ) {
+        event.target.value =
+          ''
+
         setProofFile(
           null,
         )
-
-        event.target.value =
-          ''
 
         showToast({
           type:
@@ -699,7 +1058,7 @@ function EsimCheckoutPage() {
 
           message:
             isArabic
-              ? 'الحد الأقصى 5 ميغابايت.'
+              ? 'الحد الأقصى 5 MB.'
               : 'La taille maximale est de 5 MB.',
         })
 
@@ -711,73 +1070,55 @@ function EsimCheckoutPage() {
       )
     }
 
-  const copyPaymentNumber =
-    async () => {
-      if (
-        !selectedMethod
-      ) {
-        return
-      }
+  const copyText =
+    async (
+      value:
+        string,
 
-      const paymentNumber =
-        selectedMethod
-          .paymentNumber
-
+      type:
+        'number'
+        | 'amount',
+    ) => {
       try {
+        await copyToClipboard(value)
         if (
-          navigator.clipboard &&
-          window.isSecureContext
+          type ===
+          'number'
         ) {
-          await navigator.clipboard.writeText(
-            paymentNumber,
+          setCopiedNumber(
+            true,
+          )
+
+          window.setTimeout(
+            () =>
+              setCopiedNumber(
+                false,
+              ),
+            1800,
           )
         } else {
-          const textarea =
-            document.createElement(
-              'textarea',
-            )
-
-          textarea.value =
-            paymentNumber
-
-          textarea.style.position =
-            'fixed'
-
-          textarea.style.opacity =
-            '0'
-
-          document.body.appendChild(
-            textarea,
+          setCopiedAmount(
+            true,
           )
 
-          textarea.focus()
-          textarea.select()
-
-          document.execCommand(
-            'copy',
-          )
-
-          document.body.removeChild(
-            textarea,
+          window.setTimeout(
+            () =>
+              setCopiedAmount(
+                false,
+              ),
+            1800,
           )
         }
-
-        setCopiedPaymentNumber(
-          true,
-        )
-
-        window.setTimeout(
-          () => {
-            setCopiedPaymentNumber(
-              false,
-            )
-          },
-          1800,
-        )
       } catch {
-        setCopiedPaymentNumber(
-          false,
-        )
+        showToast({
+          type:
+            'error',
+
+          title:
+            isArabic
+              ? 'تعذر النسخ'
+              : 'Copie impossible',
+        })
       }
     }
 
@@ -802,15 +1143,15 @@ function EsimCheckoutPage() {
         true,
       )
 
+      let uploadedProofPath:
+        string | null =
+        null
+
       try {
-        /*
-         * IMPORTANT:
-         * We verify the price and status again at the exact
-         * moment the order is created.
-         */
         const [
-          latestCountryResult,
-          latestPlanResult,
+          countryResult,
+          planResult,
+          paymentResult,
         ] =
           await Promise.all([
             supabase
@@ -842,11 +1183,50 @@ function EsimCheckoutPage() {
                 requestedPlan.id,
               )
               .maybeSingle(),
+
+            supabase
+              .from(
+                'payment_methods',
+              )
+              .select(
+                `
+                  id,
+                  code,
+                  name,
+                  payment_number,
+                  image_path,
+                  instructions_fr,
+                  instructions_ar,
+                  is_active,
+                  sort_order,
+                name_ar,
+                name_fr,
+                payment_type,
+                beneficiary_name,
+                payment_network,
+                payment_currency,
+                receiver_label_ar,
+                receiver_label_fr,
+                sender_label_ar,
+                sender_label_fr,
+                qr_image_path
+                `,
+              )
+              .eq(
+                'code',
+                selectedMethod.code,
+              )
+              .eq(
+                'is_active',
+                true,
+              )
+              .eq('payment_currency', 'MRU')
+              .maybeSingle(),
           ])
 
         if (
-          latestCountryResult.error ||
-          latestPlanResult.error
+          countryResult.error ||
+          planResult.error
         ) {
           throw new Error(
             isArabic
@@ -855,19 +1235,19 @@ function EsimCheckoutPage() {
           )
         }
 
-        const latestCountryActive =
-          latestCountryResult
-            .data?.active ??
-          true
-
-        const latestPlanActive =
-          latestPlanResult
-            .data?.active ??
-          true
-
         if (
-          !latestCountryActive ||
-          !latestPlanActive
+          !(
+            countryResult
+              .data
+              ?.active ??
+            true
+          ) ||
+          !(
+            planResult
+              .data
+              ?.active ??
+            true
+          )
         ) {
           throw new Error(
             isArabic
@@ -877,12 +1257,11 @@ function EsimCheckoutPage() {
         }
 
         const authoritativePrice =
-          latestPlanResult
-            .data
+          planResult.data
             ?.price !==
           undefined
             ? Number(
-                latestPlanResult
+                planResult
                   .data
                   .price,
               )
@@ -904,9 +1283,31 @@ function EsimCheckoutPage() {
           )
         }
 
+        if (
+          paymentResult.error ||
+          !paymentResult.data
+        ) {
+          await loadPaymentMethods()
+
+          throw new Error(
+            isArabic
+              ? 'طريقة الدفع المختارة لم تعد متوفرة.'
+              : 'Le moyen de paiement sélectionné n’est plus disponible.',
+          )
+        }
+
+        if (authoritativePrice !== verifiedPrice) {
+          throw new Error(isArabic ? 'تغير سعر الباقة. إذا كنت قد حولت المبلغ، تواصل مع الدعم قبل إعادة الدفع.' : 'Le prix du forfait a changé. Si vous avez déjà effectué le transfert, contactez le support avant de repayer.')
+        }
+
+        const payment =
+          paymentResult
+            .data as PaymentMethodRow
+
         const {
           data:
             authData,
+
           error:
             authError,
         } =
@@ -933,16 +1334,13 @@ function EsimCheckoutPage() {
           return
         }
 
-        const orderNumber =
-          createOrderNumber()
-
-        const extension =
-          getFileExtension(
-            proofFile,
-          )
+        const proofReference =
+          createProofReference()
 
         const proofPath =
-          `${authData.user.id}/${orderNumber}-${Date.now()}.${extension}`
+          `${authData.user.id}/${proofReference}-${Date.now()}.${getFileExtension(
+            proofFile,
+          )}`
 
         const {
           error:
@@ -977,91 +1375,83 @@ function EsimCheckoutPage() {
           )
         }
 
-        const planLabel =
-          `${requestedPlan.data.fr} · ${requestedPlan.duration.fr}`
-
-        const serviceName =
-          `eSIM · ${country.name.fr}`
+        uploadedProofPath =
+          proofPath
 
         const {
+          data:
+            orderData,
+
           error:
             orderError,
         } =
-          await supabase
-            .from(
-              'digital_orders',
-            )
-            .insert({
-              order_number:
-                orderNumber,
+          await supabase.rpc(
+             'customer_create_esim_order_v6',
+            {
+              p_country_slug: country.slug,
+              p_plan_id: requestedPlan.id,
+              p_expected_total: verifiedPrice,
 
-              user_id:
-                authData.user.id,
-
-              customer_name:
+              p_customer_name:
                 fullName.trim(),
 
-              customer_phone:
+              p_customer_phone:
                 phone.trim(),
 
-              customer_email:
+              p_customer_email:
                 email.trim(),
 
-              service_name:
-                serviceName,
+              p_payment_method:
+                payment.code,
 
-              plan_label:
-                planLabel,
-
-              total_amount:
-                authoritativePrice,
-
-              currency:
-                'MRU',
-
-              payment_method_name:
-                selectedMethod.name,
-
-              payment_sender_number:
+              p_payment_sender_number:
                 senderNumber.trim(),
 
-              payment_proof_path:
+              p_payment_proof_path:
                 proofPath,
-
-              status:
-                'payment_review',
-            })
+            },
+          )
 
         if (
           orderError
         ) {
-          const {
-            error:
-              cleanupError,
-          } =
-            await supabase.storage
-              .from(
-                PAYMENT_PROOFS_BUCKET,
-              )
-              .remove([
-                proofPath,
-              ])
+          throw orderError
+        }
 
-          if (
-            cleanupError
-          ) {
-            console.warn(
-              'Unable to cleanup failed payment proof:',
-              cleanupError,
-            )
-          }
+        const createdOrder =
+          Array.isArray(
+            orderData,
+          )
+            ? orderData[0]
+            : orderData
 
+        const orderNumber =
+          typeof createdOrder
+            ?.order_number ===
+          'string'
+            ? createdOrder
+                .order_number
+            : ''
+
+        const securedPrice =
+          Number(
+            createdOrder
+              ?.total_amount ??
+              authoritativePrice,
+          )
+
+        if (
+          !orderNumber
+        ) {
           throw new Error(
             isArabic
-              ? `تعذر إنشاء الطلب: ${orderError.message}`
-              : `Impossible de créer la commande : ${orderError.message}`,
+              ? 'لم يتم إنشاء رقم طلب صالح.'
+              : 'Aucun numéro de commande valide n’a été créé.',
           )
         }
+
+        uploadedProofPath =
+          null
 
         navigate(
           `/commande/${orderNumber}`,
@@ -1072,7 +1462,8 @@ function EsimCheckoutPage() {
             state: {
               orderNumber,
 
-              serviceName,
+              serviceName:
+                `eSIM · ${country.name.fr}`,
 
               status:
                 'payment_review',
@@ -1099,10 +1490,10 @@ function EsimCheckoutPage() {
                 requestedPlan.duration,
 
               planPrice:
-                authoritativePrice,
+                securedPrice,
 
               paymentMethod:
-                selectedMethod.name,
+                payment.name,
 
               senderNumber:
                 senderNumber.trim(),
@@ -1126,6 +1517,31 @@ function EsimCheckoutPage() {
           error,
         )
 
+        if (
+          uploadedProofPath
+        ) {
+          const {
+            error:
+              rollbackError,
+          } =
+            await supabase.storage
+              .from(
+                PAYMENT_PROOFS_BUCKET,
+              )
+              .remove([
+                uploadedProofPath,
+              ])
+
+          if (
+            rollbackError
+          ) {
+            console.warn(
+              'Unable to rollback eSIM proof:',
+              rollbackError,
+            )
+          }
+        }
+
         showToast({
           type:
             'error',
@@ -1144,12 +1560,10 @@ function EsimCheckoutPage() {
                 : 'Une erreur inattendue est survenue.',
         })
 
-        /*
-         * Reload current settings because the offer could
-         * have changed while the customer was completing
-         * the form.
-         */
-        await loadVerifiedPlan()
+        await Promise.all([
+          loadVerifiedPlan(),
+          loadPaymentMethods(),
+        ])
       } finally {
         setIsSubmitting(
           false,
@@ -1166,7 +1580,7 @@ function EsimCheckoutPage() {
           <div className="text-center">
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
 
-            <p className="mt-4 text-xs font-black text-slate-500">
+            <p className="mt-4 text-sm font-black text-slate-500">
               {isArabic
                 ? 'جاري التحقق من الباقة والسعر...'
                 : 'Vérification du forfait et du prix...'}
@@ -1182,23 +1596,19 @@ function EsimCheckoutPage() {
     !requestedPlan
   ) {
     return (
-      <main className="min-h-screen bg-[#f7f9fc] py-10 sm:py-14">
+      <main className="min-h-screen bg-[#f7f9fc] py-10">
         <Container>
-          <div className="mx-auto max-w-xl rounded-[26px] border border-slate-200 bg-white p-6 text-center shadow-[0_14px_40px_rgba(15,23,42,0.06)] sm:p-8">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] bg-slate-100 text-xl">
-              eSIM
-            </div>
-
-            <p className="mt-5 text-lg font-black text-slate-950">
+          <div className="mx-auto max-w-xl rounded-[26px] border border-slate-200 bg-white p-8 text-center">
+            <h1 className="text-xl font-black text-slate-950">
               {isArabic
                 ? 'لم يتم اختيار باقة eSIM'
                 : 'Aucun forfait eSIM sélectionné'}
-            </p>
+            </h1>
 
-            <p className="mt-2 text-xs leading-6 text-slate-500">
+            <p className="mt-2 text-sm text-slate-500">
               {isArabic
-                ? 'ارجع إلى صفحة الدولة واختر الباقة أولًا.'
-                : 'Retournez à la page de la destination et choisissez d’abord un forfait.'}
+                ? 'ارجع إلى صفحة الدولة واختر الباقة.'
+                : 'Retournez à la destination et choisissez un forfait.'}
             </p>
 
             <button
@@ -1210,7 +1620,7 @@ function EsimCheckoutPage() {
                     : '/services-numeriques',
                 )
               }
-              className="mt-5 min-h-[48px] rounded-[14px] bg-blue-600 px-5 text-xs font-black text-white transition hover:bg-blue-500"
+              className="mt-5 rounded-[14px] bg-blue-600 px-5 py-3 text-sm font-black text-white"
             >
               {isArabic
                 ? 'العودة'
@@ -1226,31 +1636,21 @@ function EsimCheckoutPage() {
     verificationError
   ) {
     return (
-      <main className="min-h-screen bg-[#f7f9fc] py-10 sm:py-14">
+      <main className="min-h-screen bg-[#f7f9fc] py-10">
         <Container>
-          <div className="mx-auto max-w-xl rounded-[26px] border border-rose-100 bg-white p-6 text-center shadow-sm sm:p-8">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] bg-rose-50 font-black text-rose-600">
-              !
-            </div>
-
-            <h1 className="mt-5 text-lg font-black text-slate-950">
+          <div className="mx-auto max-w-xl rounded-[26px] border border-rose-100 bg-white p-8 text-center">
+            <h1 className="text-xl font-black text-slate-950">
               {isArabic
                 ? 'تعذر التحقق من الباقة'
                 : 'Vérification impossible'}
             </h1>
-
-            <p className="mt-2 text-[10px] leading-6 text-slate-500">
-              {isArabic
-                ? 'لم نتمكن من التحقق من السعر والحالة الحالية للباقة. أعد المحاولة.'
-                : 'Nous n’avons pas pu vérifier le prix et la disponibilité actuels du forfait.'}
-            </p>
 
             <button
               type="button"
               onClick={() =>
                 void loadVerifiedPlan()
               }
-              className="mt-5 min-h-[48px] w-full rounded-[14px] bg-slate-950 px-5 text-xs font-black text-white"
+              className="mt-5 w-full rounded-[14px] bg-slate-950 px-5 py-3 text-sm font-black text-white"
             >
               {isArabic
                 ? 'إعادة المحاولة'
@@ -1267,28 +1667,20 @@ function EsimCheckoutPage() {
     !planActive
   ) {
     return (
-      <main className="min-h-screen bg-[#f7f9fc] py-10 sm:py-14">
+      <main className="min-h-screen bg-[#f7f9fc] py-10">
         <Container>
-          <div className="mx-auto max-w-xl rounded-[26px] border border-amber-100 bg-white p-6 text-center shadow-sm sm:p-8">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] bg-amber-50 text-2xl">
+          <div className="mx-auto max-w-xl rounded-[26px] border border-amber-100 bg-white p-8 text-center">
+            <div className="text-4xl">
               {
-                getCountryFlag(
-                  country.flag,
-                )
+                country.flag
               }
             </div>
 
-            <h1 className="mt-5 text-lg font-black text-slate-950">
+            <h1 className="mt-4 text-xl font-black text-slate-950">
               {isArabic
                 ? 'هذه الباقة غير متوفرة حاليًا'
                 : 'Ce forfait est indisponible'}
             </h1>
-
-            <p className="mt-2 text-[10px] leading-6 text-slate-500">
-              {isArabic
-                ? 'تم تعطيل هذه الوجهة أو هذه الباقة مؤقتًا.'
-                : 'Cette destination ou ce forfait a été temporairement désactivé.'}
-            </p>
 
             <button
               type="button"
@@ -1297,7 +1689,7 @@ function EsimCheckoutPage() {
                   `/esim/${country.slug}`,
                 )
               }
-              className="mt-5 min-h-[48px] w-full rounded-[14px] bg-blue-600 px-5 text-xs font-black text-white"
+              className="mt-5 w-full rounded-[14px] bg-blue-600 px-5 py-3 text-sm font-black text-white"
             >
               {isArabic
                 ? 'اختيار باقة أخرى'
@@ -1309,13 +1701,51 @@ function EsimCheckoutPage() {
     )
   }
 
+  const amountLabel =
+    formatAmount(
+      verifiedPrice,
+    )
+
+  const paymentSteps =
+    selectedMethod
+      ? isArabic
+        ? [
+            `افتح تطبيق ${selectedMethod.name}.`,
+            'اختر التحويل أو إرسال الأموال.',
+            `أدخل رقم TEO STORE: ${selectedMethod.paymentNumber}.`,
+            `أدخل المبلغ بالضبط: ${amountLabel}.`,
+            'راجع المعلومات ثم أكد عملية الدفع.',
+            'التقط Screenshot واضحة بعد نجاح التحويل.',
+            'ارجع إلى TEO STORE وأدخل رقم المرسل.',
+            'ارفع Screenshot ثم أكد الطلب.',
+          ]
+        : [
+            `Ouvrez l’application ${selectedMethod.name}.`,
+            'Choisissez le transfert ou l’envoi d’argent.',
+            `Saisissez le numéro TEO STORE : ${selectedMethod.paymentNumber}.`,
+            `Saisissez exactement : ${amountLabel}.`,
+            'Vérifiez les informations puis confirmez le paiement.',
+            'Faites une capture d’écran claire après le transfert.',
+            'Revenez sur TEO STORE et indiquez votre numéro expéditeur.',
+            'Ajoutez la capture puis confirmez la commande.',
+          ]
+      : []
+
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#f7f9fc] py-5 sm:py-9 lg:py-12">
+    <main
+      dir={
+        isArabic
+          ? 'rtl'
+          : 'ltr'
+      }
+      className="min-h-screen overflow-x-hidden bg-[#f7f9fc] py-5 sm:py-9 lg:py-12"
+    >
       {toast && (
         <div className="fixed inset-x-3 top-3 z-[300] sm:left-auto sm:right-4 sm:w-full sm:max-w-sm">
           <div
             className={[
               'rounded-[18px] border bg-white p-4 shadow-[0_22px_60px_rgba(15,23,42,0.20)]',
+
               toast.type ===
               'error'
                 ? 'border-rose-100'
@@ -1327,499 +1757,558 @@ function EsimCheckoutPage() {
               ' ',
             )}
           >
-            <div className="flex items-start gap-3">
-              <div
-                className={[
-                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] font-black',
-                  toast.type ===
-                  'error'
-                    ? 'bg-rose-50 text-rose-600'
-                    : toast.type ===
-                        'success'
-                      ? 'bg-emerald-50 text-emerald-600'
-                      : 'bg-blue-50 text-blue-600',
-                ].join(
-                  ' ',
-                )}
-              >
-                {toast.type ===
-                'error'
-                  ? '!'
-                  : toast.type ===
-                      'success'
-                    ? '✓'
-                    : 'i'}
-              </div>
+            <p className="text-sm font-black text-slate-950">
+              {
+                toast.title
+              }
+            </p>
 
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-black text-slate-950">
-                  {
-                    toast.title
-                  }
-                </p>
-
-                {toast.message && (
-                  <p className="mt-1 break-words text-[9px] leading-5 text-slate-500">
-                    {
-                      toast.message
-                    }
-                  </p>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setToast(
-                    null,
-                  )
+            {toast.message && (
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                {
+                  toast.message
                 }
-                className="text-sm font-black text-slate-300"
-              >
-                ×
-              </button>
-            </div>
+              </p>
+            )}
           </div>
         </div>
       )}
 
       <Container>
-        <div className="mx-auto mb-5 max-w-6xl">
-          <div className="flex flex-wrap items-center gap-2 text-[8px] font-black uppercase tracking-[0.12em] text-slate-400">
-            <span>
-              TEO STORE
-            </span>
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-6">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">
+              TEO STORE eSIM
+            </p>
 
-            <span>
-              /
-            </span>
-
-            <span>
-              eSIM
-            </span>
-
-            <span>
-              /
-            </span>
-
-            <span className="text-blue-600">
+            <h1 className="mt-2 text-2xl font-black text-slate-950 sm:text-3xl">
               {isArabic
-                ? 'الدفع'
-                : 'Commande'}
-            </span>
+                ? 'إتمام طلب eSIM'
+                : 'Finaliser votre eSIM'}
+            </h1>
+
+            <p className="mt-2 text-sm text-slate-500">
+              {country.flag}{' '}
+              {
+                country.name[
+                  language
+                ]
+              }
+              {' · '}
+              {
+                requestedPlan.data[
+                  language
+                ]
+              }
+              {' · '}
+              {
+                requestedPlan.duration[
+                  language
+                ]
+              }
+            </p>
           </div>
-        </div>
 
-        <div className="mx-auto grid min-w-0 max-w-6xl gap-5 lg:grid-cols-[1fr_0.82fr] lg:gap-6">
-          <section className="min-w-0">
-            <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)] sm:p-6">
-              <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
-
-                    <span className="text-[8px] font-black uppercase tracking-[0.14em] text-blue-600">
-                      TEO STORE eSIM
-                    </span>
-                  </div>
-
-                  <h1 className="mt-3 text-[26px] font-black tracking-[-0.035em] text-slate-950 sm:text-3xl">
-                    {isArabic
-                      ? 'إتمام طلب eSIM'
-                      : 'Finaliser votre commande eSIM'}
-                  </h1>
-
-                  <p className="mt-2 max-w-xl text-[11px] leading-6 text-slate-500 sm:text-sm">
-                    {isArabic
-                      ? 'تم التحقق من الباقة والسعر. أدخل بياناتك ثم أرسل إثبات الدفع.'
-                      : 'Le forfait et son prix ont été vérifiés. Renseignez vos informations puis envoyez votre preuve de paiement.'}
-                  </p>
-                </div>
-
-                <div className="flex shrink-0 items-center gap-2 rounded-[13px] border border-emerald-100 bg-emerald-50 px-3 py-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[8px] font-black text-white">
-                    ✓
-                  </span>
-
-                  <span className="text-[8px] font-black text-emerald-700">
-                    {isArabic
-                      ? 'السعر متحقق'
-                      : 'Prix vérifié'}
-                  </span>
-                </div>
-              </div>
-
-              <form
-                onSubmit={
-                  handleSubmit
-                }
-                className="mt-6 space-y-5"
-              >
-                <div>
-                  <p className="mb-3 text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">
-                    {isArabic
-                      ? 'معلومات العميل'
-                      : 'INFORMATIONS CLIENT'}
-                  </p>
-
-                  <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-                    <label className="block min-w-0">
-                      <span className="text-[10px] font-black text-slate-700 sm:text-xs">
-                        {isArabic
-                          ? 'الاسم الكامل'
-                          : 'Nom complet'}
-                      </span>
-
-                      <input
-                        value={
-                          fullName
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          setFullName(
-                            event.target.value,
-                          )
-                        }
-                        type="text"
-                        autoComplete="name"
-                        required
-                        className="mt-2 h-12 w-full min-w-0 rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50"
-                      />
-                    </label>
-
-                    <label className="block min-w-0">
-                      <span className="text-[10px] font-black text-slate-700 sm:text-xs">
-                        {isArabic
-                          ? 'رقم الهاتف'
-                          : 'Téléphone'}
-                      </span>
-
-                      <input
-                        value={
-                          phone
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          setPhone(
-                            event.target.value,
-                          )
-                        }
-                        type="tel"
-                        dir="ltr"
-                        autoComplete="tel"
-                        required
-                        className="mt-2 h-12 w-full min-w-0 rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-left text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50"
-                      />
-                    </label>
-                  </div>
-
-                  <label className="mt-4 block min-w-0">
-                    <span className="text-[10px] font-black text-slate-700 sm:text-xs">
+          <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <section className="min-w-0">
+              <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                <form
+                  onSubmit={
+                    handleSubmit
+                  }
+                  className="space-y-6"
+                >
+                  <section>
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
                       {isArabic
-                        ? 'البريد الإلكتروني لاستلام eSIM'
-                        : 'E-mail de réception eSIM'}
+                        ? 'معلومات العميل'
+                        : 'VOS INFORMATIONS'}
+                    </p>
+
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <label className="block">
+                        <span className="text-sm font-black text-slate-700">
+                          {isArabic
+                            ? 'الاسم'
+                            : 'Nom'}
+                        </span>
+
+                        <input
+                          type="text"
+                          required
+                          value={
+                            fullName
+                          }
+                          onChange={(
+                            event,
+                          ) =>
+                            setFullName(
+                              event.target.value,
+                            )
+                          }
+                          className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-sm outline-none focus:border-blue-500 focus:bg-white"
+                        />
+                      </label>
+
+                      <label className="block">
+                        <span className="text-sm font-black text-slate-700">
+                          {isArabic
+                            ? 'الهاتف'
+                            : 'Téléphone'}
+                        </span>
+
+                        <input
+                          dir="ltr"
+                          type="tel"
+                          required
+                          value={
+                            phone
+                          }
+                          onChange={(
+                            event,
+                          ) =>
+                            setPhone(
+                              event.target.value,
+                            )
+                          }
+                          className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-left text-sm outline-none focus:border-blue-500 focus:bg-white"
+                        />
+                      </label>
+                    </div>
+
+                    <label className="mt-4 block">
+                      <span className="text-sm font-black text-slate-700">
+                        E-mail
+                      </span>
+
+                      <input
+                        dir="ltr"
+                        type="email"
+                        required
+                        value={
+                          email
+                        }
+                        onChange={(
+                          event,
+                        ) =>
+                          setEmail(
+                            event.target.value,
+                          )
+                        }
+                        className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-left text-sm outline-none focus:border-blue-500 focus:bg-white"
+                      />
+                    </label>
+                  </section>
+
+                  <section className="border-t border-slate-100 pt-5">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                        {isArabic
+                          ? 'الدفع'
+                          : 'PAIEMENT'}
+                      </p>
+
+                      <h2 className="mt-2 text-base font-black text-slate-950">
+                        {isArabic
+                          ? 'اختر وسيلة الدفع'
+                          : 'Choisissez votre moyen de paiement'}
+                      </h2>
+                    </div>
+
+                    {paymentMethods.length >
+                    0 ? (
+                      <div className="mt-4 grid grid-cols-4 gap-x-1 gap-y-3 sm:grid-cols-5 sm:gap-x-2">
+                        {paymentMethods.map(
+                          (
+                            method,
+                          ) => {
+                            const selected =
+                              selectedPaymentCode ===
+                              method.code
+
+                            const imageUrl =
+                              getPaymentImageUrl(
+                                method.imagePath,
+                              )
+
+                            return (
+                              <button
+                                key={
+                                  method.id
+                                }
+                                type="button"
+                                aria-pressed={selected}
+                                onClick={() => {
+                                  if (!selected) { setProofFile(null); setSenderNumber('') }
+                                  setSelectedPaymentCode(
+                                    method.code,
+                                  )
+
+                                  setCopiedNumber(
+                                    false,
+                                  )
+
+                                  setCopiedAmount(
+                                    false,
+                                  )
+                                }}
+                                className={[
+                                  'relative min-w-0 rounded-lg px-0.5 py-1.5 text-center transition hover:bg-blue-500/5 focus-visible:ring-2 focus-visible:ring-blue-500',
+
+                                  selected
+                                    ? 'bg-transparent'
+                                    : 'bg-transparent',
+                                ].join(
+                                  ' ',
+                                )}
+                              >
+                                <div className={`relative mx-auto flex h-12 w-12 items-center justify-center rounded-full ring-2 transition ${selected ? 'ring-blue-600' : 'ring-slate-300/70'}`} style={{ backgroundColor: '#ffffff' }}>
+                                  <span className="flex h-full w-full items-center justify-center overflow-hidden rounded-full">
+                                    {imageUrl ? (
+                                      <img src={imageUrl} alt={method.name} className="h-full w-full rounded-full object-contain p-0.5" />
+                                    ) : (
+                                      <span className="text-xs font-bold" style={{ color: '#0f172a' }}>{method.name.slice(0, 2).toUpperCase()}</span>
+                                    )}
+                                  </span>
+                                  {selected && <span aria-hidden="true" className="absolute -end-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white ring-2 ring-white">✓</span>}
+                                </div>
+
+                                <p
+                                  className={[
+                                    'mt-1.5 break-words text-[10px] leading-tight font-semibold sm:text-xs',
+
+                                    selected
+                                      ? 'text-blue-700'
+                                      : 'text-slate-700',
+                                  ].join(
+                                    ' ',
+                                  )}
+                                >
+                                  {
+                                    (isArabic ? method.name_ar : method.name_fr) || method.name
+                                  }
+                                </p>
+                              </button>
+                            )
+                          },
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-4 rounded-[16px] border border-amber-200 bg-amber-50 p-4">
+                        <p className="text-sm font-black text-amber-700">
+                          {isArabic
+                            ? 'لا توجد وسيلة دفع متاحة حاليًا.'
+                            : 'Aucun moyen de paiement disponible actuellement.'}
+                        </p>
+                      </div>
+                    )}
+                  </section>
+
+                  {selectedMethod && (
+                    <>
+                      <section className="overflow-hidden rounded-[22px] bg-slate-950 text-white">
+                        <div className="p-4 sm:p-5">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-white">
+                              {getPaymentImageUrl(
+                                selectedMethod.imagePath,
+                              ) ? (
+                                <img
+                                  src={
+                                    getPaymentImageUrl(
+                                      selectedMethod.imagePath,
+                                    ) ??
+                                    ''
+                                  }
+                                  alt={
+                                    selectedMethod.name
+                                  }
+                                  className="h-full w-full rounded-full object-contain p-2 bg-white"
+                                />
+                              ) : (
+                                <span className="text-sm font-black text-slate-900">
+                                  {selectedMethod.name
+                                    .slice(
+                                      0,
+                                      2,
+                                    )
+                                    .toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className="text-xs font-black uppercase tracking-wide text-white/40">
+                                {isArabic
+                                  ? 'الدفع عبر'
+                                  : 'Paiement via'}
+                              </p>
+
+                              <p className="mt-1 truncate text-lg font-black">
+                                {
+                                  selectedMethod.name
+                                }
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid border-t border-white/10 sm:grid-cols-2">
+                          <div className="border-b border-white/10 p-4 sm:border-b-0 sm:border-e">
+                            <p className="text-xs font-black uppercase text-white/40">
+                              {(isArabic ? selectedMethod.receiver_label_ar : selectedMethod.receiver_label_fr) || (isArabic ? 'بيانات المستفيد' : 'Identifiant bénéficiaire')}
+                            </p>
+
+                            <p
+                              dir="ltr"
+                              className="mt-2 break-all text-left text-xl font-black"
+                            >
+                              {
+                                selectedMethod.paymentNumber
+                              }
+                            </p>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void copyText(
+                                  selectedMethod.paymentNumber,
+                                  'number',
+                                )
+                              }
+                              className="mt-3 rounded-[10px] bg-white px-3 py-2 text-xs font-black text-slate-900"
+                            >
+                              {copiedNumber
+                                ? isArabic
+                                  ? 'تم النسخ ✓'
+                                  : 'Copié ✓'
+                                : isArabic
+                                  ? 'نسخ الرقم'
+                                  : 'Copier'}
+                            </button>
+                          </div>
+
+                          <div className="p-4">
+                            <p className="text-xs font-black uppercase text-white/40">
+                              {isArabic
+                                ? 'المبلغ'
+                                : 'Montant'}
+                            </p>
+
+                            <p
+                              dir="ltr"
+                              className="mt-2 text-left text-xl font-black text-blue-300"
+                            >
+                              {
+                                amountLabel
+                              }
+                            </p>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void copyText(
+                                  String(
+                                    verifiedPrice,
+                                  ),
+                                  'amount',
+                                )
+                              }
+                              className="mt-3 rounded-[10px] bg-white px-3 py-2 text-xs font-black text-slate-900"
+                            >
+                              {copiedAmount
+                                ? isArabic
+                                  ? 'تم النسخ ✓'
+                                  : 'Copié ✓'
+                                : isArabic
+                                  ? 'نسخ المبلغ'
+                                  : 'Copier le montant'}
+                            </button>
+                          </div>
+                        </div>
+                      </section>
+
+                      {(selectedMethod.beneficiary_name || selectedMethod.payment_network || selectedMethod.qr_image_path) && <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">{selectedMethod.beneficiary_name && <p>{isArabic ? 'المستفيد' : 'Bénéficiaire'}: {selectedMethod.beneficiary_name}</p>}{selectedMethod.payment_network && <p>{isArabic ? 'الشبكة' : 'Réseau'}: {selectedMethod.payment_network}</p>}{selectedMethod.qr_image_path && <img className="mx-auto h-32 w-32 rounded-xl bg-white object-contain" alt="QR" src={supabase.storage.from('payment-methods').getPublicUrl(selectedMethod.qr_image_path).data.publicUrl} />}</section>}
+                      <section className="rounded-[20px] border border-blue-100 bg-blue-50/60 p-4 sm:p-5">
+                        <h3 className="text-sm font-black text-slate-950">
+                          {isArabic
+                            ? 'طريقة الدفع'
+                            : 'Comment payer ?'}
+                        </h3>
+
+                        {(isArabic
+                          ? selectedMethod.instructionsAr
+                          : selectedMethod.instructionsFr
+                        ) && (
+                          <p className="mt-2 text-xs font-semibold leading-6 text-blue-700">
+                            {isArabic
+                              ? selectedMethod.instructionsAr
+                              : selectedMethod.instructionsFr}
+                          </p>
+                        )}
+
+                        <div className="mt-4 space-y-3">
+                          {paymentSteps.map(
+                            (
+                              step,
+                              index,
+                            ) => (
+                              <div
+                                key={
+                                  `${selectedMethod.code}-${index}`
+                                }
+                                className="flex items-start gap-3"
+                              >
+                                <span
+                                  dir="ltr"
+                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-[10px] font-black text-blue-600 shadow-sm"
+                                >
+                                  {
+                                    index +
+                                    1
+                                  }
+                                </span>
+
+                                <p className="pt-1 text-xs font-semibold leading-5 text-slate-600">
+                                  {
+                                    step
+                                  }
+                                </p>
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      </section>
+                    </>
+                  )}
+
+                  <label className="block">
+                    <span className="text-sm font-black text-slate-700">
+                      {(isArabic ? selectedMethod?.sender_label_ar : selectedMethod?.sender_label_fr) || (isArabic ? 'رقم المرسل أو مرجع التحويل' : 'Identifiant expéditeur ou référence')}
                     </span>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                      {selectedMethod
+                        ? isArabic
+                          ? `أدخل معرف المرسل أو مرجع التحويل عبر ${selectedMethod.name}.`
+                          : `Indiquez votre identifiant ou référence de transfert ${selectedMethod.name}.`
+                        : isArabic
+                          ? 'اختر وسيلة الدفع أولًا.'
+                          : 'Choisissez d’abord un moyen de paiement.'}
+                    </p>
 
                     <input
+                      dir="ltr"
+                      type="text"
+                      required
                       value={
-                        email
+                        senderNumber
                       }
                       onChange={(
                         event,
                       ) =>
-                        setEmail(
+                        setSenderNumber(
                           event.target.value,
                         )
                       }
-                      type="email"
-                      dir="ltr"
-                      autoComplete="email"
-                      required
-                      placeholder="exemple@email.com"
-                      className="mt-2 h-12 w-full min-w-0 rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-left text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50"
+                      className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-left text-sm outline-none focus:border-blue-500 focus:bg-white"
                     />
                   </label>
-                </div>
 
-                <div className="border-t border-slate-100 pt-5">
-                  <p className="text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">
-                    {isArabic
-                      ? 'الدفع'
-                      : 'PAIEMENT'}
-                  </p>
-
-                  <p className="mt-2 text-[10px] font-black text-slate-700 sm:text-xs">
-                    {isArabic
-                      ? 'وسيلة الدفع'
-                      : 'Moyen de paiement'}
-                  </p>
-
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    {paymentMethods.map(
-                      (
-                        method,
-                      ) => {
-                        const isSelected =
-                          selectedPaymentMethod ===
-                          method.id
-
-                        return (
-                          <button
-                            key={
-                              method.id
-                            }
-                            type="button"
-                            onClick={() => {
-                              setSelectedPaymentMethod(
-                                method.id,
-                              )
-
-                              setCopiedPaymentNumber(
-                                false,
-                              )
-                            }}
-                            className={[
-                              'min-h-[48px] min-w-0 rounded-[14px] border px-2 text-[9px] font-black transition sm:px-3 sm:text-xs',
-                              isSelected
-                                ? 'border-blue-600 bg-blue-50 text-blue-600 shadow-sm'
-                                : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200',
-                            ].join(
-                              ' ',
-                            )}
-                          >
-                            <span className="block truncate">
-                              {
-                                method.name
-                              }
-                            </span>
-                          </button>
-                        )
-                      },
-                    )}
-                  </div>
-                </div>
-
-                {selectedMethod && (
-                  <div className="overflow-hidden rounded-[18px] border border-blue-100 bg-blue-50">
-                    <div className="p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="text-[8px] font-black uppercase tracking-wide text-blue-600">
-                            {isArabic
-                              ? 'رقم الدفع'
-                              : 'Numéro de paiement'}
-                          </p>
-
-                          <p
-                            dir="ltr"
-                            className="mt-1 text-left text-xl font-black text-slate-950"
-                          >
-                            {
-                              selectedMethod.paymentNumber
-                            }
-                          </p>
-
-                          <p className="mt-1 text-[8px] font-bold text-blue-500">
-                            {
-                              selectedMethod.name
-                            }
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={
-                            copyPaymentNumber
-                          }
-                          className="shrink-0 rounded-[12px] border border-blue-200 bg-white px-3 py-2 text-[9px] font-black text-blue-600 transition hover:bg-blue-100"
-                        >
-                          {copiedPaymentNumber
-                            ? isArabic
-                              ? 'تم النسخ'
-                              : 'Copié'
-                            : isArabic
-                              ? 'نسخ'
-                              : 'Copier'}
-                        </button>
-                      </div>
-
-                      <div className="mt-4 rounded-[14px] bg-white/70 p-3">
-                        <p className="text-[9px] leading-5 text-slate-600">
-                          {isArabic
-                            ? `حوّل ${formatCurrencyText(
-                                String(
-                                  verifiedPrice,
-                                ),
-                              )} عبر ${selectedMethod.name} إلى الرقم أعلاه، ثم ارفع إثبات العملية.`
-                            : `Envoyez ${formatCurrencyText(
-                                String(
-                                  verifiedPrice,
-                                ),
-                              )} via ${selectedMethod.name} au numéro ci-dessus, puis ajoutez la preuve du paiement.`}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <label className="block min-w-0">
-                  <span className="text-[10px] font-black text-slate-700 sm:text-xs">
-                    {isArabic
-                      ? 'رقم المرسل'
-                      : 'Numéro de l’expéditeur'}
-                  </span>
-
-                  <input
-                    value={
-                      senderNumber
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setSenderNumber(
-                        event.target.value,
-                      )
-                    }
-                    type="tel"
-                    dir="ltr"
-                    required
-                    className="mt-2 h-12 w-full min-w-0 rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-left text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50"
-                  />
-                </label>
-
-                <label className="block min-w-0">
-                  <span className="text-[10px] font-black text-slate-700 sm:text-xs">
-                    {isArabic
-                      ? 'إثبات الدفع'
-                      : 'Preuve de paiement'}
-                  </span>
-
-                  <div
-                    className={[
-                      'mt-2 rounded-[18px] border border-dashed p-4 transition',
-                      proofFile
-                        ? 'border-emerald-200 bg-emerald-50/50'
-                        : 'border-slate-300 bg-slate-50',
-                    ].join(
-                      ' ',
-                    )}
-                  >
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,application/pdf"
-                      onChange={
-                        handleProofChange
-                      }
-                      disabled={
-                        isSubmitting
-                      }
-                      className="block w-full min-w-0 text-[9px] text-slate-500 file:mr-3 file:rounded-[10px] file:border-0 file:bg-blue-600 file:px-3 file:py-2.5 file:text-[9px] file:font-black file:text-white"
-                    />
-
-                    {proofFile ? (
-                      <div className="mt-3 flex items-center gap-2 rounded-[12px] bg-white p-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-emerald-50 text-[10px] font-black text-emerald-600">
-                          ✓
-                        </div>
-
-                        <div className="min-w-0">
-                          <p className="truncate text-[9px] font-black text-slate-700">
-                            {
-                              proofFile.name
-                            }
-                          </p>
-
-                          <p className="mt-0.5 text-[7px] text-slate-400">
-                            {(
-                              proofFile.size /
-                              1024 /
-                              1024
-                            ).toFixed(
-                              2,
-                            )}{' '}
-                            MB
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="mt-3 text-[8px] leading-5 text-slate-400">
-                        {isArabic
-                          ? 'JPG أو PNG أو WEBP أو PDF — الحد الأقصى 5MB.'
-                          : 'JPG, PNG, WEBP ou PDF — maximum 5 MB.'}
-                      </p>
-                    )}
-                  </div>
-                </label>
-
-                <button
-                  type="submit"
-                  disabled={
-                    !canSubmit
-                  }
-                  className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-blue-600 px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.16)] transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-
-                      <span>
-                        {isArabic
-                          ? 'جاري إرسال الطلب...'
-                          : 'Envoi de la commande...'}
-                      </span>
-                    </>
-                  ) : (
-                    isArabic
-                      ? 'تأكيد الطلب'
-                      : 'Confirmer la commande'
-                  )}
-                </button>
-
-                <div className="rounded-[14px] bg-slate-50 px-4 py-3 text-center">
-                  <p className="text-[8px] leading-5 text-slate-400">
-                    {isArabic
-                      ? 'سيتم إرسال الطلب للمراجعة. الدفع لا يعتبر مؤكدًا حتى تتم مراجعته من TEO STORE.'
-                      : 'La commande sera envoyée pour vérification. Le paiement ne sera confirmé qu’après validation par TEO STORE.'}
-                  </p>
-                </div>
-              </form>
-            </div>
-          </section>
-
-          <aside className="min-w-0">
-            <div
-              className="overflow-hidden rounded-[24px] text-white shadow-[0_18px_50px_rgba(15,23,42,0.15)] lg:sticky lg:top-6"
-              style={{
-                background:
-                  'linear-gradient(135deg,#06101f 0%,#101d44 55%,#312e81 100%)',
-              }}
-            >
-              <div className="relative overflow-hidden p-5 sm:p-6">
-                <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-blue-500/15 blur-[70px]" />
-
-                <div className="relative">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[8px] font-black uppercase tracking-[0.16em] text-blue-300">
+                  <label className="block">
+                    <span className="text-sm font-black text-slate-700">
                       {isArabic
-                        ? 'ملخص الطلب'
-                        : 'RÉCAPITULATIF'}
-                    </p>
-
-                    <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[6px] font-black uppercase text-emerald-200">
-                      {isArabic
-                        ? 'متحقق'
-                        : 'Vérifié'}
+                        ? 'إثبات الدفع'
+                        : 'Preuve de paiement'}
                     </span>
-                  </div>
+
+                    <div
+                      className={[
+                        'mt-2 rounded-[18px] border border-dashed p-5 text-center transition',
+
+                        proofFile
+                          ? 'border-emerald-200 bg-emerald-50'
+                          : 'border-slate-300 bg-slate-50',
+                      ].join(
+                        ' ',
+                      )}
+                    >
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        onChange={
+                          handleProofChange
+                        }
+                        className="block w-full text-xs text-slate-500 file:me-3 file:rounded-[10px] file:border-0 file:bg-blue-600 file:px-4 file:py-2.5 file:text-xs file:font-black file:text-white"
+                      />
+
+                      {proofFile && (
+                        <p className="mt-3 break-all text-xs font-black text-emerald-700">
+                          ✓{' '}
+                          {
+                            proofFile.name
+                          }
+                        </p>
+                      )}
+
+                      <p className="mt-3 text-[10px] leading-5 text-slate-400">
+                        JPG · PNG · WEBP · PDF · 5 MB max
+                      </p>
+                    </div>
+                  </label>
+
+                  <button
+                    type="submit"
+                    disabled={
+                      !canSubmit
+                    }
+                    className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-blue-600 px-5 text-sm font-black text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+
+                        <span>
+                          {isArabic
+                            ? 'جاري إرسال الطلب...'
+                            : 'Envoi de la commande...'}
+                        </span>
+                      </>
+                    ) : (
+                      isArabic
+                        ? 'تأكيد الدفع وإرسال الطلب'
+                        : 'Confirmer le paiement'
+                    )}
+                  </button>
+
+                  <p className="text-center text-xs leading-5 text-slate-400">
+                    {isArabic
+                      ? 'سيتم إرسال الدفع للمراجعة من TEO STORE قبل تفعيل eSIM.'
+                      : 'Votre paiement sera vérifié par TEO STORE avant l’activation de votre eSIM.'}
+                  </p>
+                </form>
+              </div>
+            </section>
+
+            <aside className="min-w-0">
+              <div
+                className="overflow-hidden rounded-[24px] text-white shadow-[0_18px_50px_rgba(15,23,42,0.15)] lg:sticky lg:top-6"
+                style={{
+                  background:
+                    'linear-gradient(135deg,#06101f 0%,#101d44 55%,#312e81 100%)',
+                }}
+              >
+                <div className="p-5 sm:p-6">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-300">
+                    {isArabic
+                      ? 'ملخص الطلب'
+                      : 'RÉCAPITULATIF'}
+                  </p>
 
                   <div className="mt-5 flex items-center gap-3">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-white/10 bg-white/10 text-3xl">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-[18px] border border-white/10 bg-white/10 text-3xl">
                       {
-                        getCountryFlag(
-                          country.flag,
-                        )
+                        country.flag
                       }
                     </div>
 
@@ -1832,15 +2321,15 @@ function EsimCheckoutPage() {
                         }
                       </p>
 
-                      <p className="mt-0.5 text-[8px] font-black uppercase tracking-wide text-white/35">
+                      <p className="mt-1 text-xs text-white/40">
                         TEO STORE eSIM
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-6 space-y-3 rounded-[18px] border border-white/10 bg-white/[0.05] p-4">
+                  <div className="mt-5 space-y-3 rounded-[18px] border border-white/10 bg-white/[0.05] p-4">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-[9px] font-semibold text-white/40">
+                      <span className="text-sm text-white/50">
                         {isArabic
                           ? 'البيانات'
                           : 'Données'}
@@ -1848,7 +2337,7 @@ function EsimCheckoutPage() {
 
                       <span
                         dir="ltr"
-                        className="text-xs font-black"
+                        className="text-sm font-black"
                       >
                         {
                           requestedPlan.data[
@@ -1859,13 +2348,13 @@ function EsimCheckoutPage() {
                     </div>
 
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-[9px] font-semibold text-white/40">
+                      <span className="text-sm text-white/50">
                         {isArabic
                           ? 'المدة'
                           : 'Durée'}
                       </span>
 
-                      <span className="text-xs font-black">
+                      <span className="text-sm font-black">
                         {
                           requestedPlan.duration[
                             language
@@ -1874,86 +2363,78 @@ function EsimCheckoutPage() {
                       </span>
                     </div>
 
-                    {requestedPlan.speed && (
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-[9px] font-semibold text-white/40">
-                          {isArabic
-                            ? 'الشبكة'
-                            : 'Réseau'}
-                        </span>
-
-                        <span
-                          dir="ltr"
-                          className="text-xs font-black"
-                        >
-                          {
-                            requestedPlan.speed[
-                              language
-                            ]
-                          }
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="my-1 h-px bg-white/10" />
+                    <div className="h-px bg-white/10" />
 
                     <div className="flex items-end justify-between gap-3">
-                      <div>
-                        <span className="text-[9px] font-semibold text-white/40">
-                          {isArabic
-                            ? 'الإجمالي'
-                            : 'Total'}
-                        </span>
+                      <span className="text-sm text-white/50">
+                        {isArabic
+                          ? 'الإجمالي'
+                          : 'Total'}
+                      </span>
 
-                        <p className="mt-1 text-[7px] font-semibold text-white/25">
-                          {isArabic
-                            ? 'السعر الحالي المعتمد'
-                            : 'Prix actuel vérifié'}
-                        </p>
-                      </div>
-
-                      <span className="text-xl font-black text-blue-300">
-                        {formatCurrencyText(
-                          String(
-                            verifiedPrice,
-                          ),
-                        )}
+                      <span
+                        dir="ltr"
+                        className="text-xl font-black text-blue-300"
+                      >
+                        {
+                          amountLabel
+                        }
                       </span>
                     </div>
                   </div>
 
-                  <div className="mt-5 grid grid-cols-3 gap-2">
-                    <div className="rounded-[13px] border border-white/10 bg-white/[0.04] p-3 text-center">
-                      <p className="text-[7px] font-black text-white/35">
-                        {isArabic
-                          ? 'آمن'
-                          : 'Sécurisé'}
-                      </p>
-                    </div>
+                  {selectedMethod && (
+                    <div className="mt-3 flex items-center gap-3 rounded-[16px] border border-white/10 bg-white/[0.05] p-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[12px] bg-white">
+                        {getPaymentImageUrl(
+                          selectedMethod.imagePath,
+                        ) ? (
+                          <img
+                            src={
+                              getPaymentImageUrl(
+                                selectedMethod.imagePath,
+                              ) ??
+                              ''
+                            }
+                            alt={
+                              selectedMethod.name
+                            }
+                            className="h-full w-full rounded-full object-contain p-2 bg-white"
+                          />
+                        ) : (
+                          <span className="text-[10px] font-black text-slate-900">
+                            {selectedMethod.name
+                              .slice(
+                                0,
+                                2,
+                              )
+                              .toUpperCase()}
+                          </span>
+                        )}
+                      </div>
 
-                    <div className="rounded-[13px] border border-white/10 bg-white/[0.04] p-3 text-center">
-                      <p className="text-[7px] font-black text-white/35">
-                        {isArabic
-                          ? 'رقمي'
-                          : 'Digital'}
-                      </p>
-                    </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-black uppercase text-white/40">
+                          {isArabic
+                            ? 'الدفع'
+                            : 'Paiement'}
+                        </p>
 
-                    <div className="rounded-[13px] border border-white/10 bg-white/[0.04] p-3 text-center">
-                      <p className="text-[7px] font-black text-white/35">
-                        {isArabic
-                          ? 'مدعوم'
-                          : 'Support'}
-                      </p>
+                        <p className="mt-1 truncate text-sm font-black">
+                          {
+                            selectedMethod.name
+                          }
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  <div className="mt-5 space-y-2 text-[8px] font-semibold text-white/40">
+                  <div className="mt-5 space-y-2 text-xs font-semibold leading-5 text-white/45">
                     <p>
                       ✓{' '}
                       {isArabic
-                        ? 'السعر يعاد التحقق منه قبل إنشاء الطلب'
-                        : 'Prix revérifié avant la création de la commande'}
+                        ? 'السعر يتم التحقق منه قبل إنشاء الطلب'
+                        : 'Prix revérifié avant la commande'}
                     </p>
 
                     <p>
@@ -1972,8 +2453,8 @@ function EsimCheckoutPage() {
                   </div>
                 </div>
               </div>
-            </div>
-          </aside>
+            </aside>
+          </div>
         </div>
       </Container>
     </main>
