@@ -1,3 +1,4 @@
+import { useEsimPublicSettings } from '../components/EsimGuide'
 import { copyText as copyToClipboard } from '../../../lib/copyText'
 import {
   useCallback,
@@ -114,10 +115,6 @@ type ToastState = {
   message?: string
 }
 
-type PriceValue =
-  | string
-  | number
-
 const PAYMENT_PROOFS_BUCKET =
   'payment-proofs'
 
@@ -127,46 +124,6 @@ const PAYMENT_METHODS_BUCKET =
 const MAX_PROOF_SIZE =
   5 * 1024 * 1024
 
-function parsePrice(
-  value: PriceValue,
-) {
-  if (
-    typeof value ===
-    'number'
-  ) {
-    return Number.isFinite(
-      value,
-    )
-      ? value
-      : 0
-  }
-
-  const normalized =
-    value
-      .replace(
-        /\s/g,
-        '',
-      )
-      .replace(
-        ',',
-        '.',
-      )
-      .replace(
-        /[^0-9.-]/g,
-        '',
-      )
-
-  const parsed =
-    Number(
-      normalized,
-    )
-
-  return Number.isFinite(
-    parsed,
-  )
-    ? parsed
-    : 0
-}
 
 function getFileExtension(
   file: File,
@@ -821,6 +778,9 @@ function EsimCheckoutPage() {
     ],
   )
 
+  const publicSettings = useEsimPublicSettings()
+  const checkoutEnabled = publicSettings?.catalog_enabled === true && publicSettings?.checkout_enabled === true
+
   const verifiedPrice =
     useMemo(
       () => {
@@ -838,9 +798,7 @@ function EsimCheckoutPage() {
           )
         }
 
-        return parsePrice(
-          requestedPlan.price,
-        )
+        return 0
       },
       [
         planSetting,
@@ -851,12 +809,12 @@ function EsimCheckoutPage() {
   const countryActive =
     countrySetting
       ?.active ??
-    true
+    false
 
   const planActive =
     planSetting
       ?.active ??
-    true
+    false
 
   const selectedMethod =
     useMemo(
@@ -951,7 +909,7 @@ function EsimCheckoutPage() {
 
   const canSubmit =
     Boolean(
-      country &&
+      checkoutEnabled && country &&
         requestedPlan &&
         countryActive &&
         planActive &&
@@ -1148,6 +1106,8 @@ function EsimCheckoutPage() {
         null
 
       try {
+        const gate = await supabase.rpc('teo_v5_get_esim_settings')
+        if (gate.error || gate.data?.catalog_enabled !== true || gate.data?.checkout_enabled !== true) throw new Error(isArabic ? 'شراء eSIM غير متاح حاليًا' : 'Achat eSIM indisponible')
         const [
           countryResult,
           planResult,
@@ -1240,13 +1200,13 @@ function EsimCheckoutPage() {
             countryResult
               .data
               ?.active ??
-            true
+            false
           ) ||
           !(
             planResult
               .data
               ?.active ??
-            true
+            false
           )
         ) {
           throw new Error(
@@ -1265,9 +1225,7 @@ function EsimCheckoutPage() {
                   .data
                   .price,
               )
-            : parsePrice(
-                requestedPlan.price,
-              )
+            : 0
 
         if (
           !Number.isFinite(
@@ -1294,6 +1252,10 @@ function EsimCheckoutPage() {
               ? 'طريقة الدفع المختارة لم تعد متوفرة.'
               : 'Le moyen de paiement sélectionné n’est plus disponible.',
           )
+        }
+
+        if (authoritativePrice !== verifiedPrice) {
+          throw new Error(isArabic ? 'تغير سعر الباقة. إذا كنت قد حولت المبلغ، تواصل مع الدعم قبل إعادة الدفع.' : 'Le prix du forfait a changé. Si vous avez déjà effectué le transfert, contactez le support avant de repayer.')
         }
 
         const payment =
@@ -1382,37 +1344,11 @@ function EsimCheckoutPage() {
             orderError,
         } =
           await supabase.rpc(
-            'customer_create_esim_order',
+             'customer_create_esim_order_v6',
             {
-              p_country_slug:
-                country.slug,
-
-              p_country_name_fr:
-                country.name.fr,
-
-              p_country_name_ar:
-                country.name.ar,
-
-              p_country_flag:
-                country.flag,
-
-              p_plan_id:
-                requestedPlan.id,
-
-              p_plan_label:
-                `${requestedPlan.data.fr} · ${requestedPlan.duration.fr}`,
-
-              p_plan_data_fr:
-                requestedPlan.data.fr,
-
-              p_plan_data_ar:
-                requestedPlan.data.ar,
-
-              p_plan_duration_fr:
-                requestedPlan.duration.fr,
-
-              p_plan_duration_ar:
-                requestedPlan.duration.ar,
+              p_country_slug: country.slug,
+              p_plan_id: requestedPlan.id,
+              p_expected_total: verifiedPrice,
 
               p_customer_name:
                 fullName.trim(),
@@ -1685,7 +1621,7 @@ function EsimCheckoutPage() {
   }
 
   if (
-    !countryActive ||
+    !checkoutEnabled || !countryActive ||
     !planActive
   ) {
     return (

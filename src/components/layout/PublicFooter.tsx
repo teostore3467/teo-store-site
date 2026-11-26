@@ -28,7 +28,7 @@ export default function PublicFooter() {
   const [unread,setUnread]=useState(0)
   useEffect(()=>{let live=true;async function load(){const [p,f,s,l,c,n]=await Promise.all([supabase.from('teo_store_pages').select('slug,title_ar,title_fr').eq('active',true),supabase.from('teo_store_faq').select('*').eq('active',true).order('sort_order'),supabase.from('teo_footer_sections').select('*').eq('active',true).order('sort_order'),supabase.from('teo_footer_links').select('*').eq('active',true).order('sort_order'),supabase.from('teo_footer_settings').select('*'),supabase.from('teo_support_notifications').select('id',{count:'exact',head:true}).eq('is_read',false)]);if(live){setContent({pages:p.data||[],faq:f.data||[],sections:s.data||[],links:l.data||[],settings:Object.fromEntries((c.data||[]).map(x=>[x.key,x.value]))});setUnread(n.count||0)}}void load();const timer=window.setInterval(load,10000);return()=>{live=false;clearInterval(timer)}},[])
   const [settings, setSettings] = useState<Record<string, unknown>>({})
-  const [payments, setPayments] = useState<{name: string; logo: string}[]>([])
+  const [payments, setPayments] = useState<{code: string; name: string; nameAr: string; nameFr: string; logo: string}[]>([])
   const [supportOpen, setSupportOpen] = useState(false)
   useEffect(() => {
     if (!supportOpen) return
@@ -42,11 +42,11 @@ export default function PublicFooter() {
     async function load() {
       const [s, p] = await Promise.all([
         supabase.from('app_settings').select('setting_key,setting_value').in('setting_key', ['store', 'support', 'footer_public']),
-        supabase.from('payment_methods').select('name,image_path').eq('is_active', true).eq('show_in_footer', true).order('sort_order', { ascending: true }),
+        supabase.from('payment_methods').select('code,name,name_ar,name_fr,image_path').eq('is_active', true).order('sort_order', { ascending: true }),
       ])
       if (!alive) return
       if (!s.error) setSettings(Object.fromEntries((s.data ?? []).map(row => [row.setting_key, row.setting_value])))
-      if (!p.error) setPayments((p.data ?? []).map(row => ({name: str(row.name), logo: str(row.image_path) ? supabase.storage.from('payment-methods').getPublicUrl(str(row.image_path)).data.publicUrl : ''})).filter(row => row.name))
+      if (!p.error) setPayments((p.data ?? []).map(row => ({code: str(row.code), name: str(row.name), nameAr: str(row.name_ar), nameFr: str(row.name_fr), logo: /^https:\/\//i.test(str(row.image_path)) ? str(row.image_path) : str(row.image_path) ? supabase.storage.from('payment-methods').getPublicUrl(str(row.image_path)).data.publicUrl : ''})).filter(row => row.name))
     }
     void load()
     const channel = supabase.channel('public-footer-settings')
@@ -54,11 +54,11 @@ export default function PublicFooter() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payment_methods' }, () => { void load() }).subscribe()
     const refresh = () => { void load() }
     window.addEventListener('focus', refresh)
-    return () => { alive = false; window.removeEventListener('focus', refresh); void supabase.removeChannel(channel) }
+    const paymentTimer = window.setInterval(refresh, 5000)
+    return () => { clearInterval(paymentTimer); alive = false; window.removeEventListener('focus', refresh); void supabase.removeChannel(channel) }
   }, [])
   const store = obj(settings.store), support = obj(settings.support)
   const footer = obj(settings.footer_public)
-  const hiddenPayments = obj(footer.hiddenPayments)
   const safeUrl = (value: unknown) => { try { const u = new URL(str(value)); return u.protocol === 'https:' ? u.href : '' } catch { return '' } }
   const socials = [
     {label:'Facebook', icon:Facebook, href:safeUrl(obj(content.settings.socials).facebook)||safeUrl(footer.facebook), color:'#1877f2'},
@@ -68,7 +68,7 @@ export default function PublicFooter() {
     {label:'Telegram', icon:Send, href:safeUrl(obj(content.settings.socials).telegram), color:'#229ed9'},
     {label:'Play', icon:Play, href:safeUrl(obj(content.settings.socials).youtube), color:'#ff0000'},
   ].filter(item => item.href)
-  const visiblePayments = payments.filter(p => hiddenPayments[p.name] !== true )
+  const visiblePayments = payments
   const name = str(store.storeName) || 'TEO STORE'
   const logo = safeUrl(obj(content.settings.general).logoUrl)||safeUrl(store.logoFooterUrl) || safeUrl(store.logoDarkUrl)
   useEffect(() => { setLogoFailed(false) }, [logo])
@@ -132,7 +132,7 @@ export default function PublicFooter() {
         </section>)}
         {enabled && hideFloating && <Link to="/assistance" className="flex items-center gap-2 text-sm font-bold"><Headphones size={18}/>{t('مركز المساعدة','Centre d’aide')}</Link>}
       </div>
-      {general.showPayments!==false && visiblePayments.length>0 && <section className="border-t py-5" style={{borderColor:'#263349'}}><h2 className="mb-4 text-center text-xs font-semibold" style={{color:'#aabbd2'}}>{t('طرق الدفع المتاحة','Moyens de paiement')}</h2><div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4">{visiblePayments.map(payment=><PaymentLogo key={`${payment.name}:${payment.logo}`} name={payment.name} url={safeUrl(payment.logo)}/>)}</div></section>}
+      {visiblePayments.length>0 && <section className="border-t py-5" style={{borderColor:'#263349'}}><h2 className="mb-4 text-center text-xs font-semibold" style={{color:'#aabbd2'}}>{t('طرق الدفع المتاحة','Moyens de paiement')}</h2><div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-3">{visiblePayments.map(payment=><PaymentLogo key={`${payment.code}:${payment.logo}`} name={(ar ? payment.nameAr : payment.nameFr) || payment.name} url={safeUrl(payment.logo)}/>)}</div></section>}
       <div className="flex flex-wrap items-center justify-center gap-3 border-t py-4 text-xs md:justify-between" style={{borderColor:'#263349',color:'#aabbd2'}}><span>©️ {new Date().getFullYear()} {name} — {t('جميع الحقوق محفوظة','Tous droits réservés')}</span>{general.showLanguage!==false&&<button onClick={toggleLanguage}>{ar?"Français":"العربية"}</button>}<span className="flex items-center gap-1"><Globe size={14}/>{t('موريتانيا · أوقية جديدة','Mauritanie · MRU')}</span></div>
     </Container>
     <div className={`fixed z-40 flex flex-col items-end gap-2 ${hideFloating ? 'hidden' : ''}`} style={{insetInlineEnd:12,bottom:'calc(16px + env(safe-area-inset-bottom, 0px))'}}>
@@ -155,5 +155,10 @@ export default function PublicFooter() {
 
 function PaymentLogo({name,url}:{name:string;url:string}) {
   const [failed,setFailed]=useState(false)
-  return <span className="inline-flex h-12 min-w-20 items-center justify-center rounded-lg px-2" title={name} style={{background:'#fff'}}>{url&&!failed?<img src={url} alt={name} loading="lazy" onError={()=>setFailed(true)} className="max-h-10 max-w-24 object-contain" style={{background:'transparent',border:0,boxShadow:'none'}}/>:<span className="text-xs font-semibold" style={{color:'#334155'}}>{name}</span>}</span>
+  return <div className="flex w-[56px] flex-col items-center gap-1" title={name}>
+    <span className="flex h-[48px] w-[48px] items-center justify-center overflow-hidden rounded-full" style={{background:'#fff',borderRadius:'50%',flexShrink:0}}>
+      {url && !failed ? <img src={url} alt="" loading="lazy" onError={()=>setFailed(true)} style={{display:'block',width:'100%',height:'100%',objectFit:'cover',padding:0,margin:0,background:'#fff',border:0,boxShadow:'none'}}/> : <span className="px-1 text-center text-[10px] font-bold leading-tight" style={{color:'#334155'}}>{name}</span>}
+    </span>
+    <span className="w-full break-words text-center text-[10px] font-semibold leading-tight" style={{color:'#e2e8f0'}}>{name}</span>
+  </div>
 }

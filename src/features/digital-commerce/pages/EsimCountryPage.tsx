@@ -10,6 +10,7 @@ import {
   useParams,
 } from 'react-router-dom'
 
+import EsimGuide, { useEsimPublicSettings } from '../components/EsimGuide'
 import Container from '../../../components/layout/Container'
 import {
   useLanguage,
@@ -38,53 +39,8 @@ type PlanSettingRow = {
   updated_at: string
 }
 
-type PriceValue =
-  | string
-  | number
-
 const COUNTRY_IMAGES_BUCKET =
   'esim-country-images'
-
-function parsePrice(
-  value: PriceValue,
-) {
-  if (
-    typeof value ===
-    'number'
-  ) {
-    return Number.isFinite(
-      value,
-    )
-      ? value
-      : 0
-  }
-
-  const normalized =
-    value
-      .replace(
-        /\s/g,
-        '',
-      )
-      .replace(
-        ',',
-        '.',
-      )
-      .replace(
-        /[^0-9.-]/g,
-        '',
-      )
-
-  const parsed =
-    Number(
-      normalized,
-    )
-
-  return Number.isFinite(
-    parsed,
-  )
-    ? parsed
-    : 0
-}
 
 function EsimCountryPage() {
   const {
@@ -332,10 +288,13 @@ function EsimCountryPage() {
     loadSettings,
   ])
 
+  const publicSettings = useEsimPublicSettings()
+  const checkoutEnabled = publicSettings?.catalog_enabled === true && publicSettings?.checkout_enabled === true
+
   const countryActive =
     countrySetting
       ?.active ??
-    true
+    false
 
   const countryImageUrl =
     useMemo(
@@ -382,10 +341,6 @@ function EsimCountryPage() {
                   plan.id
                 ]
 
-              const catalogPrice =
-                parsePrice(
-                  plan.price,
-                )
 
               return {
                 ...plan,
@@ -393,7 +348,7 @@ function EsimCountryPage() {
                 price:
                   setting
                     ?.price ??
-                  catalogPrice,
+                  0,
 
                 popular:
                   setting
@@ -405,7 +360,7 @@ function EsimCountryPage() {
                 active:
                   setting
                     ?.active ??
-                  true,
+                  false,
               }
             },
           )
@@ -413,7 +368,7 @@ function EsimCountryPage() {
             (
               plan,
             ) =>
-              plan.active,
+              plan.active && Number.isFinite(Number(plan.price)) && Number(plan.price) > 0,
           ),
       [
         country.plans,
@@ -655,7 +610,7 @@ function EsimCountryPage() {
     () => {
       if (
         !selectedPlan ||
-        !countryActive
+        !countryActive || !checkoutEnabled
       ) {
         return
       }
@@ -755,6 +710,7 @@ function EsimCountryPage() {
   : "Retour à l'accueil"}
             </button>
           </div>
+          <EsimGuide ar={isArabic} settings={publicSettings} />
         </Container>
       </main>
     )
@@ -804,8 +760,8 @@ function EsimCountryPage() {
 
               <p className="mt-1 text-[9px] leading-5 text-amber-600">
                 {isArabic
-                  ? 'سيتم استخدام إعدادات الكتالوج الأساسية.'
-                  : 'Les valeurs du catalogue principal sont utilisées comme solution de secours.'}
+                  ? 'الشراء غير متاح إلى حين تحميل الإعدادات الصحيحة.'
+                  : 'L’achat reste indisponible jusqu’au chargement des paramètres.'}
               </p>
             </div>
           )}
@@ -1324,14 +1280,11 @@ function EsimCountryPage() {
 
                       <button
                         type="button"
-                        onClick={
-                          handleContinue
-                        }
-                        className="mt-5 flex min-h-[50px] w-full items-center justify-center rounded-[14px] bg-blue-600 px-5 text-sm font-black text-white transition hover:bg-blue-500"
+                        onClick={handleContinue}
+                        disabled={!checkoutEnabled || Boolean(settingsError)}
+                        className="mt-5 flex min-h-[50px] w-full items-center justify-center rounded-[14px] bg-blue-600 px-5 text-sm font-black text-white transition hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {isArabic
-                          ? 'متابعة'
-                          : 'Continuer'}
+                        {checkoutEnabled ? (isArabic ? 'متابعة' : 'Continuer') : (isArabic ? 'قريبًا' : 'Bientôt disponible')}
                       </button>
 
                       <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[8px] font-semibold text-white/35">
@@ -1445,6 +1398,7 @@ function EsimCountryPage() {
                 : 'Votre téléphone doit prendre en charge la technologie eSIM avant l’achat.'}
             </p>
           </div>
+          <EsimGuide ar={isArabic} settings={publicSettings} />
         </Container>
       </section>
     </main>
