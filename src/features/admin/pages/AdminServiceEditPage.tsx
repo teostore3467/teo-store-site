@@ -441,77 +441,35 @@ function AdminServiceEditPage() {
       ServiceRow | null
     >(null)
 
-  const [serviceLogo, setServiceLogo] = useState<{path: string; url: string} | null>(null)
+  type LogoPaths = {logo_path:string;logo_light_path:string|null;logo_dark_path:string|null}
+  const [serviceLogo, setServiceLogo] = useState<LogoPaths | null>(null)
   const [logoBusy, setLogoBusy] = useState(false)
   const [logoLoadingError, setLogoLoadingError] = useState<string | null>(null)
-
   const refreshLogo = useCallback(async (slug: string) => {
-    const { data, error } = await supabase.from('service_logos')
-      .select('logo_path').eq('service_slug', slug).maybeSingle()
-    if (error) {
-      setLogoLoadingError(error.message)
-      return
-    }
-    setLogoLoadingError(null)
-    if (!data?.logo_path) {
-      setServiceLogo(null)
-      return
-    }
-    const path = data.logo_path as string
-    const { data: urlData } = supabase.storage.from(LOGO_BUCKET).getPublicUrl(path)
-    setServiceLogo({ path, url: urlData.publicUrl })
-  }, [])
-
-  const uploadServiceLogo = async (file?: File) => {
-    if (!service || !file || logoBusy) return
-    if (!LOGO_TYPES.includes(file.type) || file.size > 3 * 1024 * 1024) {
-      showToast({ type: 'error', title: 'Fichier non accepté', message: 'PNG, JPG ou WEBP, 3 Mo maximum.' })
-      return
-    }
+    setServiceLogo(null)
+    const {data,error}=await supabase.from('service_logos').select('logo_path,logo_light_path,logo_dark_path').eq('service_slug',slug).maybeSingle()
+    setLogoLoadingError(error?.message??null)
+    if(!error) setServiceLogo(data as LogoPaths|null)
+  },[])
+  const uploadServiceLogo = async (file?:File) => {
+    if(!service||!file||logoBusy||logoLoadingError)return
+    if(!LOGO_TYPES.includes(file.type)||file.size>3*1024*1024){showToast({type:'error',title:tr('Fichier non accepté','ملف غير مقبول'),message:'PNG / JPG / WEBP · 3 MB'});return}
     setLogoBusy(true)
-    const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
-    const path = `${service.slug}/logo-${Date.now()}.${extension}`
+    const slug=service.slug
+    const ext=file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg'
+    const path=`${slug}/logo-${crypto.randomUUID()}.${ext}`
     try {
-      const { error: uploadError } = await supabase.storage.from(LOGO_BUCKET)
-        .upload(path, file, { contentType: file.type, upsert: false })
-      if (uploadError) throw uploadError
-      const { error: recordError } = await supabase.from('service_logos')
-        .upsert({ service_slug: service.slug, logo_path: path, updated_at: new Date().toISOString() },
-          { onConflict: 'service_slug' })
-      if (recordError) {
-        await supabase.storage.from(LOGO_BUCKET).remove([path])
-        throw recordError
-      }
-      const previousPath = serviceLogo?.path
-      await refreshLogo(service.slug)
-      if (previousPath && previousPath !== path) {
-        const { error: cleanupError } = await supabase.storage.from(LOGO_BUCKET).remove([previousPath])
-        if (cleanupError) console.warn('Ancien logo:', cleanupError.message)
-      }
-      showToast({ type: 'success', title: 'Logo mis à jour' })
-    } catch (error) {
-      showToast({ type: 'error', title: 'Logo non enregistré', message: error instanceof Error ? error.message : 'Erreur inconnue' })
-    } finally { setLogoBusy(false) }
+      const {data:existing,error:readError}=await supabase.from('service_logos').select('logo_path').eq('service_slug',slug).maybeSingle()
+      if(readError)throw readError
+      const {error:uploadError}=await supabase.storage.from(LOGO_BUCKET).upload(path,file,{contentType:file.type,upsert:false})
+      if(uploadError)throw uploadError
+      const {error}=existing ? await supabase.from('service_logos').update({logo_path:path,updated_at:new Date().toISOString()}).eq('service_slug',slug).select('service_slug').single() : await supabase.from('service_logos').insert({service_slug:slug,logo_path:path})
+      if(error){await supabase.storage.from(LOGO_BUCKET).remove([path]);throw error}
+      await refreshLogo(slug)
+      showToast({type:'success',title:tr('Logo enregistré','تم حفظ الشعار')})
+    } catch(error){showToast({type:'error',title:tr('Logo non enregistré','تعذر حفظ الشعار'),message:typeof error==='object'&&error!==null&&'message' in error?String(error.message):String(error)})}
+    finally{setLogoBusy(false)}
   }
-
-  const removeServiceLogo = async () => {
-    if (!service || !serviceLogo || logoBusy) return
-    if (!window.confirm('Retirer le logo personnalisé de ce service ?')) return
-    setLogoBusy(true)
-    try {
-      const { error } = await supabase.from('service_logos').delete()
-        .eq('service_slug', service.slug).select('service_slug')
-      if (error) throw error
-      // Storage cleanup is secondary; do not lose the database success.
-      const { error: cleanupError } = await supabase.storage.from(LOGO_BUCKET).remove([serviceLogo.path])
-      if (cleanupError) console.warn('Logo storage:', cleanupError.message)
-      await refreshLogo(service.slug)
-      showToast({ type: 'success', title: 'Logo retiré' })
-    } catch (error) {
-      showToast({ type: 'error', title: 'Suppression impossible', message: error instanceof Error ? error.message : 'Erreur inconnue' })
-    } finally { setLogoBusy(false) }
-  }
-
   const [
     groups,
     setGroups,
@@ -1731,29 +1689,15 @@ function AdminServiceEditPage() {
 
       {detailsTab === 'general' && (
       <div className="mt-6 grid gap-5 xl:grid-cols-[1fr_300px] xl:items-start">
-        <div className="xl:col-span-2 rounded-[22px] border border-slate-200 bg-white p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                {serviceLogo ? <img src={serviceLogo.url} alt={`Logo ${service.name}`} className="h-full w-full object-contain" />
-                  : <span className="text-xl font-black text-slate-400">{service.name.slice(0, 2).toUpperCase()}</span>}
-              </div>
-              <div>
-                <h2 className="text-base font-black text-slate-950">{tr('Image du service','صورة الخدمة')}</h2>
-                <p className="mt-1 text-xs text-slate-500">PNG, JPG ou WEBP · 3 Mo maximum</p>
-                {logoLoadingError && <p className="mt-1 text-xs text-rose-600">{logoLoadingError}</p>}
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <label className={`inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white ${logoBusy ? 'pointer-events-none opacity-50' : 'hover:bg-blue-700'}`}>
-                {logoBusy ? 'Traitement...' : serviceLogo ? 'Changer le logo' : 'Ajouter un logo'}
-                <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={logoBusy}
-                  onChange={event => { void uploadServiceLogo(event.target.files?.[0]); event.currentTarget.value = '' }} />
-              </label>
-              {serviceLogo && <button type="button" disabled={logoBusy} onClick={() => void removeServiceLogo()}
-                className="min-h-11 rounded-xl border border-rose-200 px-4 text-sm font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50">Retirer</button>}
-            </div>
+        <div className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5" dir={ar?'rtl':'ltr'}>
+          <h2 className="font-black text-slate-950">{tr('Logo du service parent','شعار الخدمة الأم')}</h2>
+          <p className="mt-1 text-sm text-slate-500">{tr('Un seul PNG transparent carré, sans marges internes. Max. 3 Mo.','صورة PNG شفافة مربعة واحدة دون فراغات داخلية. الحد الأقصى 3 MB.')}</p>
+          {logoLoadingError&&<p className="mt-2 text-sm text-rose-600">{logoLoadingError}</p>}
+          <div className="mt-4 max-w-48">
+            <div className="aspect-square overflow-hidden rounded-xl bg-[#192638] text-white">{serviceLogo?.logo_path||serviceLogo?.logo_dark_path||serviceLogo?.logo_light_path?<img alt="" src={supabase.storage.from(LOGO_BUCKET).getPublicUrl(serviceLogo?.logo_path||serviceLogo?.logo_dark_path||serviceLogo?.logo_light_path||'').data.publicUrl} className="block h-full w-full object-cover"/>:<span className="flex h-full items-center justify-center text-sm">{tr('Non défini','غير محدد')}</span>}</div>
+            <label className="mt-3 inline-block cursor-pointer rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white">{logoBusy?tr('Traitement…','جارٍ المعالجة…'):tr('Ajouter / remplacer','إضافة / استبدال')}<input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" disabled={logoBusy||!!logoLoadingError} onChange={e=>{void uploadServiceLogo(e.target.files?.[0]);e.currentTarget.value=''}}/></label>
           </div>
+          <p className="mt-3 text-xs text-slate-500">{tr('Même image dans les deux thèmes. Les anciennes variantes restent conservées.','نفس الصورة في الوضعين. تبقى النسخ القديمة محفوظة.')}</p>
         </div>
         <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5" dir={ar?'rtl':'ltr'}>
           <h2 className="text-lg font-black text-slate-950">{tr('Informations du service','معلومات الخدمة')}</h2>
@@ -2821,12 +2765,12 @@ function SmartCatalogV4({service,groups,ar,reload,openLegacy}: {service:ServiceR
     }catch(e){if(uploadedPath&&!committed){/* Keep upload on ambiguous network failure to avoid breaking a committed reference. */}setMessage(e instanceof Error?e.message:String((e as {message?:string})?.message??e))}finally{setBusy(false)}
   }
   const kinds: [FulfillmentType,string,string][]=[['account_credentials','Compte prêt','حساب جاهز'],['activation_code','Code','كود تفعيل'],['activation_link','Lien','رابط تفعيل'],['activation_code_or_link','Code ou lien','كود أو رابط'],['automatic_chat','Discussion Admin','محادثة الإدارة'],['customer_email','Activation par e-mail','تفعيل بالبريد'],['player_id_verification','Player ID','معرف اللاعب'],['coming_soon','Bientôt','قريبًا']]
-  if(draft)return <section className="mt-5 space-y-4" dir={ar?'rtl':'ltr'}><div className="flex items-center justify-between"><h2 className="text-xl font-black">{draft.groupId?t('Modifier le produit','تعديل المنتج'):t('Nouveau produit','منتج جديد')}</h2><button disabled={busy} onClick={()=>{setDraft(null);setFile(null);setMessage('')}} className="text-sm font-bold text-blue-600">{t('Annuler','إلغاء')}</button></div><fieldset disabled={busy} className="space-y-4"><div className={panel}><div className="flex items-center gap-3">{draft.image_url&&<img src={draft.image_url} className="h-16 w-16 rounded-xl object-contain" alt=""/>}<label className={btn}>{t('Image du produit','صورة المنتج')}<input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={e=>{const f=e.target.files?.[0];if(f&&LOGO_TYPES.includes(f.type)&&f.size<=3*1024*1024){setFile(f);setMessage('')}else if(f)setMessage(t('Image PNG, JPG ou WEBP, max. 3 Mo.','صورة PNG أو JPG أو WEBP بحد أقصى 3 MB.'))}}/></label>{(draft.image_url||file)&&<button type="button" className="text-rose-600 text-sm" onClick={()=>{setFile(null);setDraft({...draft,image_url:''})}}>{t('Retirer','إزالة')}</button>}</div>{file&&<p className="mt-2 text-sm">{file.name}</p>}<div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-sm font-bold">{t('Nom français','الاسم بالفرنسية')}<input className={input} dir="ltr" value={draft.name_fr} onChange={e=>setDraft({...draft,name_fr:e.target.value})}/></label><label className="text-sm font-bold">{t('Nom arabe','الاسم بالعربية')}<input className={input} dir="rtl" value={draft.name_ar} onChange={e=>setDraft({...draft,name_ar:e.target.value})}/></label></div></div>
+  if(draft)return <section className="mt-5 space-y-4" dir={ar?'rtl':'ltr'}><div className="flex items-center justify-between"><h2 className="text-xl font-black">{draft.groupId?t('Modifier le produit','تعديل المنتج'):t('Nouveau produit','منتج جديد')}</h2><button disabled={busy} onClick={()=>{setDraft(null);setFile(null);setMessage('')}} className="text-sm font-bold text-blue-600">{t('Annuler','إلغاء')}</button></div><fieldset disabled={busy} className="space-y-4"><div className={panel}><div className="flex items-center gap-3">{draft.image_url&&<img src={draft.image_url} className="h-16 w-16 rounded-xl object-cover" alt=""/>}<label className={btn}>{t('Image du produit','صورة المنتج')}<input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={e=>{const f=e.target.files?.[0];if(f&&LOGO_TYPES.includes(f.type)&&f.size<=3*1024*1024){setFile(f);setMessage('')}else if(f)setMessage(t('Image PNG, JPG ou WEBP, max. 3 Mo.','صورة PNG أو JPG أو WEBP بحد أقصى 3 MB.'))}}/></label>{(draft.image_url||file)&&<button type="button" className="text-rose-600 text-sm" onClick={()=>{setFile(null);setDraft({...draft,image_url:''})}}>{t('Retirer','إزالة')}</button>}</div>{file&&<p className="mt-2 text-sm">{file.name}</p>}<div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-sm font-bold">{t('Nom français','الاسم بالفرنسية')}<input className={input} dir="ltr" value={draft.name_fr} onChange={e=>setDraft({...draft,name_fr:e.target.value})}/></label><label className="text-sm font-bold">{t('Nom arabe','الاسم بالعربية')}<input className={input} dir="rtl" value={draft.name_ar} onChange={e=>setDraft({...draft,name_ar:e.target.value})}/></label></div></div>
   <div className={panel}><h3 className="font-black mb-3">{t('Prix et durée','السعر والمدة')}</h3><div className="mb-4 rounded-xl border p-3 space-y-2"><h4 className="font-bold">TEO Smart Pricing</h4><div className="grid grid-cols-2 gap-2">{([{label:t('Coût USD','تكلفة الشراء USD'),value:pricingUsd,set:setPricingUsd},{label:t('Taux MRU / USD','سعر الدولار بالأوقية'),value:pricingRate,set:setPricingRate},{label:t('Marge %','هامش الربح %'),value:pricingMargin,set:setPricingMargin},{label:t('Frais MRU','الرسوم MRU'),value:pricingFees,set:setPricingFees}]).map(x=><label key={x.label}>{x.label}<input type="number" min="0" step="0.01" className={input} value={x.value} onChange={e=>x.set(e.target.value)}/></label>)}</div>{pricingValid&&<p>{t('Coût','التكلفة')}: {pricingCost.toFixed(2)} MRU · {t('Prix proposé','سعر البيع المقترح')}: {pricingSale} MRU · {t('Marge brute','الربح الأولي')}: {(pricingSale-pricingCost).toFixed(2)} MRU</p>}<button type="button" className={btn} disabled={!pricingValid} onClick={()=>setDraft({...draft,price:String(pricingSale),old_price:draft.old_price!==''&&Number(draft.old_price)<pricingSale?'':draft.old_price})}>{t('Appliquer le prix','اعتماد سعر البيع')}</button><p className="text-xs text-slate-500">{t('Simulation locale, hors commissions et remises. Le coût n’est pas enregistré.','حساب تقديري محلي قبل العمولات والتخفيضات. لا تحفظ تكلفة الشراء بعد.')}</p></div><div className="grid grid-cols-2 gap-3"><label>{t('Prix (MRU)','السعر (MRU)')}<input type="number" min="0" className={input} value={draft.price} onChange={e=>setDraft({...draft,price:e.target.value})}/></label><label>{t('Ancien prix (facultatif)','السعر القديم (اختياري)')}<input type="number" min="0" className={input} value={draft.old_price} onChange={e=>setDraft({...draft,old_price:e.target.value})}/></label><label>{t('Durée','المدة')}<input type="number" min="1" disabled={!draft.unit} className={input} value={draft.duration} onChange={e=>setDraft({...draft,duration:e.target.value,validity:null})}/></label><label>{t('Unité','الوحدة')}<select className={input} value={draft.unit} onChange={e=>setDraft({...draft,unit:e.target.value,validity:null})}><option value="">{t('Sans durée / existante','بدون مدة / المدة القديمة')}</option><option value="days">{t('Jours','أيام')}</option><option value="weeks">{t('Semaines','أسابيع')}</option><option value="months">{t('Mois','أشهر')}</option><option value="years">{t('Années','سنوات')}</option></select></label></div></div>
   <div className={panel}><h3 className="font-black mb-3">{t('Livraison et garantie','التسليم والضمان')}</h3><div className="grid gap-3 sm:grid-cols-2"><label>{t('Le client reçoit','يستلم الزبون')}<select className={input} value={String(draft.fulfillment.type??'account_credentials')} onChange={e=>setDraft({...draft,fulfillment:defaultFulfillment(e.target.value as FulfillmentType)})}>{kinds.map(([v,f,a])=><option key={v} value={v}>{t(f,a)}</option>)}</select></label><div>{t('Délai de livraison','مدة التسليم')}<DeliveryInput ar={ar} value={draft.delivery} onChange={v=>setDraft({...draft,delivery:v})}/></div><label>{t('Garantie','الضمان')}<select className={input} value={draft.warranty} onChange={e=>setDraft({...draft,warranty:e.target.value})}><option value="unset">{t('Non définie','غير محدد')}</option><option value="full">{t('Tout l’abonnement','طوال الاشتراك')}</option><option value="custom">{t('Durée personnalisée','مدة محددة')}</option><option value="none">{t('Sans garantie','بدون ضمان')}</option></select></label>{draft.warranty==='custom'&&<label>{t('Jours de garantie','أيام الضمان')}<input type="number" min="1" className={input} value={draft.warrantyDays} onChange={e=>setDraft({...draft,warrantyDays:e.target.value})}/></label>}</div><p className="mt-3 text-xs text-slate-500">{t('Le mode manuel ou automatique reste dans la gestion du stock.','التسليم اليدوي أو التلقائي يبقى في إدارة المخزون.')}</p></div>
   <div className={panel}><h3 className="font-black mb-3">{t('Description et instructions','الوصف والتعليمات')}</h3><div className="flex gap-2 mb-3">{['fr','ar'].map(l=><button key={l} type="button" onClick={()=>setContentLang(l)} className={`rounded-lg px-3 py-2 text-sm font-bold ${contentLang===l?'bg-blue-600 text-white':'bg-slate-100 text-slate-700'}`}>{l==='fr'?'Français':'العربية'}</button>)}</div><label className="block">{t('Description','الوصف')}<textarea rows={5} dir={contentLang==='ar'?'rtl':'ltr'} className={input} value={contentLang==='ar'?draft.description_ar:draft.description_fr} onChange={e=>setDraft({...draft,[contentLang==='ar'?'description_ar':'description_fr']:e.target.value})}/></label><label className="flex gap-2 items-center text-sm mb-4"><input type="checkbox" checked={draft.description_enabled} onChange={e=>setDraft({...draft,description_enabled:e.target.checked})}/>{t('Afficher la description','إظهار الوصف')}</label><label className="block">{t('Instructions','التعليمات')}<textarea rows={4} dir={contentLang==='ar'?'rtl':'ltr'} className={input} value={contentLang==='ar'?draft.instructions_ar:draft.instructions_fr} onChange={e=>setDraft({...draft,[contentLang==='ar'?'instructions_ar':'instructions_fr']:e.target.value})}/></label><label className="flex gap-2 items-center text-sm"><input type="checkbox" checked={draft.instructions_enabled} onChange={e=>setDraft({...draft,instructions_enabled:e.target.checked})}/>{t('Afficher les instructions','إظهار التعليمات')}</label></div>
   <div className={panel}><div className="grid gap-3 sm:grid-cols-2"><label>{t('Disponibilité','التوفر')}<select className={input} value={draft.availability} onChange={e=>setDraft({...draft,availability:e.target.value as AvailabilityStatus})}><option value="available">{t('Disponible','متوفر')}</option><option value="out_of_stock">{t('Rupture','نفد المخزون')}</option><option value="coming_soon">{t('Bientôt','قريبًا')}</option></select></label><div className="space-y-2"><label className="flex items-center gap-2"><input type="checkbox" checked={draft.active} onChange={e=>setDraft({...draft,active:e.target.checked})}/>{t('Afficher le produit et son forfait','إظهار المنتج وباقته')}</label><p className="text-xs text-slate-500">{t('Le service parent doit aussi être actif et disponible.','يجب أن تكون الخدمة الأم مفعلة ومتوفرة أيضًا.')}</p><label className="flex items-center gap-2"><input type="checkbox" checked={draft.popular} onChange={e=>setDraft({...draft,popular:e.target.checked})}/>{t('Populaire','شائع')}</label></div></div></div></fieldset>{message&&<p role="alert" className="rounded-xl bg-slate-100 p-3 text-sm text-slate-800">{message}</p>}<button disabled={busy} className={`${btn} w-full`} onClick={()=>void save()}>{busy?t('Enregistrement…','جارٍ الحفظ…'):t('Enregistrer le produit','حفظ المنتج')}</button></section>
-  return <section className="mt-5 space-y-3" dir={ar?'rtl':'ltr'}><div className="flex justify-between items-center gap-2"><h2 className="font-black text-xl">{t('Produits','المنتجات')}</h2><button className={btn} onClick={()=>start()}>{t('+ Produit','+ منتج')}</button></div><input className={input} placeholder={t('Rechercher un produit…','ابحث عن منتج…')} value={query} onChange={e=>setQuery(e.target.value)}/>{message&&<p role="status" className="text-sm text-slate-600">{message}</p>}{groups.filter(g=>`${g.name} ${g.name_ar??''} ${g.name_fr??''}`.toLowerCase().includes(query.toLowerCase())).map(g=><div key={g.id} className={panel}><div className="flex items-center gap-3">{g.image_url&&<img src={g.image_url} alt="" className="h-14 w-14 rounded-lg object-contain"/>}<div className="min-w-0 flex-1"><h3 className="font-bold break-words">{(ar?g.name_ar:g.name_fr)||g.name}</h3><p className="text-sm text-slate-500">{!service.active?t('Service parent désactivé','الخدمة الأم معطلة'):service.availability!=='available'?t('Service parent indisponible','الخدمة الأم غير متوفرة'):!g.active?t('Produit masqué — activer dans Modifier','المنتج مخفي — فعّله من تعديل'):g.availability!=='available'?t('Produit indisponible','المنتج غير متوفر'):!g.plans.length?t('Aucun forfait','لا توجد باقات'):t('Produit actif','المنتج مفعل')}</p></div></div>{(g.plans.length?g.plans:[undefined]).map(p=><div key={p?.id??'empty'} className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3"><div className="flex-1 text-sm">{p?`${(ar?p.label_ar:p.label_fr)||p.label} · ${p.price} MRU`:t('Sans prix','بدون سعر')}{p&&<span className="block mt-1 text-xs text-slate-500">{!p.active?t('Forfait désactivé','الباقة معطلة'):p.availability!=='available'?t('Forfait indisponible','الباقة غير متوفرة'):Number(p.price)<=0?t('Prix invalide','السعر غير صالح'):t('Forfait actif','الباقة مفعلة')}{p.old_price!=null&&Number(p.old_price)>Number(p.price)&&<span className="mx-2 line-through">{p.old_price} MRU</span>}</span>}</div>{g.plans.length<=1?<button className="font-bold text-blue-600 text-sm" onClick={()=>start(g,p)}>{t('Modifier','تعديل')}</button>:<button className="font-bold text-blue-600 text-sm" onClick={openLegacy}>{t('Gestion avancée','إدارة متقدمة')}</button>}<button className="text-sm font-bold text-slate-500" onClick={()=>start(g,p,true)}>{t('Dupliquer','نسخ')}</button></div>)}</div>)}<button className="text-xs text-slate-500 underline" onClick={openLegacy}>{t('Gestion avancée des anciens produits','الإدارة المتقدمة للمنتجات القديمة')}</button></section>
+  return <section className="mt-5 space-y-3" dir={ar?'rtl':'ltr'}><div className="flex justify-between items-center gap-2"><h2 className="font-black text-xl">{t('Produits','المنتجات')}</h2><button className={btn} onClick={()=>start()}>{t('+ Produit','+ منتج')}</button></div><input className={input} placeholder={t('Rechercher un produit…','ابحث عن منتج…')} value={query} onChange={e=>setQuery(e.target.value)}/>{message&&<p role="status" className="text-sm text-slate-600">{message}</p>}{groups.filter(g=>`${g.name} ${g.name_ar??''} ${g.name_fr??''}`.toLowerCase().includes(query.toLowerCase())).map(g=><div key={g.id} className={panel}><div className="flex items-center gap-3">{g.image_url&&<img src={g.image_url} alt="" className="h-14 w-14 rounded-lg object-cover"/>}<div className="min-w-0 flex-1"><h3 className="font-bold break-words">{(ar?g.name_ar:g.name_fr)||g.name}</h3><p className="text-sm text-slate-500">{!service.active?t('Service parent désactivé','الخدمة الأم معطلة'):service.availability!=='available'?t('Service parent indisponible','الخدمة الأم غير متوفرة'):!g.active?t('Produit masqué — activer dans Modifier','المنتج مخفي — فعّله من تعديل'):g.availability!=='available'?t('Produit indisponible','المنتج غير متوفر'):!g.plans.length?t('Aucun forfait','لا توجد باقات'):t('Produit actif','المنتج مفعل')}</p></div></div>{(g.plans.length?g.plans:[undefined]).map(p=><div key={p?.id??'empty'} className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3"><div className="flex-1 text-sm">{p?`${(ar?p.label_ar:p.label_fr)||p.label} · ${p.price} MRU`:t('Sans prix','بدون سعر')}{p&&<span className="block mt-1 text-xs text-slate-500">{!p.active?t('Forfait désactivé','الباقة معطلة'):p.availability!=='available'?t('Forfait indisponible','الباقة غير متوفرة'):Number(p.price)<=0?t('Prix invalide','السعر غير صالح'):t('Forfait actif','الباقة مفعلة')}{p.old_price!=null&&Number(p.old_price)>Number(p.price)&&<span className="mx-2 line-through">{p.old_price} MRU</span>}</span>}</div>{g.plans.length<=1?<button className="font-bold text-blue-600 text-sm" onClick={()=>start(g,p)}>{t('Modifier','تعديل')}</button>:<button className="font-bold text-blue-600 text-sm" onClick={openLegacy}>{t('Gestion avancée','إدارة متقدمة')}</button>}<button className="text-sm font-bold text-slate-500" onClick={()=>start(g,p,true)}>{t('Dupliquer','نسخ')}</button></div>)}</div>)}<button className="text-xs text-slate-500 underline" onClick={openLegacy}>{t('Gestion avancée des anciens produits','الإدارة المتقدمة للمنتجات القديمة')}</button></section>
 }
 
 export default AdminServiceEditPage

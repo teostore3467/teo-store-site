@@ -428,7 +428,7 @@ function DigitalCheckoutPage() {
         <fieldset disabled={isSubmitting || uncertainSubmission} className="min-w-0 space-y-4">
           <section className={panel}>
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-2 font-black text-white">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#192638] font-black text-white">
                 <ServiceLogo serviceSlug={service.slug} fallback={service.name.trim().charAt(0).toUpperCase() || 'T'} />
               </div>
               <div className="min-w-0"><p className={`${smallTitle} text-blue-600`}>{category}</p>

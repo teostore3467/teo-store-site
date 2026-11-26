@@ -642,13 +642,9 @@ function DigitalProductDetailsPage() {
           <div className="teo-detail-overview mx-auto max-w-6xl">
             <div className="teo-detail-title flex items-center gap-3 sm:gap-4">
               <div
-                className="teo-detail-image flex shrink-0 items-center justify-center overflow-hidden rounded-[16px] p-2 text-lg font-black text-white"
-                style={{
-                  background:
-                    'linear-gradient(145deg, #2563eb 0%, #4338ca 100%)',
-                }}
+                className="teo-detail-image flex shrink-0 items-center justify-center overflow-hidden rounded-[16px] text-lg font-black text-white bg-[#192638]"
               >
-                {selectedGroup?.image_url ? <img src={selectedGroup.image_url} alt="" className="h-full w-full object-contain"/> : <ServiceLogo
+                {selectedGroup?.image_url ? <img src={selectedGroup.image_url} alt="" className="h-full w-full object-cover"/> : <ServiceLogo
                   serviceSlug={
                     service.slug
                   }

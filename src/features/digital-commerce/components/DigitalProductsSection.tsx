@@ -4,14 +4,12 @@ import { useNavigate } from 'react-router-dom'
 
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
-import { supabase } from '../../../lib/supabase'
+import ServiceLogo from './ServiceLogo'
 import type { ServiceCatalogItem } from '../data/serviceCatalog'
 import { getLocalizedServiceName } from '../data/serviceCatalogTranslations'
 import { fetchPublicServiceCatalog } from '../data/supabaseServiceCatalog'
 
 type LocalizedText = { fr: string; ar: string }
-type ServiceLogoRow = { service_slug: string; logo_path: string }
-type ServiceLogoMap = Record<string, string>
 type SectionDefinition = {
   id: string
   category: string
@@ -31,26 +29,6 @@ const sectionDefinitions: SectionDefinition[] = [
   { id: 'social-premium', category: 'Social & Premium', eyebrow: { fr: 'SOCIAL', ar: 'التواصل' }, title: { fr: 'Social & Premium', ar: 'التواصل والخدمات المميزة' }, description: { fr: 'Abonnements premium pour vos réseaux et communautés.', ar: 'اشتراكات مميزة لشبكات التواصل والمجتمعات.' } },
 ]
 
-const tones = [
-  'from-blue-600 to-blue-800',
-  'from-indigo-600 to-indigo-900',
-  'from-violet-600 to-indigo-900',
-  'from-sky-500 to-blue-700',
-  'from-red-500 to-red-800',
-  'from-emerald-500 to-emerald-800',
-  'from-cyan-500 to-blue-700',
-  'from-pink-500 to-violet-700',
-  'from-slate-700 to-slate-950',
-  'from-amber-400 to-orange-600',
-  'from-orange-500 to-red-700',
-] as const
-
-function getTone(slug: string) {
-  let hash = 0
-  for (const character of slug) hash = (hash * 31 + character.charCodeAt(0)) >>> 0
-  return tones[hash % tones.length]
-}
-
 function getAvailablePrices(service: ServiceCatalogItem): number[] {
   if (service.availability !== 'available') return []
   return service.groups.flatMap((group) =>
@@ -62,7 +40,7 @@ function getAvailablePrices(service: ServiceCatalogItem): number[] {
   )
 }
 
-function ProductRail({ services, serviceLogos }: { services: ServiceCatalogItem[]; serviceLogos: ServiceLogoMap }) {
+function ProductRail({ services }: { services: ServiceCatalogItem[] }) {
   const { language, formatCurrencyText } = useLanguage()
   const navigate = useNavigate()
   const railRef = useRef<HTMLDivElement>(null)
@@ -139,7 +117,6 @@ function ProductRail({ services, serviceLogos }: { services: ServiceCatalogItem[
           : isComingSoon
             ? (isArabic ? 'قريبًا' : 'Bientôt')
             : null
-        const logo = service.image_url || serviceLogos[service.slug]
 
         return (
           <button
@@ -150,19 +127,13 @@ function ProductRail({ services, serviceLogos }: { services: ServiceCatalogItem[
             className={`group block w-[min(43vw,190px)] shrink-0 snap-start cursor-pointer sm:w-[190px] lg:w-[205px] xl:w-[210px] ${isArabic ? 'text-right' : 'text-left'}`}
           >
             <article dir={isArabic ? 'rtl' : 'ltr'} className="h-full overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_6px_20px_rgba(15,23,42,0.04)] transition duration-300 group-hover:-translate-y-1 group-hover:border-blue-200 group-hover:shadow-[0_18px_40px_rgba(15,23,42,0.09)] lg:rounded-[22px]">
-              <div className={`relative flex aspect-[1.22/1] items-center justify-center overflow-hidden bg-gradient-to-br ${getTone(service.slug)}`}>
-                <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/10 blur-2xl lg:h-28 lg:w-28" />
+              <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-[#192638]">
                 {statusBadge && (
-                  <span className={`absolute top-2 rounded-full border border-white/10 bg-black/20 px-2 py-1 text-xs font-black uppercase tracking-wide text-white backdrop-blur lg:top-3 ${isArabic ? 'right-2 lg:right-3' : 'left-2 lg:left-3'}`}>
+                  <span className={`absolute z-10 top-2 rounded-full border border-white/10 bg-black/20 px-2 py-1 text-xs font-black uppercase tracking-wide text-white backdrop-blur lg:top-3 ${isArabic ? 'right-2 lg:right-3' : 'left-2 lg:left-3'}`}>
                     {statusBadge}
                   </span>
                 )}
-                {logo ? (
-                  <img src={logo} alt="" loading="lazy" className="relative h-16 w-16 object-contain sm:h-[72px] sm:w-[72px] lg:h-20 lg:w-20" />
-                ) : (
-                  <span className="relative text-[38px] font-black text-white sm:text-[44px] lg:text-[52px]">{service.name.charAt(0).toUpperCase()}</span>
-                )}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/30 to-transparent" />
+                <ServiceLogo serviceSlug={service.slug} fallbackUrl={service.image_url} fallback={service.name.charAt(0).toUpperCase()} className="block h-full w-full object-cover"/>
               </div>
               <div className="min-w-0 p-3 sm:p-4">
                 <h3 className="line-clamp-2 break-words min-h-[40px] text-sm font-black leading-5 text-slate-950 transition group-hover:text-blue-600 lg:min-h-[44px] lg:text-[15px]">{getLocalizedServiceName(service,language)}</h3>
@@ -188,30 +159,13 @@ function ProductRail({ services, serviceLogos }: { services: ServiceCatalogItem[
 
 function DigitalProductsSection() {
   const { language } = useLanguage()
-  const [serviceLogos, setServiceLogos] = useState<ServiceLogoMap>({})
   const [catalogServices, setCatalogServices] = useState<ServiceCatalogItem[]>([])
   const isArabic = language === 'ar'
 
   useEffect(() => {
     let mounted = true
     const load = async () => {
-      const [catalogResult, logosResult] = await Promise.allSettled([
-        fetchPublicServiceCatalog(),
-        supabase.from('service_logos').select('service_slug, logo_path'),
-      ])
-      if (!mounted) return
-      if (catalogResult.status === 'fulfilled') setCatalogServices(catalogResult.value)
-      else console.error('Unable to load digital catalog:', catalogResult.reason)
-      if (logosResult.status === 'fulfilled') {
-        if (logosResult.value.error) console.error('Unable to load service logos:', logosResult.value.error)
-        else {
-          const logos: ServiceLogoMap = {}
-          for (const row of (logosResult.value.data ?? []) as ServiceLogoRow[]) {
-            if (row.logo_path) logos[row.service_slug] = supabase.storage.from('service-logos').getPublicUrl(row.logo_path).data.publicUrl
-          }
-          setServiceLogos(logos)
-        }
-      } else console.error('Unable to load service logos:', logosResult.reason)
+      try {const catalog=await fetchPublicServiceCatalog();if(mounted)setCatalogServices(catalog)} catch(error){console.error('Unable to load digital catalog:',error)}
     }
     void load()
     return () => { mounted = false }
@@ -251,7 +205,7 @@ function DigitalProductsSection() {
               <article className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_6px_20px_rgba(15,23,42,0.04)]">
                 <div className="relative flex aspect-[1.22/1] items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(145deg, #07111f 0%, #102a56 52%, #1d4ed8 100%)' }}>
                   <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl" style={{ backgroundColor: 'rgba(96,165,250,0.25)' }} />
-                  <span className={`absolute top-2 rounded-full border border-white/10 bg-black/15 px-2 py-1 text-xs font-black uppercase tracking-wide text-white backdrop-blur ${isArabic ? 'right-2' : 'left-2'}`}>eSIM</span>
+                  <span className={`absolute z-10 top-2 rounded-full border border-white/10 bg-black/15 px-2 py-1 text-xs font-black uppercase tracking-wide text-white backdrop-blur ${isArabic ? 'right-2' : 'left-2'}`}>eSIM</span>
                   <span className="relative text-[38px] font-black text-white">e</span>
                   <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/30 to-transparent" />
                 </div>
@@ -282,7 +236,7 @@ function DigitalProductsSection() {
                   </div>
                   <span className="hidden shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-slate-500 lg:block">{section.services.length} {isArabic ? 'خدمات' : 'services'}</span>
                 </div>
-                <ProductRail services={section.services} serviceLogos={serviceLogos} />
+                <ProductRail services={section.services} />
               </section>
             ))}
           </div>
