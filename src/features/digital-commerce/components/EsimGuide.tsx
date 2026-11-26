@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 
-type Settings = { catalog_enabled?: boolean; checkout_enabled?: boolean; show_compatibility?: boolean; show_installation_guide?: boolean; show_terms?: boolean; compatible_devices_ar?: string; compatible_devices_fr?: string; installation_guide_ar?: string; installation_guide_fr?: string; terms_ar?: string; terms_fr?: string }
+type Settings = { catalog_enabled?: boolean; checkout_enabled?: boolean; show_networks?: boolean; show_compatibility?: boolean; show_installation_guide?: boolean; show_terms?: boolean; compatible_devices_ar?: string; compatible_devices_fr?: string; installation_guide_ar?: string; installation_guide_fr?: string; terms_ar?: string; terms_fr?: string }
 export function useEsimPublicSettings() {
   const [settings, setSettings] = useState<Settings | null>(null)
   useEffect(() => {
@@ -23,6 +23,6 @@ export default function EsimGuide({ ar, settings }: { ar: boolean; settings: Set
     { title: t('الشروط العامة', 'Conditions générales'), text: (ar ? settings?.terms_ar : settings?.terms_fr)?.trim() || t('راجع مدة الصلاحية والتغطية وحجم البيانات قبل الشراء. شروط التفعيل وإعادة الشحن وانتهاء صلاحية الشريحة تعتمد على الباقة والمزود. لا تحذف eSIM قبل انتهاء استخدامها، فقد لا يمكن إعادة تثبيتها.', 'Vérifiez la validité, la couverture et le volume de données avant achat. Les conditions d’activation, de recharge et d’expiration dépendent du forfait et du fournisseur. Ne supprimez pas l’eSIM avant la fin de son utilisation : sa réinstallation peut être impossible.'), show: settings?.show_terms !== false }
   ]
   return <section dir={ar ? 'rtl' : 'ltr'} className="mt-8 space-y-3" aria-label={t('معلومات eSIM','Informations eSIM')}>
-    {rows.filter(r => r.show).map(r => <article key={r.title} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"><h2 className="mb-3 text-base font-bold text-slate-950 sm:text-lg">{r.title}</h2><p className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-600">{r.text.split(/(https:\/\/[^\s]+)/g).map((part,i) => part.startsWith('https://') ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline break-all">{part}</a> : part)}</p></article>)}
+    {rows.filter(r => r.show).map(r => <article key={r.title} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 dark:border-slate-700 dark:bg-slate-900"><h2 className="mb-3 text-base font-bold text-slate-950 sm:text-lg dark:text-white">{r.title}</h2><p className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-600 dark:text-slate-300">{r.text.split(/(https:\/\/[^\s]+)/g).map((part,i) => part.startsWith('https://') ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline break-all dark:text-blue-300">{part}</a> : part)}</p></article>)}
   </section>
 }
