@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type FormEvent,
@@ -18,7 +19,7 @@ import {
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 import { supabase } from '../../../lib/supabase'
-import { getEsimCountryBySlug } from '../data/esimCatalog'
+import { useEsimCatalog } from '../data/useEsimCatalog'
 
 type EsimCheckoutState = {
   countrySlug?: string
@@ -198,16 +199,19 @@ function EsimCheckoutPage() {
     ) ??
     null
 
-  const country =
-    useMemo(
-      () =>
-        getEsimCountryBySlug(
-          countrySlug,
-        ),
-      [
-        countrySlug,
-      ],
-    )
+  const {
+    countries,
+    loading: catalogLoading,
+  } = useEsimCatalog()
+
+  const country = useMemo(
+    () => countries.find(
+      c =>
+        c.slug === countrySlug &&
+        c.active === true
+    ),
+    [countries, countrySlug]
+  )
 
   const requestedPlan =
     useMemo(
@@ -515,12 +519,15 @@ function EsimCheckoutPage() {
       [],
     )
 
+  const verifiedCountrySlug = country?.slug
+  const verifiedPlanId = requestedPlan?.id
+
   const loadVerifiedPlan =
     useCallback(
       async () => {
         if (
-          !country ||
-          !requestedPlan
+          !verifiedCountrySlug ||
+          !verifiedPlanId
         ) {
           setIsVerifying(
             false,
@@ -551,7 +558,7 @@ function EsimCheckoutPage() {
               )
               .eq(
                 'country_slug',
-                country.slug,
+                verifiedCountrySlug,
               )
               .maybeSingle(),
 
@@ -564,11 +571,11 @@ function EsimCheckoutPage() {
               )
               .eq(
                 'country_slug',
-                country.slug,
+                verifiedCountrySlug,
               )
               .eq(
                 'plan_id',
-                requestedPlan.id,
+                verifiedPlanId,
               )
               .maybeSingle(),
           ])
@@ -621,8 +628,8 @@ function EsimCheckoutPage() {
         )
       },
       [
-        country,
-        requestedPlan,
+        verifiedCountrySlug,
+        verifiedPlanId,
       ],
     )
 
@@ -1080,12 +1087,25 @@ function EsimCheckoutPage() {
       }
     }
 
+  const submissionLock = useRef(false)
+  const uncertainOrder = useRef(false)
+
+  const [submissionUncertain,setSubmissionUncertain] =
+    useState(false)
+
   const handleSubmit =
     async (
       event:
         FormEvent,
     ) => {
       event.preventDefault()
+
+      if (
+        submissionLock.current ||
+        uncertainOrder.current
+      ) {
+        return
+      }
 
       if (
         !canSubmit ||
@@ -1097,9 +1117,13 @@ function EsimCheckoutPage() {
         return
       }
 
+      submissionLock.current = true
+
       setIsSubmitting(
         true,
       )
+
+      let orderRequestStarted = false
 
       let uploadedProofPath:
         string | null =
@@ -1336,6 +1360,8 @@ function EsimCheckoutPage() {
         uploadedProofPath =
           proofPath
 
+        orderRequestStarted = true
+
         const {
           data:
             orderData,
@@ -1411,6 +1437,8 @@ function EsimCheckoutPage() {
         uploadedProofPath =
           null
 
+        orderRequestStarted = false
+
         navigate(
           `/commande/${orderNumber}`,
           {
@@ -1475,8 +1503,14 @@ function EsimCheckoutPage() {
           error,
         )
 
+        if (orderRequestStarted) {
+          uncertainOrder.current = true
+          setSubmissionUncertain(true)
+        }
+
         if (
-          uploadedProofPath
+          uploadedProofPath &&
+          !orderRequestStarted
         ) {
           const {
             error:
@@ -1510,12 +1544,15 @@ function EsimCheckoutPage() {
               : 'Commande impossible',
 
           message:
-            error instanceof
-            Error
-              ? error.message
-              : isArabic
-                ? 'حدث خطأ غير متوقع.'
-                : 'Une erreur inattendue est survenue.',
+            orderRequestStarted
+              ? isArabic
+                ? 'تعذر تأكيد نتيجة الطلب. لا تعاود الدفع. تحقق من طلباتك أو تواصل مع الدعم.'
+                : 'Impossible de confirmer la commande. Ne payez pas une seconde fois. Vérifiez vos commandes ou contactez le support.'
+              : error instanceof Error
+                ? error.message
+                : isArabic
+                  ? 'حدث خطأ غير متوقع.'
+                  : 'Une erreur inattendue est survenue.',
         })
 
         await Promise.all([
@@ -1523,15 +1560,15 @@ function EsimCheckoutPage() {
           loadPaymentMethods(),
         ])
       } finally {
+        submissionLock.current = false
+
         setIsSubmitting(
           false,
         )
       }
     }
 
-  if (
-    isVerifying
-  ) {
+  if (catalogLoading || isVerifying) {
     return (
       <main className="min-h-screen bg-[#f7f9fc]">
         <Container className="flex min-h-[70vh] items-center justify-center py-10">
@@ -2217,9 +2254,7 @@ function EsimCheckoutPage() {
 
                   <button
                     type="submit"
-                    disabled={
-                      !canSubmit
-                    }
+                    disabled={!canSubmit || submissionUncertain}
                     className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-blue-600 px-5 text-sm font-black text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
                   >
                     {isSubmitting ? (
