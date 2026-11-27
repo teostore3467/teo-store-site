@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 import { supabase } from '../../../lib/supabase'
-import ServiceLogo from '../components/ServiceLogo'
+import TeoPlanCover from '../components/TeoPlanCover'
 import { fetchPublicServiceBySlug, type PublicServiceCatalogItem } from '../data/supabaseServiceCatalog'
 import {
   getLocalizedCategory,
@@ -280,7 +280,7 @@ function DigitalCheckoutPage() {
   const fulfillmentType = selectedGroup.fulfillment.type
   const fulfillmentLabel = getLocalizedFulfillmentLabel(fulfillmentType, language)
   const warning = getLocalizedFulfillmentWarning(service.slug, selectedGroup, language)
-  const instructions = getLocalizedFulfillmentInstructions(service.slug, selectedGroup, language)
+  const instructions = (language==='ar'?selectedPlan.instructions_ar:selectedPlan.instructions_fr)?.trim() || (selectedGroup.instructions_enabled===false?'':getLocalizedFulfillmentInstructions(service.slug, selectedGroup, language) || (language==='ar'?service.instructions_ar:service.instructions_fr))
   const fields = selectedGroup.fulfillment.customerFields
   const localizedFields = fields.map(field => getLocalizedCustomerField(service.slug, selectedGroup.id, field, language))
   const price = new Intl.NumberFormat(isArabic ? 'ar-MR-u-nu-latn' : 'fr-FR-u-nu-latn', {
@@ -429,7 +429,7 @@ function DigitalCheckoutPage() {
           <section className={panel}>
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#192638] font-black text-white">
-                <ServiceLogo serviceSlug={service.slug} fallback={service.name.trim().charAt(0).toUpperCase() || 'T'} />
+                <TeoPlanCover item={{service,group:selectedGroup,plan:selectedPlan}} language={language}/>
               </div>
               <div className="min-w-0"><p className={`${smallTitle} text-blue-600`}>{category}</p>
                 <h2 className="truncate text-sm font-black text-slate-950 sm:text-base">{serviceName}</h2>
@@ -462,7 +462,7 @@ function DigitalCheckoutPage() {
               </label>
             })}</div> : fulfillmentNotes[fulfillmentType] && <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-xs leading-5 text-slate-600">{fulfillmentNotes[fulfillmentType]}</div>}
             {warning && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-700"><strong>{t('مهم', 'Important')}</strong><p>{warning}</p></div>}
-            {instructions && <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-slate-600"><strong>{t('التعليمات', 'Instructions')}</strong><p>{instructions}</p></div>}
+            {instructions && <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-slate-600"><strong>{t('التعليمات', 'Instructions')}</strong><p className="whitespace-pre-wrap break-words">{instructions}</p></div>}
           </section>
           <section className={panel}>
             <SectionTitle number={3} title={t('الدفع', 'Paiement')} subtitle={t('اختر تطبيق الدفع واتبع الخطوات', 'Choisissez votre application et suivez les étapes')} />

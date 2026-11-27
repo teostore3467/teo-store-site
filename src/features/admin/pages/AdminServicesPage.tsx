@@ -30,7 +30,7 @@ export default function AdminServicesPage() {
   const ar = language === 'ar'
   const tr=(fr:string,a:string)=>ar?a:fr
   const [services, setServices] = useState<Service[]>([])
-  const [logos, setLogos] = useState<Record<string, string>>({})
+  const [, setLogos] = useState<Record<string, string>>({})
   const [tab, setTab] = useState<'current' | 'trash'>('current')
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
@@ -202,14 +202,14 @@ export default function AdminServicesPage() {
           {visible.map(service => <div key={service.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-blue-200 hover:shadow-md">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 text-base font-bold text-slate-500">
-                {(service.image_url || logos[service.slug]) ? <img src={service.image_url || logos[service.slug]} alt="" className="h-full w-full object-contain" /> : service.name.slice(0, 2).toUpperCase()}
+                {service.name.slice(0, 2).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1"><h2 className="truncate text-sm font-bold text-slate-900" title={service.name}>{service.name}</h2><p className="truncate text-xs text-slate-500">{service.category}</p></div>
               <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${service.deleted_at ? 'bg-slate-400' : service.active ? 'bg-emerald-500' : 'bg-amber-400'}`} title={service.deleted_at ? 'Corbeille' : service.active ? 'Activé' : 'Désactivé'} />
             </div>
             <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
               <span className="truncate text-xs text-slate-500">{service.deleted_at ? 'Dans la corbeille' : `${statusText[service.availability]} · ${service.active ? 'Activé' : 'Désactivé'}`}</span>
-              <span className="shrink-0 text-xs text-slate-400">{service.digital_service_groups?.length ?? 0} groupes</span>
+              <span className="shrink-0 text-xs text-slate-400">{(service.digital_service_groups??[]).reduce((n,g)=>n+g.digital_service_plans.length,0)} forfaits</span>
             </div>
             <p className={`mt-2 rounded-lg px-3 py-2 text-xs font-medium ${catalogStatus(service).ok ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' : 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200'}`}>{catalogStatus(service).text}</p>
             {tab === 'current' ? <div className="mt-3 flex gap-2">

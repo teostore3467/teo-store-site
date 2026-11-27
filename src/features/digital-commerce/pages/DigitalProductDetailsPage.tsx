@@ -16,7 +16,7 @@ import {
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 
-import ServiceLogo from '../components/ServiceLogo'
+import TeoPlanCover from '../components/TeoPlanCover'
 
 import type {
   ServiceGroup,
@@ -644,14 +644,7 @@ function DigitalProductDetailsPage() {
               <div
                 className="teo-detail-image flex shrink-0 items-center justify-center overflow-hidden rounded-[16px] text-lg font-black text-white bg-[#192638]"
               >
-                {selectedGroup?.image_url ? <img src={selectedGroup.image_url} alt="" className="h-full w-full object-cover"/> : <ServiceLogo
-                  serviceSlug={
-                    service.slug
-                  }
-                  fallback={
-                    serviceLetter
-                  }
-                />}
+                {selectedGroup && selectedPlan ? <TeoPlanCover item={{service,group:selectedGroup,plan:selectedPlan}} language={language}/> : serviceLetter}
               </div>
 
               <div className="min-w-0">
