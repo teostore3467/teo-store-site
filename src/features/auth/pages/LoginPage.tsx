@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 import { supabase } from '../../../lib/supabase'
-import { safeAuthRedirect, useTeoCaptcha } from '../TeoCaptcha'
+import { safeAuthRedirect } from '../safeAuthRedirect'
 
 type SocialProvider = 'google' | 'facebook'
 
@@ -23,7 +23,6 @@ function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const redirectPath = safeAuthRedirect(searchParams.get('redirect'))
-  const captcha = useTeoCaptcha()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -60,11 +59,10 @@ function LoginPage() {
       setErrorMessage(isArabic ? 'أدخل البريد الإلكتروني وكلمة المرور.' : 'Entrez votre adresse e-mail et votre mot de passe.')
       return
     }
-    if (!captcha.ready) { setErrorMessage(isArabic ? 'التحقق الأمني قيد الانتظار أو غير متاح. أعد المحاولة.' : 'Vérification de sécurité en attente ou indisponible. Réessayez.'); return }
     setIsSubmitting(true)
     setErrorMessage(null)
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password, options: { captchaToken: captcha.token } })
+      const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password })
       if (error) throw error
       if (!data.user) throw new Error('Connexion impossible')
       navigate(redirectPath, { replace: true })
@@ -74,7 +72,7 @@ function LoginPage() {
       if (message.includes('invalid login credentials')) setErrorMessage(isArabic ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' : 'Adresse e-mail ou mot de passe incorrect.')
       else if (message.includes('email not confirmed')) setErrorMessage(isArabic ? 'يجب تأكيد بريدك الإلكتروني قبل تسجيل الدخول.' : 'Vous devez confirmer votre adresse e-mail avant de vous connecter.')
       else setErrorMessage(isArabic ? 'تعذر تسجيل الدخول. تحقق من معلوماتك وحاول مجددًا.' : 'Connexion impossible. Vérifiez vos informations et réessayez.')
-    } finally { captcha.reset(); setIsSubmitting(false) }
+    } finally { setIsSubmitting(false) }
   }
 
   return (
@@ -120,7 +118,7 @@ function LoginPage() {
                   </label>
                   <div className={isArabic ? 'flex justify-start' : 'flex justify-end'}><Link to="/mot-de-passe-oublie" className="text-[10px] font-black text-blue-600 transition hover:text-blue-500 sm:text-xs">{t.auth.forgotPassword}</Link></div>
                   {errorMessage && <div role="alert" className="rounded-[14px] border border-rose-100 bg-rose-50 p-3"><p className="text-[10px] font-bold leading-5 text-rose-600">{errorMessage}</p></div>}
-                  {captcha.widget}
+
                   <button type="submit" aria-busy={isSubmitting} disabled={busy} className={['flex h-12 w-full items-center justify-center rounded-[14px] px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.18)]  active:scale-[0.97] active:brightness-90 disabled:cursor-wait disabled:opacity-70 gap-2 transition', busy ? 'cursor-not-allowed bg-blue-400' : 'bg-blue-600 hover:bg-blue-500'].join(' ')}>{isSubmitting && <span aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />}{isSubmitting ? (isArabic ? 'جارٍ تسجيل الدخول...' : 'Connexion...') : t.auth.loginButton}</button>
                 </form>
                 <div className="my-6 flex items-center gap-3"><div className="h-px flex-1 bg-slate-100" /><span className="text-[10px] font-black text-slate-400">{isArabic ? 'أو' : 'OU'}</span><div className="h-px flex-1 bg-slate-100" /></div>

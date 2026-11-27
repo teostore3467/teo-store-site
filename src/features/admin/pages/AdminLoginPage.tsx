@@ -12,7 +12,6 @@ import {
 } from 'react-router-dom'
 
 import { supabase } from '../../../lib/supabase'
-import { useTeoCaptcha } from '../../auth/TeoCaptcha'
 
 type LocationState = {
   from?: string
@@ -22,7 +21,6 @@ function AdminLoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const captcha = useTeoCaptcha()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -74,7 +72,6 @@ function AdminLoginPage() {
   ) => {
     event.preventDefault()
     if (isSubmitting) return
-    if (!captcha.ready) { setErrorMessage('Vérification de sécurité non prête. Réessayez.'); return }
 
     if (!email.trim() || !password) {
       setErrorMessage(
@@ -93,9 +90,9 @@ function AdminLoginPage() {
     } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
-      options: { captchaToken: captcha.token },
+
     })
-    captcha.reset()
+
 
     if (error || !data.user) {
       setErrorMessage(
@@ -239,7 +236,6 @@ function AdminLoginPage() {
             </div>
           )}
 
-          {captcha.widget}
           <button
             type="submit"
             aria-busy={isSubmitting}

@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 import { supabase } from '../../../lib/supabase'
-import { safeAuthRedirect, useTeoCaptcha } from '../TeoCaptcha'
+import { safeAuthRedirect } from '../safeAuthRedirect'
 
 type SocialProvider = 'google' | 'facebook'
 
@@ -23,7 +23,6 @@ function RegisterPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const redirectPath = safeAuthRedirect(searchParams.get('redirect'))
-  const captcha = useTeoCaptcha()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -71,7 +70,6 @@ function RegisterPage() {
       setErrorMessage(isArabic ? 'يجب أن تحتوي كلمة المرور على 12 حرفًا على الأقل.' : 'Le mot de passe doit contenir au moins 12 caractères.')
       return
     }
-    if (!captcha.ready) { setErrorMessage(isArabic ? 'التحقق الأمني قيد الانتظار أو غير متاح. أعد المحاولة.' : 'Vérification de sécurité en attente ou indisponible. Réessayez.'); return }
     setIsSubmitting(true)
     setErrorMessage(null)
     setSuccessMessage(null)
@@ -79,7 +77,7 @@ function RegisterPage() {
       const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
-        options: { data: { full_name: normalizedName }, captchaToken: captcha.token },
+        options: { data: { full_name: normalizedName } },
       })
       if (error) throw error
       if (data.session && data.user) {
@@ -101,7 +99,7 @@ function RegisterPage() {
       } else {
         setErrorMessage(isArabic ? 'تعذر إنشاء الحساب. تحقق من المعلومات وحاول مجددًا.' : 'Impossible de créer le compte. Vérifiez vos informations et réessayez.')
       }
-    } finally { captcha.reset(); setIsSubmitting(false) }
+    } finally { setIsSubmitting(false) }
   }
 
   return (
@@ -145,7 +143,7 @@ function RegisterPage() {
                   <label className="block"><span className="text-[10px] font-black text-slate-700 sm:text-xs">{t.auth.confirmPassword}</span><input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setErrorMessage(null) }} placeholder={t.auth.confirmPasswordPlaceholder} className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-50" /></label>
                   {errorMessage && <div role="alert" className="rounded-[14px] border border-rose-100 bg-rose-50 p-3"><p className="text-[10px] font-bold leading-5 text-rose-600">{errorMessage}</p></div>}
                   {successMessage && <div role="status" className="rounded-[14px] border border-emerald-100 bg-emerald-50 p-3"><p className="text-[10px] font-bold leading-5 text-emerald-700">{successMessage}</p><Link to={loginLink} className="mt-2 inline-flex text-[10px] font-black text-emerald-800 underline underline-offset-2">{isArabic ? 'الانتقال إلى تسجيل الدخول' : 'Aller à la connexion'}</Link></div>}
-                  {captcha.widget}
+
                   <button type="submit" aria-busy={isSubmitting} disabled={busy} className={['flex h-12 w-full items-center justify-center rounded-[14px] px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.18)]  active:scale-[0.97] active:brightness-90 disabled:cursor-wait disabled:opacity-70 gap-2 transition', busy ? 'cursor-not-allowed bg-blue-400' : 'bg-blue-600 hover:bg-blue-500'].join(' ')}>{isSubmitting && <span aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />}{isSubmitting ? (isArabic ? 'جارٍ إنشاء الحساب...' : 'Création...') : t.auth.createAccountButton}</button>
                 </form>
                 <div className="my-6 flex items-center gap-3"><div className="h-px flex-1 bg-slate-100" /><span className="text-[10px] font-black text-slate-400">{isArabic ? 'أو' : 'OU'}</span><div className="h-px flex-1 bg-slate-100" /></div>

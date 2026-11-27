@@ -1,7 +1,6 @@
 import AuthBrandLogo from '../AuthBrandLogo'
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../../../lib/supabase'
-import { useTeoCaptcha } from '../TeoCaptcha'
 import { Link } from 'react-router-dom'
 
 import Container from '../../../components/layout/Container'
@@ -11,25 +10,23 @@ function ForgotPasswordPage() {
   const { language, t } = useLanguage()
 
   const isArabic = language === 'ar'
-  const captcha = useTeoCaptcha()
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (busy || !email.trim()) return
-    if (!captcha.ready) { setNotice(isArabic ? 'التحقق الأمني غير جاهز. أعد المحاولة.' : 'Vérification de sécurité non prête. Réessayez.'); return }
     setBusy(true); setNotice('')
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
         redirectTo: new URL('/reinitialiser-mot-de-passe', window.location.origin).toString(),
-        captchaToken: captcha.token,
+
       })
       if (error) throw error
       setNotice(isArabic ? 'إذا كان البريد مسجلاً، ستصلك تعليمات الاسترجاع. تحقق من بريدك.' : 'Si cette adresse est enregistrée, vous recevrez les instructions. Vérifiez votre boîte mail.')
     } catch {
       setNotice(isArabic ? 'تعذر إرسال الطلب الآن. حاول لاحقًا.' : 'Envoi indisponible. Réessayez plus tard.')
-    } finally { captcha.reset(); setBusy(false) }
+    } finally { setBusy(false) }
   }
 
   return (
@@ -153,7 +150,6 @@ function ForgotPasswordPage() {
                     />
                   </label>
 
-                  {captcha.widget}
                   {notice && <p role="status" className="text-sm text-slate-600">{notice}</p>}
                   <button
                     type="submit" aria-busy={busy} disabled={busy}
