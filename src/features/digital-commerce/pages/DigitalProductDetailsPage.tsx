@@ -48,7 +48,6 @@ function DigitalProductDetailsPage() {
   const [searchParams] = useSearchParams()
   const requestedPlan = searchParams.get('plan')
   const navigate = useNavigate()
-  const [allowParentDescription,setAllowParentDescription]=useState(false)
   const [activeTab, setActiveTab] = useState<'plans' | 'description' | 'instructions' | 'reviews'>('plans')
 
   const {
@@ -136,7 +135,6 @@ function DigitalProductDetailsPage() {
             )
 
           if (isMounted) {
-            setAllowParentDescription(nextService?.groups.length === 1)
             setService(nextService && offerKey ? (nextService.groups.some(g => g.id === offerKey) ? {...nextService, groups: nextService.groups.filter(g => g.id === offerKey)} : null) : nextService)
           }
         } catch (error) {
@@ -229,6 +227,7 @@ function DigitalProductDetailsPage() {
     }
 
     const firstAvailableGroup =
+      service.groups.find(group=>group.plans.some(plan=>plan.databaseId===requestedPlan||plan.id===requestedPlan)) ??
       service.groups.find(
         (group) => group.availability === 'available' && group.plans.some(plan => plan.availability === 'available'),
       ) ??
@@ -242,7 +241,7 @@ function DigitalProductDetailsPage() {
     }
 
     const defaultPlan =
-      firstAvailableGroup.plans.find(plan => plan.databaseId === requestedPlan) ??
+      firstAvailableGroup.plans.find(plan => plan.databaseId === requestedPlan || plan.id === requestedPlan) ??
       firstAvailableGroup.plans.find(
         (plan) =>
           plan.availability ===
@@ -285,7 +284,7 @@ function DigitalProductDetailsPage() {
     )
   }
 
-  if (!service) {
+  if (!service || (requestedPlan && !service.groups.some(g=>g.plans.some(p=>p.databaseId===requestedPlan||p.id===requestedPlan)))) {
     return (
       <main className="min-h-screen bg-[#f7f9fc] py-8 sm:py-12">
         <Container>
@@ -388,8 +387,8 @@ function DigitalProductDetailsPage() {
       language,
     )
 
-  const localizedServiceDescription = selectedGroup?.description_enabled === false ? '' : (selectedGroup && getLocalizedGroupDescription(service.slug, selectedGroup, language)) || (allowParentDescription ? getLocalizedServiceDescription(service, language) : undefined)
-  const localizedInstructions = selectedGroup && getLocalizedFulfillmentInstructions(service.slug, selectedGroup, language)
+  const localizedServiceDescription = (isArabic?selectedPlan?.description_ar:selectedPlan?.description_fr)?.trim() || (selectedGroup?.description_enabled === false ? '' : (selectedGroup && getLocalizedGroupDescription(service.slug, selectedGroup, language)) || getLocalizedServiceDescription(service, language))
+  const localizedInstructions = (isArabic?selectedPlan?.instructions_ar:selectedPlan?.instructions_fr)?.trim() || (selectedGroup?.instructions_enabled===false?undefined:(selectedGroup&&getLocalizedFulfillmentInstructions(service.slug,selectedGroup,language)) || (isArabic?service.instructions_ar:service.instructions_fr))
 
   const serviceLetter =
     service.name

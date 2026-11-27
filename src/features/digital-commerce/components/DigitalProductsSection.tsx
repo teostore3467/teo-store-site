@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
-import ServiceLogo from './ServiceLogo'
-import type { ServiceCatalogItem } from '../data/serviceCatalog'
-import { getLocalizedServiceName } from '../data/serviceCatalogTranslations'
+import { DigitalPlanCard, flattenDigitalPlans } from './TeoPlanCover'
+import type { PublicServiceCatalogItem } from '../data/supabaseServiceCatalog'
 import { fetchPublicServiceCatalog } from '../data/supabaseServiceCatalog'
 
 type LocalizedText = { fr: string; ar: string }
@@ -29,20 +27,8 @@ const sectionDefinitions: SectionDefinition[] = [
   { id: 'social-premium', category: 'Social & Premium', eyebrow: { fr: 'SOCIAL', ar: 'التواصل' }, title: { fr: 'Social & Premium', ar: 'التواصل والخدمات المميزة' }, description: { fr: 'Abonnements premium pour vos réseaux et communautés.', ar: 'اشتراكات مميزة لشبكات التواصل والمجتمعات.' } },
 ]
 
-function getAvailablePrices(service: ServiceCatalogItem): number[] {
-  if (service.availability !== 'available') return []
-  return service.groups.flatMap((group) =>
-    group.availability === 'available'
-      ? group.plans
-          .filter((plan) => plan.availability === 'available' && Number.isFinite(plan.price) && plan.price >= 0)
-          .map((plan) => plan.price)
-      : [],
-  )
-}
-
-function ProductRail({ services }: { services: ServiceCatalogItem[] }) {
-  const { language, formatCurrencyText } = useLanguage()
-  const navigate = useNavigate()
+function ProductRail({ services }: { services: PublicServiceCatalogItem[] }) {
+  const { language } = useLanguage()
   const railRef = useRef<HTMLDivElement>(null)
   const isArabic = language === 'ar'
   const [canScrollBack, setCanScrollBack] = useState(false)
@@ -77,13 +63,6 @@ function ProductRail({ services }: { services: ServiceCatalogItem[] }) {
     rail.scrollBy({ left: direction * ((card?.offsetWidth || 200) + gap) * 2, behavior: 'smooth' })
   }
 
-  const formatPrice = (price: number) => {
-    const number = new Intl.NumberFormat(isArabic ? 'ar-MR-u-nu-latn' : 'fr-FR-u-nu-latn', {
-      numberingSystem: 'latn', maximumFractionDigits: 2,
-    }).format(price)
-    return formatCurrencyText(`${number} MRU`)
-  }
-
   return (
     <div className="relative min-w-0 max-w-full overflow-hidden">
       <div className="mb-3 flex items-center justify-end gap-2">
@@ -97,61 +76,7 @@ function ProductRail({ services }: { services: ServiceCatalogItem[] }) {
         onScroll={updateArrows}
         className="flex w-full max-w-full snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-3 touch-pan-x [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent] sm:gap-4"
       >
-      {services.map((service) => {
-        const prices = getAvailablePrices(service)
-        const minPrice = prices.length ? Math.min(...prices) : null
-        const isOutOfStock = service.availability === 'out_of_stock'
-        const isComingSoon = service.availability === 'coming_soon'
-        const isAvailable = service.availability === 'available' && minPrice !== null
-        const priceText = isOutOfStock
-          ? (isArabic ? 'غير متوفر' : 'Indisponible')
-          : isComingSoon
-            ? (isArabic ? 'قريبًا' : 'Bientôt')
-            : minPrice === null
-              ? (isArabic ? 'غير متوفر' : 'Indisponible')
-              : prices.length > 1
-                ? (isArabic ? `ابتداءً من ${formatPrice(minPrice)}` : `Dès ${formatPrice(minPrice)}`)
-                : formatPrice(minPrice)
-        const statusBadge = isOutOfStock || (!isAvailable && !isComingSoon)
-          ? (isArabic ? 'غير متوفر' : 'Indisponible')
-          : isComingSoon
-            ? (isArabic ? 'قريبًا' : 'Bientôt')
-            : null
-
-        return (
-          <button
-            key={service.slug}
-            type="button"
-            data-product-card="true"
-            onClick={() => navigate(`/services-numeriques/${encodeURIComponent(service.slug)}`)}
-            className={`group block w-[min(43vw,190px)] shrink-0 snap-start cursor-pointer sm:w-[190px] lg:w-[205px] xl:w-[210px] ${isArabic ? 'text-right' : 'text-left'}`}
-          >
-            <article dir={isArabic ? 'rtl' : 'ltr'} className="h-full overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_6px_20px_rgba(15,23,42,0.04)] transition duration-300 group-hover:-translate-y-1 group-hover:border-blue-200 group-hover:shadow-[0_18px_40px_rgba(15,23,42,0.09)] lg:rounded-[22px]">
-              <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-[#192638]">
-                {statusBadge && (
-                  <span className={`absolute z-10 top-2 rounded-full border border-white/10 bg-black/20 px-2 py-1 text-xs font-black uppercase tracking-wide text-white backdrop-blur lg:top-3 ${isArabic ? 'right-2 lg:right-3' : 'left-2 lg:left-3'}`}>
-                    {statusBadge}
-                  </span>
-                )}
-                <ServiceLogo serviceSlug={service.slug} fallbackUrl={service.image_url} fallback={service.name.charAt(0).toUpperCase()} className="block h-full w-full object-cover"/>
-              </div>
-              <div className="min-w-0 p-3 sm:p-4">
-                <h3 className="line-clamp-2 break-words min-h-[40px] text-sm font-black leading-5 text-slate-950 transition group-hover:text-blue-600 lg:min-h-[44px] lg:text-[15px]">{getLocalizedServiceName(service,language)}</h3>
-                <p className="mt-1 line-clamp-2 min-h-[40px] text-xs leading-5 text-slate-500">{isArabic ? 'عرض المنتجات' : 'Voir les produits'}</p>
-                <div className="mt-3 border-t border-slate-100 pt-3">
-                  <div className="flex items-end justify-between gap-2">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-wide text-slate-400">{isArabic ? 'السعر' : 'Prix'}</p>
-                      <p dir="ltr" className={`mt-1 text-left text-sm font-black ${isAvailable ? 'text-slate-950' : isOutOfStock ? 'text-rose-600' : 'text-amber-600'}`}>{priceText}</p>
-                    </div>
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-black text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white">{isArabic ? '←' : '→'}</span>
-                  </div>
-                </div>
-              </div>
-            </article>
-          </button>
-        )
-      })}
+      {flattenDigitalPlans(services).map(item=><div key={item.plan.databaseId??`${item.service.slug}:${item.group.id}:${item.plan.id}`} data-product-card="true" className="w-[min(43vw,190px)] shrink-0 snap-start sm:w-[190px] lg:w-[205px] xl:w-[210px]"><DigitalPlanCard item={item} className="h-full"/></div>)}
       </div>
     </div>
   )
@@ -159,7 +84,7 @@ function ProductRail({ services }: { services: ServiceCatalogItem[] }) {
 
 function DigitalProductsSection() {
   const { language } = useLanguage()
-  const [catalogServices, setCatalogServices] = useState<ServiceCatalogItem[]>([])
+  const [catalogServices, setCatalogServices] = useState<PublicServiceCatalogItem[]>([])
   const isArabic = language === 'ar'
 
   useEffect(() => {

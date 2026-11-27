@@ -12,6 +12,10 @@ import type {
 
 export type PublicServicePlan = ServicePlan & {
   databaseId?: string
+  description_ar?: string | null
+  description_fr?: string | null
+  instructions_ar?: string | null
+  instructions_fr?: string | null
   delivery_minutes?: number | null
   warranty_days?: number | null
   warranty_full_subscription?: boolean | null
@@ -24,7 +28,10 @@ export type PublicServiceGroup = Omit<ServiceGroup, 'plans'> & {
 }
 
 export type PublicServiceCatalogItem = Omit<ServiceCatalogItem, 'groups'> & {
+  databaseId?: string
   groups: PublicServiceGroup[]
+  instructions_ar?: string | null
+  instructions_fr?: string | null
   description_ar?: string | null
   description_fr?: string | null
   delivery_minutes?: number | null
@@ -34,6 +41,8 @@ export type PublicServiceCatalogItem = Omit<ServiceCatalogItem, 'groups'> & {
 }
 
 type ServiceRow = {
+  instructions_ar: string | null
+  instructions_fr: string | null
   id: string
   slug: string
   name_ar: string | null
@@ -80,6 +89,10 @@ type GroupRow = {
 }
 
 type PlanRow = {
+  description_ar?: string | null
+  description_fr?: string | null
+  instructions_ar?: string | null
+  instructions_fr?: string | null
   id: string
   group_id: string
   plan_key: string
@@ -127,6 +140,11 @@ function mapCatalog(
     current.push({
       id: plan.plan_key,
       databaseId: plan.id,
+      description_ar: plan.description_ar,
+      description_fr: plan.description_fr,
+      instructions_ar: plan.instructions_ar,
+      instructions_fr: plan.instructions_fr,
+
       label: plan.label,
       price: parsedPrice,
       old_price: plan.old_price == null ? null : Number(plan.old_price),
@@ -171,12 +189,14 @@ function mapCatalog(
   }
 
   return services.map((service) => ({
+    databaseId: service.id,
     slug: service.slug,
     name_ar: service.name_ar, name_fr: service.name_fr, image_url: service.image_url,
     name: service.name,
     category: service.category,
     availability: service.availability,
     description: service.description ?? undefined,
+    instructions_ar: service.instructions_ar, instructions_fr: service.instructions_fr,
     description_ar: service.description_ar,
     description_fr: service.description_fr,
     delivery_minutes: service.delivery_minutes,
@@ -203,6 +223,7 @@ export async function fetchPublicServiceCatalog(): Promise<
         description,
         description_ar,
         description_fr,
+        instructions_ar, instructions_fr,
         delivery_minutes,
         warranty_days,
         warranty_full_subscription,
@@ -269,6 +290,7 @@ export async function fetchPublicServiceCatalog(): Promise<
         group_id,
         plan_key,
         label_ar, label_fr, old_price, duration_value, duration_unit,
+        description_ar, description_fr, instructions_ar, instructions_fr,
         label,
         price,
         currency,

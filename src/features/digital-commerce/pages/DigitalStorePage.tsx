@@ -1,3 +1,4 @@
+import TeoPlanCover, { DigitalPlanCard, flattenDigitalPlans } from '../components/TeoPlanCover'
 import { useLiveCatalog } from '../utils/useLiveCatalog'
 import { Link } from 'react-router-dom'
 import {
@@ -22,7 +23,6 @@ import EsimSection from '../components/EsimSection'
 
 import {
   getLocalizedCategory,
-  getLocalizedServiceName,
 } from '../data/serviceCatalogTranslations'
 
 import { searchCatalog } from '../utils/searchCatalog'
@@ -509,8 +509,8 @@ function DigitalStorePage() {
           {(catalogLoading||esimSearchLoading)&&<p>{isArabic?'جارٍ التحميل…':'Chargement…'}</p>}
           {esimSearchError&&<p className="text-sm">{isArabic?'تعذر تحميل نتائج eSIM':'Résultats eSIM indisponibles'}</p>}
           <p className="mb-4 text-sm text-slate-500">{fullResults.length} {isArabic?'نتيجة':'résultat(s)'}</p>
-          {!fullResults.length&&!catalogLoading&&!esimSearchLoading?<p>{isArabic?'لا توجد نتائج':'Aucun résultat'}</p>:<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{fullResults.map(r=><Link key={r.id} to={r.href} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><h2 className="font-bold break-words">{r.title}</h2><p className="mt-1 text-sm text-slate-500">{r.subtitle}</p><p className="mt-3 font-black text-blue-600 dark:text-blue-300">{r.price}</p>{!r.available&&<p className="text-xs">{isArabic?'غير متوفر':'Indisponible'}</p>}</Link>)}</div>}
-        </>:catalogLoading ? <p>{isArabic ? 'جار التحميل...' : 'Chargement...'}</p> : filteredServices.length === 0 ? <p>{isArabic ? 'لا توجد نتائج متاحة' : 'Aucun résultat disponible'}</p> : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{filteredServices.map(service => <Link key={service.slug} to={`/services-numeriques/${service.slug}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-blue-500"><p className="text-xs text-slate-500">{getLocalizedCategory(service.category, language)}</p><h2 className="mt-2 font-bold text-slate-950">{getLocalizedServiceName(service, language)}</h2><p className="mt-4 text-sm font-bold text-blue-600">{isArabic ? 'عرض الخدمة' : 'Voir le service'} →</p></Link>)}</div>}
+          {!fullResults.length&&!catalogLoading&&!esimSearchLoading?<p>{isArabic?'لا توجد نتائج':'Aucun résultat'}</p>:<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{fullResults.map(r=>r.digital?<DigitalPlanCard key={r.id} item={r.digital}/>:<Link key={r.id} to={r.href} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><h2 className="font-bold break-words">{r.title}</h2><p className="mt-1 text-sm text-slate-500">{r.subtitle}</p><p className="mt-3 font-black text-blue-600 dark:text-blue-300">{r.price}</p>{!r.available&&<p className="text-xs">{isArabic?'غير متوفر':'Indisponible'}</p>}</Link>)}</div>}
+        </>:catalogLoading ? <p>{isArabic ? 'جار التحميل...' : 'Chargement...'}</p> : filteredServices.length === 0 ? <p>{isArabic ? 'لا توجد نتائج متاحة' : 'Aucun résultat disponible'}</p> : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{flattenDigitalPlans(filteredServices).map(item=><DigitalPlanCard key={item.plan.databaseId??`${item.service.slug}:${item.group.id}:${item.plan.id}`} item={item}/>)}</div>}
       </Container>
     </main>
   )
@@ -660,7 +660,7 @@ function DigitalStorePage() {
                   >
                     {(catalogLoading||esimSearchLoading)&&<p className="p-3 text-xs">{isArabic?'جارٍ التحميل…':'Chargement…'}</p>}
                     {esimSearchError&&<p className="p-3 text-xs">{isArabic?'تعذر تحميل نتائج eSIM':'Résultats eSIM indisponibles'}</p>}
-                    <div className="max-h-[50vh] overflow-y-auto p-2">{results.map(r=><button type="button" key={r.id} onClick={()=>handleServiceSelect(r.href)} className="block w-full rounded-xl p-3 text-start hover:bg-blue-50"><span className="block font-bold text-slate-950">{r.title}</span><span className="block text-xs text-slate-500">{r.subtitle}</span><span className="font-bold text-blue-600">{r.price}</span></button>)}{!results.length&&!catalogLoading&&!esimSearchLoading&&<p className="p-3 text-slate-800">{isArabic?'لا توجد نتائج':'Aucun résultat'}</p>}</div>
+                    <div className="max-h-[50vh] overflow-y-auto p-2">{results.map(r=><button type="button" key={r.id} onClick={()=>handleServiceSelect(r.href)} className="block w-full rounded-xl p-3 text-start hover:bg-blue-50">{r.digital&&<span className="mb-2 block h-16 w-16 overflow-hidden rounded-lg"><TeoPlanCover item={r.digital} language={language}/></span>}<span className="block font-bold text-slate-950">{r.title}</span><span className="block text-xs text-slate-500">{r.subtitle}</span><span className="font-bold text-blue-600">{r.price}</span></button>)}{!results.length&&!catalogLoading&&!esimSearchLoading&&<p className="p-3 text-slate-800">{isArabic?'لا توجد نتائج':'Aucun résultat'}</p>}</div>
                     <button type="button" className="w-full border-t p-3 font-bold text-blue-600" onClick={handleSearchSubmit}>{isArabic?'عرض جميع النتائج':'Voir tous les résultats'}</button>
                   </div>
                 )}

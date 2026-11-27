@@ -1,3 +1,4 @@
+import TeoPlanCover from '../../features/digital-commerce/components/TeoPlanCover'
 import { CampaignBar } from '../../features/home/components/StoreCampaigns'
 import { useLiveCatalog } from '../../features/digital-commerce/utils/useLiveCatalog'
 import ThemeSwitch from './ThemeSwitch'
@@ -658,7 +659,7 @@ const toastTimerRef = useRef<number | null>(null)
           {(catalogLoading||esimSearchLoading)&&<p className="p-3 text-xs">{isArabic?'جارٍ تحميل النتائج…':'Chargement des résultats…'}</p>}
           {esimSearchError&&<p className="p-3 text-xs">{isArabic?'تعذر تحميل نتائج eSIM':'Résultats eSIM indisponibles'}</p>}
           <div className="max-h-[50vh] overflow-y-auto p-2">
-            {results.map(result=><button key={result.id} type="button" onClick={()=>handleServiceSelect(result.href)} className="block w-full rounded-xl p-3 text-start hover:bg-blue-50 dark:hover:bg-slate-800"><span className="block break-words text-sm font-black text-slate-900 dark:text-white">{result.title}</span><span className="block text-xs text-slate-500">{result.subtitle}</span><span className="text-sm font-bold text-blue-600">{result.price}</span>{!result.available&&<span className="ms-2 text-xs">{isArabic?'غير متوفر':'Indisponible'}</span>}</button>)}
+            {results.map(result=><button key={result.id} type="button" onClick={()=>handleServiceSelect(result.href)} className="block w-full rounded-xl p-3 text-start hover:bg-blue-50 dark:hover:bg-slate-800">{result.digital&&<span className="mb-2 block h-16 w-16 overflow-hidden rounded-lg"><TeoPlanCover item={result.digital} language={language}/></span>}<span className="block break-words text-sm font-black text-slate-900 dark:text-white">{result.title}</span><span className="block text-xs text-slate-500">{result.subtitle}</span><span className="text-sm font-bold text-blue-600">{result.price}</span>{!result.available&&<span className="ms-2 text-xs">{isArabic?'غير متوفر':'Indisponible'}</span>}</button>)}
             {!results.length&&!catalogLoading&&!esimSearchLoading&&<p className="p-4 text-sm">{isArabic?'لا توجد نتائج':'Aucun résultat'}</p>}
           </div>
           <button type="button" onClick={handleSearchSubmit} className="w-full border-t p-3 text-sm font-bold text-blue-600">{isArabic ? 'عرض جميع النتائج' : 'Voir tous les résultats'}</button>

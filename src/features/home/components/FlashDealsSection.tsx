@@ -4,7 +4,7 @@ import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 import { useLiveCatalog } from '../../digital-commerce/utils/useLiveCatalog'
 import { useFlashOffers } from '../../digital-commerce/utils/useFlashOffers'
-import ServiceLogo from '../../digital-commerce/components/ServiceLogo'
+import TeoPlanCover from '../../digital-commerce/components/TeoPlanCover'
 import { getLocalizedServiceName, getLocalizedGroupName, getLocalizedPlanLabel } from '../../digital-commerce/data/serviceCatalogTranslations'
 
 export default function FlashDealsSection() {
@@ -27,7 +27,7 @@ export default function FlashDealsSection() {
       const labels=ar?['يوم','ساعة','دقيقة','ثانية']:['Jours','Heures','Min','Sec']
       const cardClass="flex flex-col gap-3 rounded-xl border border-white/10 bg-white p-4 text-slate-900 transition hover:shadow-lg focus-visible:outline-2 focus-visible:outline-amber-400 dark:bg-slate-900 dark:text-white"
       const content=<>
-        <div className="flex items-start gap-3"><div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#192638]">{group.image_url?<img src={group.image_url} alt="" className="h-full w-full object-cover"/>:<ServiceLogo serviceSlug={service.slug} fallbackUrl={service.image_url} fallback={service.name.slice(0,1)}/>}</div><div className="min-w-0 flex-1"><h3 className="font-black [overflow-wrap:anywhere]">{getLocalizedGroupName(group,language)||getLocalizedServiceName(service,language)}</h3><p className="text-xs text-slate-500 dark:text-slate-300">{getLocalizedPlanLabel(plan,language)}</p></div>{offer.show_discount_badge&&<span className="shrink-0 rounded-lg bg-amber-100 px-2 py-1 text-xs font-black text-amber-900" dir="ltr">−{offer.discount_percent}%</span>}</div>
+        <div className="flex items-start gap-3"><div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#192638]"><TeoPlanCover item={{service,group,plan}} language={language}/></div><div className="min-w-0 flex-1"><h3 className="font-black [overflow-wrap:anywhere]">{getLocalizedGroupName(group,language)||getLocalizedServiceName(service,language)}</h3><p className="text-xs text-slate-500 dark:text-slate-300">{getLocalizedPlanLabel(plan,language)}</p></div>{offer.show_discount_badge&&<span className="shrink-0 rounded-lg bg-amber-100 px-2 py-1 text-xs font-black text-amber-900" dir="ltr">−{offer.discount_percent}%</span>}</div>
         <div className="flex flex-wrap items-baseline gap-2"><strong className="text-2xl font-black text-blue-700 dark:text-blue-300">{offer.flash_price} <span className="text-sm">{currencyLabel}</span></strong><span className="text-sm text-slate-500 line-through dark:text-slate-400">{offer.original_price} {currencyLabel}</span></div>
         <div className="grid grid-cols-4 gap-1.5" dir="ltr">{countdown.map((n,i)=><div key={i} className="rounded-lg bg-slate-100 p-2 text-center dark:bg-slate-800"><div className="text-lg font-black tabular-nums">{String(n).padStart(2,'0')}</div><div className="text-[10px] text-slate-500 dark:text-slate-300">{labels[i]}</div></div>)}</div>
         {offer.quantity_remaining!==null&&<p className="text-xs font-bold text-slate-600 dark:text-slate-300">{ar?'الكمية المتبقية':'Offres restantes'} : {offer.quantity_remaining}</p>}
