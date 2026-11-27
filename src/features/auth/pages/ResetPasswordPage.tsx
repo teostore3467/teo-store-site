@@ -1,12 +1,50 @@
+import { useEffect, useState, type FormEvent } from 'react'
+import { supabase } from '../../../lib/supabase'
 import { Link } from 'react-router-dom'
 
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 
+let recoveryUser: string | null = null
+const recoveryListeners = new Set<(id: string | null) => void>()
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'PASSWORD_RECOVERY') recoveryUser = session?.user.id ?? null
+  else if (!session || (recoveryUser && session.user.id !== recoveryUser)) recoveryUser = null
+  recoveryListeners.forEach(listener => listener(recoveryUser))
+})
+
 function ResetPasswordPage() {
   const { language, t } = useLanguage()
 
   const isArabic = language === 'ar'
+  const [userId, setUserId] = useState(recoveryUser)
+  const [password, setPassword] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState('')
+  useEffect(() => {
+    recoveryListeners.add(setUserId); setUserId(recoveryUser)
+    return () => { recoveryListeners.delete(setUserId) }
+  }, [])
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (busy || !userId || userId !== recoveryUser) return
+    if (password.length < 12 || password !== confirmation) {
+      setNotice(isArabic ? 'استخدم 12 حرفًا على الأقل وتأكد من التطابق.' : 'Utilisez au moins 12 caractères et vérifiez la confirmation.'); return
+    }
+    setBusy(true); setNotice('')
+    try {
+      const { data, error } = await supabase.auth.getUser()
+      if (error || data.user?.id !== userId || recoveryUser !== userId) throw new Error('Recovery unavailable')
+      const result = await supabase.auth.updateUser({ password })
+      if (result.error) throw result.error
+      recoveryUser = null; recoveryListeners.forEach(listener => listener(null))
+      setPassword(''); setConfirmation('')
+      const logout = await supabase.auth.signOut()
+      setNotice(logout.error ? (isArabic ? 'تم تغيير كلمة المرور. سجّل الخروج ثم أعد الدخول.' : 'Mot de passe modifié. Déconnectez-vous puis reconnectez-vous.') : (isArabic ? 'تم تغيير كلمة المرور. يمكنك تسجيل الدخول الآن.' : 'Mot de passe modifié. Vous pouvez vous connecter.'))
+    } catch { setNotice(isArabic ? 'تعذر تغيير كلمة المرور. اطلب رابطًا جديدًا إذا انتهت صلاحيته.' : 'Modification impossible. Demandez un nouveau lien si nécessaire.') }
+    finally { setBusy(false) }
+  }
 
   return (
     <main className="min-h-[calc(100vh-140px)] bg-[#f7f9fc] py-8 sm:py-12 lg:py-16">
@@ -132,14 +170,15 @@ function ResetPasswordPage() {
                   </p>
                 </div>
 
-                <form className="mt-7 space-y-4">
+                <form className="mt-7 space-y-4" onSubmit={submit}>
+                  {!userId && <p className="text-sm text-slate-600">{isArabic ? 'افتح رابط استرجاع صالح من بريدك.' : 'Ouvrez un lien de récupération valide depuis votre e-mail.'} <Link to="/mot-de-passe-oublie" className="underline">{isArabic ? 'طلب رابط جديد' : 'Nouveau lien'}</Link></p>}
                   <label className="block">
                     <span className="text-[10px] font-black text-slate-700 sm:text-xs">
                       {t.auth.newPassword}
                     </span>
 
                     <input
-                      type="password"
+                      type="password" required minLength={12} disabled={!userId} autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)}
                       placeholder={t.auth.newPasswordPlaceholder}
                       className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
                     />
@@ -151,14 +190,15 @@ function ResetPasswordPage() {
                     </span>
 
                     <input
-                      type="password"
+                      type="password" required minLength={12} disabled={!userId} autoComplete="new-password" value={confirmation} onChange={e => setConfirmation(e.target.value)}
                       placeholder={t.auth.confirmNewPasswordPlaceholder}
                       className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
                     />
                   </label>
 
+                  {notice && <p role="status" className="text-sm text-slate-600">{notice}</p>}
                   <button
-                    type="submit"
+                    type="submit" disabled={busy || !userId}
                     className="flex h-12 w-full items-center justify-center rounded-[14px] bg-blue-600 px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.18)] transition hover:bg-blue-500"
                   >
                     {t.auth.updatePassword}

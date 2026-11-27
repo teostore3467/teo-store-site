@@ -1,3 +1,6 @@
+import { useState, type FormEvent } from 'react'
+import { supabase } from '../../../lib/supabase'
+import { useTeoCaptcha } from '../TeoCaptcha'
 import { Link } from 'react-router-dom'
 
 import Container from '../../../components/layout/Container'
@@ -7,6 +10,25 @@ function ForgotPasswordPage() {
   const { language, t } = useLanguage()
 
   const isArabic = language === 'ar'
+  const captcha = useTeoCaptcha()
+  const [email, setEmail] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState('')
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (busy || !captcha.ready || !email.trim()) return
+    setBusy(true); setNotice('')
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: new URL('/reinitialiser-mot-de-passe', window.location.origin).toString(),
+        captchaToken: captcha.token,
+      })
+      if (error) throw error
+      setNotice(isArabic ? 'إذا كان البريد مسجلاً، ستصلك تعليمات الاسترجاع. تحقق من بريدك.' : 'Si cette adresse est enregistrée, vous recevrez les instructions. Vérifiez votre boîte mail.')
+    } catch {
+      setNotice(isArabic ? 'تعذر إرسال الطلب الآن. حاول لاحقًا.' : 'Envoi indisponible. Réessayez plus tard.')
+    } finally { captcha.reset(); setBusy(false) }
+  }
 
   return (
     <main className="min-h-[calc(100vh-140px)] bg-[#f7f9fc] py-8 sm:py-12 lg:py-16">
@@ -132,21 +154,23 @@ function ForgotPasswordPage() {
                   </p>
                 </div>
 
-                <form className="mt-7 space-y-4">
+                <form className="mt-7 space-y-4" onSubmit={submit}>
                   <label className="block">
                     <span className="text-[10px] font-black text-slate-700 sm:text-xs">
                       {t.auth.email}
                     </span>
 
                     <input
-                      type="email"
+                      type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)}
                       placeholder="exemple@email.com"
                       className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
                     />
                   </label>
 
+                  {captcha.widget}
+                  {notice && <p role="status" className="text-sm text-slate-600">{notice}</p>}
                   <button
-                    type="submit"
+                    type="submit" disabled={busy || !captcha.ready}
                     className="flex h-12 w-full items-center justify-center rounded-[14px] bg-blue-600 px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.18)] transition hover:bg-blue-500"
                   >
                     {t.auth.sendInstructions}

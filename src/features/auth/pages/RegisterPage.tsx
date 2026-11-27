@@ -3,13 +3,11 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Container from '../../../components/layout/Container'
 import { useLanguage } from '../../../i18n/LanguageContext'
 import { supabase } from '../../../lib/supabase'
+import { safeAuthRedirect, useTeoCaptcha } from '../TeoCaptcha'
 
 type SocialProvider = 'google' | 'facebook'
 
-function getSafeRedirect(value: string | null) {
-  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '/'
-  return value
-}
+
 
 function SocialIcon({ provider }: { provider: SocialProvider }) {
   if (provider === 'facebook') {
@@ -23,7 +21,8 @@ function RegisterPage() {
   const isArabic = language === 'ar'
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const redirectPath = getSafeRedirect(searchParams.get('redirect'))
+  const redirectPath = safeAuthRedirect(searchParams.get('redirect'))
+  const captcha = useTeoCaptcha()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -67,10 +66,11 @@ function RegisterPage() {
       setErrorMessage(isArabic ? 'كلمتا المرور غير متطابقتين.' : 'Les mots de passe ne correspondent pas.')
       return
     }
-    if (password.length < 6) {
-      setErrorMessage(isArabic ? 'يجب أن تحتوي كلمة المرور على 6 أحرف على الأقل.' : 'Le mot de passe doit contenir au moins 6 caractères.')
+    if (password.length < 12) {
+      setErrorMessage(isArabic ? 'يجب أن تحتوي كلمة المرور على 12 حرفًا على الأقل.' : 'Le mot de passe doit contenir au moins 12 caractères.')
       return
     }
+    if (!captcha.ready) { setErrorMessage(isArabic ? 'أكمل التحقق الأمني أولًا.' : 'Terminez la vérification de sécurité.'); return }
     setIsSubmitting(true)
     setErrorMessage(null)
     setSuccessMessage(null)
@@ -78,7 +78,7 @@ function RegisterPage() {
       const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
-        options: { data: { full_name: normalizedName } },
+        options: { data: { full_name: normalizedName }, captchaToken: captcha.token },
       })
       if (error) throw error
       if (data.session && data.user) {
@@ -100,7 +100,7 @@ function RegisterPage() {
       } else {
         setErrorMessage(isArabic ? 'تعذر إنشاء الحساب. تحقق من المعلومات وحاول مجددًا.' : 'Impossible de créer le compte. Vérifiez vos informations et réessayez.')
       }
-    } finally { setIsSubmitting(false) }
+    } finally { captcha.reset(); setIsSubmitting(false) }
   }
 
   return (
@@ -140,11 +140,12 @@ function RegisterPage() {
                 <form onSubmit={handleSubmit} className="mt-7 space-y-4">
                   <label className="block"><span className="text-[10px] font-black text-slate-700 sm:text-xs">{t.auth.fullName}</span><input type="text" autoComplete="name" value={fullName} onChange={(event) => { setFullName(event.target.value); setErrorMessage(null) }} placeholder={t.auth.namePlaceholder} className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-50" /></label>
                   <label className="block"><span className="text-[10px] font-black text-slate-700 sm:text-xs">{t.auth.email}</span><input type="email" autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); setErrorMessage(null) }} placeholder="exemple@email.com" className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-50" /></label>
-                  <label className="block"><span className="text-[10px] font-black text-slate-700 sm:text-xs">{t.auth.password}</span><input type="password" autoComplete="new-password" value={password} onChange={(event) => { setPassword(event.target.value); setErrorMessage(null) }} placeholder={t.auth.createPassword} className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-50" /></label>
+                  <label className="block"><span className="text-[10px] font-black text-slate-700 sm:text-xs">{t.auth.password} · {isArabic ? '12 حرفًا على الأقل' : '12 caractères minimum'}</span><input type="password" minLength={12} autoComplete="new-password" value={password} onChange={(event) => { setPassword(event.target.value); setErrorMessage(null) }} placeholder={t.auth.createPassword} className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-50" /></label>
                   <label className="block"><span className="text-[10px] font-black text-slate-700 sm:text-xs">{t.auth.confirmPassword}</span><input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setErrorMessage(null) }} placeholder={t.auth.confirmPasswordPlaceholder} className="mt-2 h-12 w-full rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-50" /></label>
                   {errorMessage && <div role="alert" className="rounded-[14px] border border-rose-100 bg-rose-50 p-3"><p className="text-[10px] font-bold leading-5 text-rose-600">{errorMessage}</p></div>}
                   {successMessage && <div role="status" className="rounded-[14px] border border-emerald-100 bg-emerald-50 p-3"><p className="text-[10px] font-bold leading-5 text-emerald-700">{successMessage}</p><Link to={loginLink} className="mt-2 inline-flex text-[10px] font-black text-emerald-800 underline underline-offset-2">{isArabic ? 'الانتقال إلى تسجيل الدخول' : 'Aller à la connexion'}</Link></div>}
-                  <button type="submit" disabled={busy} className={['flex h-12 w-full items-center justify-center rounded-[14px] px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.18)] transition', busy ? 'cursor-not-allowed bg-blue-400' : 'bg-blue-600 hover:bg-blue-500'].join(' ')}>{isSubmitting ? (isArabic ? 'جارٍ إنشاء الحساب...' : 'Création...') : t.auth.createAccountButton}</button>
+                  {captcha.widget}
+                  <button type="submit" disabled={busy || !captcha.ready} className={['flex h-12 w-full items-center justify-center rounded-[14px] px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.18)] transition', busy ? 'cursor-not-allowed bg-blue-400' : 'bg-blue-600 hover:bg-blue-500'].join(' ')}>{isSubmitting ? (isArabic ? 'جارٍ إنشاء الحساب...' : 'Création...') : t.auth.createAccountButton}</button>
                 </form>
                 <div className="my-6 flex items-center gap-3"><div className="h-px flex-1 bg-slate-100" /><span className="text-[10px] font-black text-slate-400">{isArabic ? 'أو' : 'OU'}</span><div className="h-px flex-1 bg-slate-100" /></div>
                 <div className="space-y-3">{(['google', 'facebook'] as const).map((provider) => <button key={provider} type="button" onClick={() => void handleSocialLogin(provider)} disabled={busy} className="flex h-12 w-full items-center justify-center gap-3 rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:border-blue-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"><SocialIcon provider={provider} /><span>{socialLoading === provider ? (isArabic ? 'جارٍ الاتصال...' : 'Connexion...') : isArabic ? `المتابعة باستخدام ${provider === 'google' ? 'Google' : 'Facebook'}` : `Continuer avec ${provider === 'google' ? 'Google' : 'Facebook'}`}</span></button>)}</div>
