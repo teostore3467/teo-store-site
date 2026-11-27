@@ -1,3 +1,4 @@
+import AuthBrandLogo from '../AuthBrandLogo'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Container from '../../../components/layout/Container'
@@ -59,7 +60,7 @@ function LoginPage() {
       setErrorMessage(isArabic ? 'أدخل البريد الإلكتروني وكلمة المرور.' : 'Entrez votre adresse e-mail et votre mot de passe.')
       return
     }
-    if (!captcha.ready) { setErrorMessage(isArabic ? 'أكمل التحقق الأمني أولًا.' : 'Terminez la vérification de sécurité.'); return }
+    if (!captcha.ready) { setErrorMessage(isArabic ? 'التحقق الأمني قيد الانتظار أو غير متاح. أعد المحاولة.' : 'Vérification de sécurité en attente ou indisponible. Réessayez.'); return }
     setIsSubmitting(true)
     setErrorMessage(null)
     try {
@@ -83,7 +84,7 @@ function LoginPage() {
           <section className="hidden overflow-hidden rounded-[28px] p-8 text-white shadow-[0_20px_60px_rgba(15,23,42,0.14)] lg:flex lg:flex-col lg:justify-between" style={{ background: 'linear-gradient(135deg, #06101f 0%, #101d44 58%, #312e81 100%)' }}>
             <div>
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-[16px] text-lg font-black text-white shadow-[0_10px_30px_rgba(37,99,235,0.28)]" style={{ background: 'linear-gradient(145deg, #2563eb 0%, #4f46e5 100%)' }}>T</div>
+                <AuthBrandLogo dark className="h-12 w-12" />
                 <div><p className="text-sm font-black">TEO STORE</p><p className="mt-0.5 text-[10px] font-semibold text-white/45">{isArabic ? 'الخدمات الرقمية' : 'Services numériques'}</p></div>
               </div>
               <div className="mt-14 max-w-md">
@@ -102,7 +103,7 @@ function LoginPage() {
             <div className="w-full overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_14px_40px_rgba(15,23,42,0.06)] sm:rounded-[28px]">
               <div className="p-5 sm:p-7 lg:p-8">
                 <div className="flex items-center gap-3 lg:hidden">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-[15px] text-base font-black text-white shadow-[0_8px_24px_rgba(37,99,235,0.24)]" style={{ background: 'linear-gradient(145deg, #2563eb 0%, #4f46e5 100%)' }}>T</div>
+                  <AuthBrandLogo className="h-11 w-11" />
                   <div><p className="text-sm font-black text-slate-950">TEO STORE</p><p className="mt-0.5 text-[9px] font-semibold text-slate-400">{isArabic ? 'الخدمات الرقمية' : 'Services numériques'}</p></div>
                 </div>
                 <div className="mt-7 lg:mt-0">
@@ -120,11 +121,11 @@ function LoginPage() {
                   <div className={isArabic ? 'flex justify-start' : 'flex justify-end'}><Link to="/mot-de-passe-oublie" className="text-[10px] font-black text-blue-600 transition hover:text-blue-500 sm:text-xs">{t.auth.forgotPassword}</Link></div>
                   {errorMessage && <div role="alert" className="rounded-[14px] border border-rose-100 bg-rose-50 p-3"><p className="text-[10px] font-bold leading-5 text-rose-600">{errorMessage}</p></div>}
                   {captcha.widget}
-                  <button type="submit" disabled={busy || !captcha.ready} className={['flex h-12 w-full items-center justify-center rounded-[14px] px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.18)] transition', busy ? 'cursor-not-allowed bg-blue-400' : 'bg-blue-600 hover:bg-blue-500'].join(' ')}>{isSubmitting ? (isArabic ? 'جارٍ تسجيل الدخول...' : 'Connexion...') : t.auth.loginButton}</button>
+                  <button type="submit" aria-busy={isSubmitting} disabled={busy} className={['flex h-12 w-full items-center justify-center rounded-[14px] px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.18)]  active:scale-[0.97] active:brightness-90 disabled:cursor-wait disabled:opacity-70 gap-2 transition', busy ? 'cursor-not-allowed bg-blue-400' : 'bg-blue-600 hover:bg-blue-500'].join(' ')}>{isSubmitting && <span aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />}{isSubmitting ? (isArabic ? 'جارٍ تسجيل الدخول...' : 'Connexion...') : t.auth.loginButton}</button>
                 </form>
                 <div className="my-6 flex items-center gap-3"><div className="h-px flex-1 bg-slate-100" /><span className="text-[10px] font-black text-slate-400">{isArabic ? 'أو' : 'OU'}</span><div className="h-px flex-1 bg-slate-100" /></div>
                 <div className="space-y-3">
-                  {(['google', 'facebook'] as const).map((provider) => <button key={provider} type="button" onClick={() => void handleSocialLogin(provider)} disabled={busy} className="flex h-12 w-full items-center justify-center gap-3 rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:border-blue-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"><SocialIcon provider={provider} /><span>{socialLoading === provider ? (isArabic ? 'جارٍ الاتصال...' : 'Connexion...') : isArabic ? `المتابعة باستخدام ${provider === 'google' ? 'Google' : 'Facebook'}` : `Continuer avec ${provider === 'google' ? 'Google' : 'Facebook'}`}</span></button>)}
+                  {(['google', 'facebook'] as const).map((provider) => <button key={provider} type="button" onClick={() => void handleSocialLogin(provider)} disabled={busy} aria-busy={socialLoading === provider} className="active:scale-[0.97] active:brightness-90 flex h-12 w-full items-center justify-center gap-3 rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:border-blue-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">{socialLoading === provider ? <span aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <SocialIcon provider={provider} />}<span>{socialLoading === provider ? (isArabic ? 'جارٍ الاتصال...' : 'Connexion...') : isArabic ? `المتابعة باستخدام ${provider === 'google' ? 'Google' : 'Facebook'}` : `Continuer avec ${provider === 'google' ? 'Google' : 'Facebook'}`}</span></button>)}
                 </div>
                 <div className="my-6 flex items-center gap-3"><div className="h-px flex-1 bg-slate-100" /><span className="text-[8px] font-black uppercase tracking-[0.12em] text-slate-300">TEO STORE</span><div className="h-px flex-1 bg-slate-100" /></div>
                 <p className="text-center text-xs text-slate-500 sm:text-sm">{t.auth.noAccount}<Link to={registerLink} className={isArabic ? 'mr-1 font-black text-blue-600 transition hover:text-blue-500' : 'ml-1 font-black text-blue-600 transition hover:text-blue-500'}>{t.auth.createAccount}</Link></p>

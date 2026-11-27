@@ -1,3 +1,4 @@
+import AuthBrandLogo from '../../auth/AuthBrandLogo'
 import {
   useEffect,
   useState,
@@ -72,7 +73,8 @@ function AdminLoginPage() {
     event: FormEvent<HTMLFormElement>,
   ) => {
     event.preventDefault()
-    if (isSubmitting || !captcha.ready) return
+    if (isSubmitting) return
+    if (!captcha.ready) { setErrorMessage('Vérification de sécurité non prête. Réessayez.'); return }
 
     if (!email.trim() || !password) {
       setErrorMessage(
@@ -176,15 +178,7 @@ function AdminLoginPage() {
 
       <div className="relative w-full max-w-[420px]">
         <div className="mb-6 text-center">
-          <div
-            className="mx-auto flex h-16 w-16 items-center justify-center rounded-[20px] text-2xl font-black text-white shadow-[0_18px_50px_rgba(37,99,235,0.30)]"
-            style={{
-              background:
-                'linear-gradient(145deg, #2563eb 0%, #4338ca 100%)',
-            }}
-          >
-            T
-          </div>
+          <AuthBrandLogo dark className="mx-auto h-16 w-16" />
 
           <p className="mt-4 text-[9px] font-black uppercase tracking-[0.22em] text-blue-400">
             TEO STORE
@@ -248,14 +242,16 @@ function AdminLoginPage() {
           {captcha.widget}
           <button
             type="submit"
-            disabled={isSubmitting || !captcha.ready}
+            aria-busy={isSubmitting}
+            disabled={isSubmitting}
             className={[
-              'mt-5 flex h-12 w-full items-center justify-center rounded-xl text-sm font-black text-white transition',
+              'mt-5 flex h-12 w-full items-center justify-center rounded-xl text-sm font-black text-white  active:scale-[0.97] active:brightness-90 disabled:cursor-wait disabled:opacity-70 gap-2 transition',
               isSubmitting
                 ? 'cursor-not-allowed bg-blue-600/40'
                 : 'bg-blue-600 hover:bg-blue-500',
             ].join(' ')}
           >
+            {isSubmitting && <span aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />}
             {isSubmitting
               ? 'Connexion...'
               : 'Se connecter'}

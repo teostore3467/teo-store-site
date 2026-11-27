@@ -1,3 +1,4 @@
+import AuthBrandLogo from '../AuthBrandLogo'
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { useTeoCaptcha } from '../TeoCaptcha'
@@ -16,7 +17,8 @@ function ForgotPasswordPage() {
   const [notice, setNotice] = useState('')
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (busy || !captcha.ready || !email.trim()) return
+    if (busy || !email.trim()) return
+    if (!captcha.ready) { setNotice(isArabic ? 'التحقق الأمني غير جاهز. أعد المحاولة.' : 'Vérification de sécurité non prête. Réessayez.'); return }
     setBusy(true); setNotice('')
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
@@ -43,15 +45,7 @@ function ForgotPasswordPage() {
           >
             <div>
               <div className="flex items-center gap-3">
-                <div
-                  className="flex h-12 w-12 items-center justify-center rounded-[16px] text-lg font-black text-white shadow-[0_10px_30px_rgba(37,99,235,0.28)]"
-                  style={{
-                    background:
-                      'linear-gradient(145deg, #2563eb 0%, #4f46e5 100%)',
-                  }}
-                >
-                  T
-                </div>
+                <AuthBrandLogo dark className="h-12 w-12" />
 
                 <div>
                   <p className="text-sm font-black">
@@ -115,15 +109,7 @@ function ForgotPasswordPage() {
             <div className="w-full overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_14px_40px_rgba(15,23,42,0.06)] sm:rounded-[28px]">
               <div className="p-5 sm:p-7 lg:p-8">
                 <div className="flex items-center gap-3 lg:hidden">
-                  <div
-                    className="flex h-11 w-11 items-center justify-center rounded-[15px] text-base font-black text-white shadow-[0_8px_24px_rgba(37,99,235,0.24)]"
-                    style={{
-                      background:
-                        'linear-gradient(145deg, #2563eb 0%, #4f46e5 100%)',
-                    }}
-                  >
-                    T
-                  </div>
+                  <AuthBrandLogo className="h-11 w-11" />
 
                   <div>
                     <p className="text-sm font-black text-slate-950">
@@ -170,10 +156,10 @@ function ForgotPasswordPage() {
                   {captcha.widget}
                   {notice && <p role="status" className="text-sm text-slate-600">{notice}</p>}
                   <button
-                    type="submit" disabled={busy || !captcha.ready}
-                    className="flex h-12 w-full items-center justify-center rounded-[14px] bg-blue-600 px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.18)] transition hover:bg-blue-500"
+                    type="submit" aria-busy={busy} disabled={busy}
+                    className="flex h-12 w-full items-center justify-center rounded-[14px] bg-blue-600 px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.18)]  active:scale-[0.97] active:brightness-90 disabled:cursor-wait disabled:opacity-70 gap-2 transition hover:bg-blue-500"
                   >
-                    {t.auth.sendInstructions}
+                    {busy && <span aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />}{busy ? (isArabic ? 'جارٍ الإرسال...' : 'Envoi...') : t.auth.sendInstructions}
                   </button>
                 </form>
 
