@@ -1,3 +1,4 @@
+import TeoFutureSection from '../components/TeoFutureSection'
 import FlashDealsSection from '../components/FlashDealsSection'
 import { StoreCampaigns } from '../components/StoreCampaigns'
 import { useEffect, useState } from 'react'
@@ -135,6 +136,7 @@ function HomePage() {
       <DigitalCategoriesSection />
       <FeaturedDigitalSection />
       <PreorderShowcase ar={ar}/>
+      <TeoFutureSection />
       <Container className="py-8"><section className="grid gap-3 sm:grid-cols-3">{(ar?[['اختيار واضح','تصفح الباقات والأسعار قبل الطلب.'],['متابعة الطلب','تابع حالة طلبك من حسابك.'],['خدمة الزبائن','تواصل معنا من مركز المساعدة.']]:[['Choix clair','Consultez les offres et prix avant de commander.'],['Suivi de commande','Suivez vos commandes depuis votre compte.'],['Assistance','Contactez notre équipe depuis le centre d’aide.']]).map(([title,description])=><article key={title} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><h2 className="font-bold">{title}</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-300">{description}</p></article>)}</section></Container>
     </main>
   )

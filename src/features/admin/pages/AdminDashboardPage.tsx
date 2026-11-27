@@ -1,3 +1,4 @@
+import TeoClubStats from '../components/TeoClubStats'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -1554,6 +1555,7 @@ function AdminDashboardPage() {
             tone="green"
           />
         </div>
+        <TeoClubStats arabic={ar} />
       </section>
 
       {/* CATALOG AND REVIEWS */}

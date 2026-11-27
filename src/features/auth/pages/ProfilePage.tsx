@@ -1,3 +1,4 @@
+import TeoClubProfile from './TeoClubProfile'
 import CustomerServices from "./CustomerServices"
 import CustomerReferral from './CustomerReferral'
 import {
@@ -3289,6 +3290,8 @@ function ProfilePage() {
                   {profileNotice && <p role="status" className={`text-sm ${profileNotice.ok ? 'text-emerald-700' : 'text-rose-700'}`}>{profileNotice.text}</p>}
                 </form>
               </div>
+
+              <TeoClubProfile key={user.id} arabic={isArabic} />
 
               <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
                 <div className="flex min-h-[74px] items-center gap-3 border-b border-slate-100 px-4 sm:px-5">
