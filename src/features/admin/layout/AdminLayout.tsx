@@ -451,6 +451,12 @@ function AdminLayout() {
             icon: Boxes,
           },
           {
+            label: ar ? 'الموردون' : 'Fournisseurs',
+            description: ar ? 'دليل روابط الموردين' : 'Annuaire des fournisseurs',
+            to: '/admin/suppliers',
+            icon: Boxes,
+          },
+          {
             label: ar ? 'الباقات والأسعار' : 'Plans',
             description: ar ? 'العروض والتسعير' : 'Offres et tarifs',
             to: '/admin/plans',

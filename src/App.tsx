@@ -32,6 +32,7 @@ import AdminPlansPage from './features/admin/pages/AdminPlansPage'
 import AdminServiceEditPage from './features/admin/pages/AdminServiceEditPage'
 import AdminServicesPage from './features/admin/pages/AdminServicesPage'
 import AdminSettingsPage from './features/admin/pages/AdminSettingsPage'
+import AdminSuppliersPage from './features/admin/pages/AdminSuppliersPage'
 import AdminStoreReviewsPage from './features/admin/pages/AdminStoreReviewsPage'
 
 // Digital commerce
@@ -63,6 +64,7 @@ function App() {
         <Route element={<AdminProtectedRoute />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route path="pro" element={<AdminProPage />} />
+            <Route path="suppliers" element={<AdminSuppliersPage />} />
             <Route path="support" element={<SupportCenter admin />} />
             <Route path="footer" element={<AdminContent />} />
             <Route
