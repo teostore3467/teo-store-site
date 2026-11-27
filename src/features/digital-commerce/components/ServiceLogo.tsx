@@ -8,7 +8,19 @@ const urlFor = (path?: string | null) => path ? supabase.storage.from('service-l
 const logoCache = new Map<string,{until:number;request:Promise<LogoRow|null>}>()
 function loadLogo(slug:string):Promise<LogoRow|null>{
   const existing=logoCache.get(slug);if(existing&&existing.until>Date.now())return existing.request
-  const request=(async()=>{const {data,error}=await supabase.from('service_logos').select('logo_path,logo_light_path,logo_dark_path').eq('service_slug',slug).maybeSingle();if(error)throw error;return data as LogoRow|null})()
+  const request=(async()=>{
+    // Read the parent service's saved logo through a restricted public RPC.
+    const published=await supabase.rpc('teo_public_parent_logo_v1',{p_service_slug:slug}).maybeSingle()
+    if(!published.error && published.data)return published.data as LogoRow
+    // Compatibility with existing deployments and existing direct permissions.
+    const direct=await supabase.from('service_logos').select('logo_path,logo_light_path,logo_dark_path').eq('service_slug',slug).maybeSingle()
+    if(!direct.error && direct.data)return direct.data as LogoRow
+    // Some deployments allow reading the canonical path but not legacy columns.
+    const canonical=await supabase.from('service_logos').select('logo_path').eq('service_slug',slug).maybeSingle()
+    if(!canonical.error && canonical.data)return {...canonical.data,logo_light_path:null,logo_dark_path:null} as LogoRow
+    if(published.error && direct.error && canonical.error)throw published.error
+    return null
+  })()
   logoCache.set(slug,{until:Date.now()+60_000,request});void request.catch(()=>{if(logoCache.get(slug)?.request===request)logoCache.delete(slug)})
   return request
 }
