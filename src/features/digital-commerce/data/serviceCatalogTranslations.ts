@@ -1,3 +1,4 @@
+import { durationText, isDurationLabel } from '../utils/planDuration'
 import type { Language } from '../../../i18n/translations'
 
 import type {
@@ -403,15 +404,9 @@ export function getLocalizedPlanLabel(
   language: Language,
 ) {
   const value = (language === 'ar' ? plan.label_ar : plan.label_fr)?.trim()
-  if (value) return value
-  if (language === 'fr') {
-    return plan.label
-  }
-
-  return (
-    planLabelArabic[plan.label] ??
-    plan.label
-  )
+  const label = value || (language === 'fr' ? plan.label : (planLabelArabic[plan.label] ?? plan.label))
+  const formatted = durationText(plan,language)
+  return formatted && (!label || isDurationLabel(label)) ? formatted : label
 }
 
 export function getLocalizedFulfillmentLabel(

@@ -1,3 +1,4 @@
+import { durationText as formatPlanDuration } from '../utils/planDuration'
 import { useFlashOffers } from '../utils/useFlashOffers'
 import FlashOfferInfo from '../components/FlashOfferInfo'
 import { ShieldCheck, CalendarDays, Zap, KeyRound, FileText, BookOpen, Star, ShoppingBag } from 'lucide-react'
@@ -715,7 +716,8 @@ function DigitalProductDetailsPage() {
               <section aria-label={isArabic ? 'معلومات الخدمة' : 'Informations du service'} className="teo-detail-facts" dir={isArabic ? 'rtl' : 'ltr'}>
                 {[
                   { label: isArabic ? 'مدة التسليم' : 'Délai de livraison', value: deliveryMinutes !== null ? deliveryText : '', Icon: Zap },
-                  { label: isArabic ? 'مدة الاشتراك' : 'Durée de l’abonnement', value: selectedPlan?.duration_value && selectedPlan.duration_unit ? `${selectedPlan.duration_value} ${isArabic ? ({minutes:"دقيقة",hours:"ساعة",days:"يوم",weeks:"أسبوع",months:"شهر",years:"سنة"} as Record<string,string>)[selectedPlan.duration_unit] ?? selectedPlan.duration_unit : ({minutes:"min",hours:"h",days:"jours",weeks:"semaines",months:"mois",years:"ans"} as Record<string,string>)[selectedPlan.duration_unit] ?? selectedPlan.duration_unit}` : validityDays !== null && validityDays > 0 ? durationText(validityDays) : '', Icon: CalendarDays },
+                  { label: isArabic ? 'مدة الاشتراك' : 'Durée de l’abonnement', value: selectedPlan ? formatPlanDuration(selectedPlan, language) : '', Icon: CalendarDays },
+                  { label: isArabic ? 'الصلاحية' : 'Validité', value: !(selectedPlan && formatPlanDuration(selectedPlan, language)) && validityDays !== null ? formatPlanDuration({duration_value:validityDays,duration_unit:'days'},language) : '', Icon: CalendarDays },
                   { label: isArabic ? 'طريقة الاستلام' : 'Mode de réception', value: selectedGroup && selectedGroup.fulfillment.type !== 'coming_soon' ? getLocalizedFulfillmentLabel(selectedGroup.fulfillment.type, language) : '', Icon: KeyRound },
                   { label: isArabic ? 'الضمان' : 'Garantie', value: warrantyText, Icon: ShieldCheck },
                 ].filter(item => !!item.value).map(({label,value,Icon}) => (

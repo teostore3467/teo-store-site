@@ -1,3 +1,4 @@
+import EsimFlag from '../components/EsimFlag'
 import { useEsimPublicSettings } from '../components/EsimGuide'
 import { copyText as copyToClipboard } from '../../../lib/copyText'
 import {
@@ -1783,7 +1784,7 @@ function EsimCheckoutPage() {
             </h1>
 
             <p className="mt-2 text-sm text-slate-500">
-              {country.flag}{' '}
+              <EsimFlag code={country.code} flag={country.flag} path={country.flag_image_path}/>{' '}
               {
                 country.name[
                   language

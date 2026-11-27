@@ -24,7 +24,7 @@ export function searchCatalog(query:string,catalog:readonly PublicServiceCatalog
     if(!country.active)continue
     for(const plan of country.plans){
       if(!matches([serviceAliases.esim,country.slug,country.code,country.name.ar,country.name.fr,country.region?.ar,country.region?.fr,plan.id,plan.label.ar,plan.label.fr,plan.data.ar,plan.data.fr,plan.duration.ar,plan.duration.fr,plan.tier,plan.type,plan.planType,plan.networkName,plan.networkType,plan.dataGb,plan.validityDays]))continue
-      out.push({id:`esim:${country.slug}:${plan.id}`,title:`${country.flag} eSIM ${country.name[language]}`,subtitle:`${plan.data[language]} · ${plan.duration[language]}${plan.tier?' · '+plan.tier:''}`,price:`${plan.price} ${language==='ar'?'أوقية جديدة':'MRU'}`,href:`/esim/${encodeURIComponent(country.slug)}?plan=${encodeURIComponent(plan.id)}`,available:true})
+      out.push({id:`esim:${country.slug}:${plan.id}`,title:`eSIM ${country.name[language]}`,subtitle:`${plan.data[language]} · ${plan.duration[language]}${plan.tier?' · '+plan.tier:''}`,price:`${plan.price} ${language==='ar'?'أوقية جديدة':'MRU'}`,href:`/esim/${encodeURIComponent(country.slug)}?plan=${encodeURIComponent(plan.id)}`,available:true})
     }
   }
   return out

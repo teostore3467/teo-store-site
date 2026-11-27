@@ -1,6 +1,9 @@
 import type { PublicServiceCatalogItem, PublicServiceGroup, PublicServicePlan } from '../data/supabaseServiceCatalog'
 import { getLocalizedGroupName, getLocalizedPlanLabel, getLocalizedServiceName, getLocalizedFulfillmentLabel } from '../data/serviceCatalogTranslations'
 import { Link } from 'react-router-dom'
+import ServiceLogo from './ServiceLogo'
+import { coverDuration, isDurationLabel, westernDigits } from '../utils/planDuration'
+export { coverDuration } from '../utils/planDuration'
 import { useLanguage } from '../../../i18n/LanguageContext'
 
 type Lang = 'ar' | 'fr'
@@ -9,17 +12,29 @@ export function flattenDigitalPlans(catalog:readonly PublicServiceCatalogItem[])
  return catalog.filter(s=>s.slug!=='esim').flatMap(service=>service.groups.flatMap(group=>group.plans.filter(plan=>Number.isFinite(plan.price)&&plan.price>0).map(plan=>({service,group,plan}))))
 }
 export function planHref({service,group,plan}:DigitalPlanItem){return `/services-numeriques/${encodeURIComponent(service.slug)}/offre/${encodeURIComponent(group.id)}?plan=${encodeURIComponent(plan.databaseId??plan.id)}`}
-const palettes: [RegExp,string,string][]=[[/capcut/i,'#171832','#302174'],[/chatgpt|openai/i,'#102e34','#246b66'],[/netflix/i,'#190d16','#8e1327'],[/shahid/i,'#082c32','#126d53'],[/canva/i,'#133b70','#6339a8'],[/copilot/i,'#16265b','#424f99'],[/gemini/i,'#142f55','#4b58aa'],[/crunchyroll/i,'#4a230b','#a5420c'],[/perplexity/i,'#123139','#236970']]
+const palettes: [RegExp,string,string][]=[
+ [/capcut/i,'#171832','#302174'],[/chatgpt|openai/i,'#102e34','#246b66'],[/claude|anthropic/i,'#102034','#22626b'],[/netflix/i,'#190d16','#8e1327'],[/shahid/i,'#082c32','#126d53'],[/canva/i,'#133b70','#6339a8'],[/copilot/i,'#16265b','#424f99'],[/gemini|google[-_ ]?ai/i,'#142f55','#4b58aa'],[/crunchyroll/i,'#4a230b','#a5420c'],[/perplexity/i,'#123139','#236970'],[/notion/i,'#191a23','#353740'],[/adobe|photoshop/i,'#32101b','#8b243b'],[/spotify/i,'#102a20','#166344'],[/youtube/i,'#360e16','#96222b'],[/disney/i,'#102244','#204e89'],[/prime[-_ ]?video/i,'#122d47','#12618d'],[/playstation/i,'#132447','#234c9a'],[/xbox/i,'#142b18','#286b31'],[/steam/i,'#16232e','#31566a'],[/apple/i,'#242531','#5b5b69'],[/google[-_ ]?play/i,'#153b38','#23715f'],[/pubg/i,'#352612','#88601d'],[/free[-_ ]?fire/i,'#33221b','#87491c'],[/picsart/i,'#27184c','#654296'],[/(?:^|[-_ ])tod(?:$|[-_ ])/i,'#182d47','#385e98'],[/osn/i,'#3a1630','#842f60'],[/snapchat/i,'#3a3212','#79661b'],[/grok/i,'#16191f','#424752'],[/coursera|cousrsera/i,'#142c55','#235ba3'],[/ap[-_ ]?tv/i,'#20263e','#46517e'],[/windows/i,'#102d50','#2467a5'],[/shoptishop/i,'#202c48','#465e9b']]
 function palette(slug:string,stableId:string){const known=palettes.find(([rx])=>rx.test(slug));if(known)return [known[1],known[2]];let hash=0;for(const c of stableId)hash=(Math.imul(hash,31)+c.charCodeAt(0))>>>0;return [`hsl(${hash%360} 48% 15%)`,`hsl(${hash%360} 50% 32%)`]}
-const units:Record<string,[string,string,string,string]>={minutes:['MIN','MIN','دقيقة','دقائق'],hours:['HEURE','HEURES','ساعة','ساعات'],days:['JOUR','JOURS','يوم','أيام'],weeks:['SEMAINE','SEMAINES','أسبوع','أسابيع'],months:['MOIS','MOIS','شهر','أشهر'],years:['AN','ANS','سنة','سنوات']}
-export function coverDuration(plan:PublicServicePlan,lang:Lang){const n=plan.duration_value;const unit=plan.duration_unit?units[plan.duration_unit]:undefined;if(n&&unit)return {number:String(n),unit:unit[lang==='ar'?(n===1||n>10?2:3):(n===1?0:1)]};return {number:'',unit:getLocalizedPlanLabel(plan,lang)}}
-function coverName(item:DigitalPlanItem,lang:Lang){const {service,group}=item;const name=getLocalizedGroupName(group,lang);const account=lang==='ar'?[/حساب خاص|حساب شخصي|حساب مشترك|دعوة إلى فريق|دعوة فريق|تفعيل/]:[/compte priv[ée]|compte personnel|compte partag[ée]|invitation (?:à une |en )?équipe|activation/i];const match=name.match(account[0]);const clean=name.replace(account[0],'').replace(/[–—|·-]+\s*$/,'').trim();return {name:clean||getLocalizedServiceName(service,lang),type:match?.[0]??getLocalizedFulfillmentLabel(group.fulfillment.type,lang)}}
+function coverName(item:DigitalPlanItem,lang:Lang){
+ const {service,group,plan}=item;const name=westernDigits(getLocalizedGroupName(group,lang));
+ const account=lang==='ar'?/حساب خاص|حساب شخصي|حساب مشترك|دعوة إلى فريق|دعوة فريق|تفعيل/:/compte priv[ée]|compte personnel|compte partag[ée]|invitation (?:à une |en )?équipe|activation/i;
+ const match=name.match(account);
+ const stripDuration=(v:string)=>v.replace(/(?:\b\d+\s*(?:jours?|mois|ans?|années?|days?|months?|years?|weeks?|semaines?|hours?|heures?|minutes?)\b|\d+\s*(?:يومًا|يوماً|يوم|أيام|ايام|شهرًا|شهراً|شهر|أشهر|اشهر|سنوات|سنة|أسبوع|أسابيع|ساعة|ساعات|دقيقة|دقائق))/giu,'');
+ const clean=stripDuration(name).replace(account,'').replace(/^[–—|·\s-]+|[–—|·\s-]+$/g,'').trim();
+ const label=westernDigits(getLocalizedPlanLabel(plan,lang).trim());
+ const detail=label&&!isDurationLabel(label)&&!/^(standard|عادي|قياسي)$/i.test(label)?stripDuration(label).replace(/^[–—|·\s-]+|[–—|·\s-]+$/g,'').trim():'';
+ return {name:clean||stripDuration(getLocalizedServiceName(service,lang)).trim()||service.slug,type:[...new Set([match?.[0],detail].filter(Boolean))].join(' · ')||getLocalizedFulfillmentLabel(group.fulfillment.type,lang)};
+}
 export default function TeoPlanCover({item,language}:{item:DigitalPlanItem;language:Lang}){
- const [start,end]=palette(item.service.slug,item.service.databaseId??item.service.slug);const d=coverDuration(item.plan,language);const title=coverName(item,language)
+ const [start,end]=palette(item.service.slug,item.service.databaseId??item.service.slug);const d=coverDuration(item.plan,language);const title=coverName(item,language);
  return <div aria-hidden="true" dir={language==='ar'?'rtl':'ltr'} className="relative h-full w-full overflow-hidden text-white" style={{background:`linear-gradient(155deg,${start},${end})`,containerType:'inline-size'}}>
   <div className="pointer-events-none absolute rounded-[12cqw] border border-white/20" style={{width:'65%',height:'64%',insetInlineEnd:'-32%',top:'-16%'}}/><div className="pointer-events-none absolute rounded-[12cqw] border border-white/20" style={{width:'65%',height:'64%',insetInlineEnd:'-27%',top:'-11%'}}/>
-  <div className="absolute inset-x-[6%] top-[9%] flex items-center gap-[3cqw]">{d.number&&<span className="rounded-[3cqw] bg-blue-600 px-[3cqw] py-[1.6cqw] font-black" style={{fontSize:'8cqw',lineHeight:1.2,background:Number(d.number)>1?'#713ee5':'#315ff5'}}>{d.number}</span>}<span className="line-clamp-2 font-bold" style={{fontSize:'5cqw'}}>{d.unit}</span></div>
-  <div className="absolute inset-x-[6%] top-[46%]"><div className="line-clamp-2 break-words font-black leading-tight" style={{fontSize:title.name.length>26?'8cqw':'10cqw'}}>{title.name}</div><div className="mt-[2cqw] line-clamp-2 opacity-85" style={{fontSize:'5.5cqw'}}>{title.type}</div></div>
+  {d.number&&<div className="absolute inset-x-[6%] top-[8%] flex items-center gap-[3cqw] font-black leading-none"><bdi className="inline-flex items-center justify-center rounded-[3cqw] px-[3cqw] py-[2cqw]" style={{minWidth:'13cqw',minHeight:'13cqw',fontSize:'8cqw',background:d.unit==='MOIS'||d.unit.includes('شهر')?'#713ee5':'#315ff5'}}>{d.number}</bdi><span style={{fontSize:'5.5cqw'}}>{d.unit}</span></div>}
+  <div className="absolute inset-x-[7%] top-[26%] bottom-[6%] flex flex-col items-start justify-center gap-[2cqw]">
+   <div className="shrink-0 overflow-hidden rounded-[4cqw]" style={{width:'24cqw',height:'24cqw',fontSize:'10cqw'}}><ServiceLogo serviceSlug={item.service.slug} fallback={item.service.name.slice(0,2).toUpperCase()} coverMode/></div>
+   <div className="max-w-full line-clamp-2 break-words font-black leading-tight [overflow-wrap:anywhere]" style={{fontSize:title.name.length>36?'6.5cqw':title.name.length>24?'8cqw':'10cqw'}}>{title.name}</div>
+   <div className="max-w-full line-clamp-2 break-words leading-tight opacity-90 [overflow-wrap:anywhere]" style={{fontSize:'5.5cqw'}}>{title.type}</div>
+  </div>
  </div>
 }
 export function DigitalPlanCard({item,price,oldPrice,className=''}:{item:DigitalPlanItem;price?:number;oldPrice?:number|null;className?:string}){
