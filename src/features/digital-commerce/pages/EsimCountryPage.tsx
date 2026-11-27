@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   useNavigate,
-  useParams
+  useParams,
+  useSearchParams
 } from 'react-router-dom'
 
 import Container from '../../../components/layout/Container'
@@ -28,6 +29,8 @@ export default function EsimCountryPage() {
 
   const {countrySlug} = useParams()
   const navigate = useNavigate()
+  const [searchParams]=useSearchParams()
+  const requestedPlan=searchParams.get('plan')
 
   const {
     language,
@@ -63,6 +66,11 @@ export default function EsimCountryPage() {
         c.slug === countrySlug &&
         c.active
     )
+
+  const requestedKind=country?.plans.find(p=>p.id===requestedPlan)?.planType
+  useEffect(()=>{
+    if(requestedPlan&&requestedKind&&requestedKind!=='unlimited_incomplete'){setKind(requestedKind);setTier('');setChosen(requestedPlan)}
+  },[countrySlug,requestedPlan,requestedKind])
 
   const panel =
     'rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900'

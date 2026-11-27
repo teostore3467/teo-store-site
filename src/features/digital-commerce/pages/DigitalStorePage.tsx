@@ -25,7 +25,8 @@ import {
   getLocalizedServiceName,
 } from '../data/serviceCatalogTranslations'
 
-import { searchServices } from '../utils/searchServices'
+import { searchCatalog } from '../utils/searchCatalog'
+import { useEsimCatalog } from '../data/useEsimCatalog'
 
 const categoryNames: Record<string, string[]> = {
   ai: ['IA & Productivité'], gaming: ['Gaming', 'Jeux & Codes'], streaming: ['Streaming'],
@@ -128,8 +129,10 @@ function DigitalStorePage() {
   const filteredServices = useMemo(() => {
     const categories = categoryParam ? categoryNames[categoryParam] : undefined
     const items = categories ? catalog.filter(service => categories.includes(service.category)) : catalog
-    return queryParam.trim() ? searchServices(queryParam, items.length, items).map(result => result.service) : items
-  }, [catalog, categoryParam, queryParam])
+    return items
+  }, [catalog, categoryParam])
+  const {countries:searchCountries,loading:esimSearchLoading,error:esimSearchError}=useEsimCatalog(!!queryParam.trim()||!!searchQuery.trim())
+  const fullResults=useMemo(()=>searchCatalog(queryParam,filteredServices,categoryParam?[]:searchCountries,language),[queryParam,filteredServices,categoryParam,searchCountries,language])
   useEffect(() => {
     setSearchQuery(queryParam)
     setIsSearchOpen(false)
@@ -340,16 +343,7 @@ function DigitalStorePage() {
     }
   }, [])
 
-  const results =
-    useMemo(() => {
-      return searchServices(
-        searchQuery,
-        8,
-        catalog,
-      )
-    }, [
-      searchQuery, catalog,
-    ])
+  const results=useMemo(()=>searchCatalog(searchQuery,catalog,searchCountries,language),[searchQuery,catalog,searchCountries,language])
 
   const hasQuery =
     searchQuery
@@ -371,7 +365,7 @@ function DigitalStorePage() {
 
   const handleServiceSelect =
     (
-      slug: string,
+      href: string,
     ) => {
       setSearchQuery('')
 
@@ -380,7 +374,7 @@ function DigitalStorePage() {
       )
 
       navigate(
-        `/services-numeriques/${slug}`,
+        href,
       )
     }
 
@@ -511,7 +505,12 @@ function DigitalStorePage() {
       <Container>
         <Link to="/services-numeriques" className="text-sm font-bold text-blue-600">{isArabic ? 'جميع الخدمات' : 'Tout le catalogue'}</Link>
         <h1 className="my-5 text-2xl font-black">{queryParam ? `${isArabic ? 'نتائج البحث' : 'Résultats de recherche'} : ${queryParam}` : (categoryNames[categoryParam ?? ''] ?? []).map(name => getLocalizedCategory(name, language)).join(' / ')}</h1>
-        {catalogLoading ? <p>{isArabic ? 'جار التحميل...' : 'Chargement...'}</p> : filteredServices.length === 0 ? <p>{isArabic ? 'لا توجد نتائج متاحة' : 'Aucun résultat disponible'}</p> : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{filteredServices.map(service => <Link key={service.slug} to={`/services-numeriques/${service.slug}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-blue-500"><p className="text-xs text-slate-500">{getLocalizedCategory(service.category, language)}</p><h2 className="mt-2 font-bold text-slate-950">{getLocalizedServiceName(service, language)}</h2><p className="mt-4 text-sm font-bold text-blue-600">{isArabic ? 'عرض الخدمة' : 'Voir le service'} →</p></Link>)}</div>}
+        {queryParam.trim()?<>
+          {(catalogLoading||esimSearchLoading)&&<p>{isArabic?'جارٍ التحميل…':'Chargement…'}</p>}
+          {esimSearchError&&<p className="text-sm">{isArabic?'تعذر تحميل نتائج eSIM':'Résultats eSIM indisponibles'}</p>}
+          <p className="mb-4 text-sm text-slate-500">{fullResults.length} {isArabic?'نتيجة':'résultat(s)'}</p>
+          {!fullResults.length&&!catalogLoading&&!esimSearchLoading?<p>{isArabic?'لا توجد نتائج':'Aucun résultat'}</p>:<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{fullResults.map(r=><Link key={r.id} to={r.href} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><h2 className="font-bold break-words">{r.title}</h2><p className="mt-1 text-sm text-slate-500">{r.subtitle}</p><p className="mt-3 font-black text-blue-600 dark:text-blue-300">{r.price}</p>{!r.available&&<p className="text-xs">{isArabic?'غير متوفر':'Indisponible'}</p>}</Link>)}</div>}
+        </>:catalogLoading ? <p>{isArabic ? 'جار التحميل...' : 'Chargement...'}</p> : filteredServices.length === 0 ? <p>{isArabic ? 'لا توجد نتائج متاحة' : 'Aucun résultat disponible'}</p> : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{filteredServices.map(service => <Link key={service.slug} to={`/services-numeriques/${service.slug}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-blue-500"><p className="text-xs text-slate-500">{getLocalizedCategory(service.category, language)}</p><h2 className="mt-2 font-bold text-slate-950">{getLocalizedServiceName(service, language)}</h2><p className="mt-4 text-sm font-bold text-blue-600">{isArabic ? 'عرض الخدمة' : 'Voir le service'} →</p></Link>)}</div>}
       </Container>
     </main>
   )
@@ -659,79 +658,10 @@ function DigitalStorePage() {
                         : 'ltr'
                     }
                   >
-                    {results.length >
-                    0 ? (
-                      <div className="p-1.5">
-                        {results.map(
-                          ({
-                            service,
-                          }) => (
-                            <button
-                              key={
-                                service.slug
-                              }
-                              type="button"
-                              onClick={() =>
-                                handleServiceSelect(
-                                  service.slug,
-                                )
-                              }
-                              className={[
-                                'flex w-full items-center justify-between gap-3 rounded-[13px] px-3 py-2.5 transition hover:bg-slate-50',
-                                isArabic
-                                  ? 'text-right'
-                                  : 'text-left',
-                              ].join(
-                                ' ',
-                              )}
-                            >
-                              <div className="min-w-0">
-                                <p className="truncate text-xs font-black text-slate-950 sm:text-sm">
-                                  {getLocalizedServiceName(
-                                    service,
-                                    language,
-                                  )}
-                                </p>
-
-                                <p className="mt-0.5 truncate text-[9px] font-semibold text-slate-400">
-                                  {getLocalizedCategory(
-                                    service.category,
-                                    language,
-                                  )}
-                                </p>
-                              </div>
-
-                              <span
-                                className={[
-                                  'shrink-0 text-xs font-black text-blue-600',
-                                  isArabic
-                                    ? 'rotate-180'
-                                    : '',
-                                ].join(
-                                  ' ',
-                                )}
-                              >
-                                →
-                              </span>
-                            </button>
-                          ),
-                        )}
-                      </div>
-                    ) : (
-                      <div className="px-4 py-5 text-center">
-                        <p className="text-xs font-black text-slate-800">
-                          {isArabic
-                            ? 'لم يتم العثور على خدمة'
-                            : 'Aucun service trouvé'}
-                        </p>
-
-                        <p className="mt-1 text-[10px] text-slate-400">
-                          {isArabic
-                            ? 'جرّب اسمًا آخر.'
-                            : 'Essayez un autre nom.'}
-                        </p>
-                      </div>
-                    )}
+                    {(catalogLoading||esimSearchLoading)&&<p className="p-3 text-xs">{isArabic?'جارٍ التحميل…':'Chargement…'}</p>}
+                    {esimSearchError&&<p className="p-3 text-xs">{isArabic?'تعذر تحميل نتائج eSIM':'Résultats eSIM indisponibles'}</p>}
+                    <div className="max-h-[50vh] overflow-y-auto p-2">{results.map(r=><button type="button" key={r.id} onClick={()=>handleServiceSelect(r.href)} className="block w-full rounded-xl p-3 text-start hover:bg-blue-50"><span className="block font-bold text-slate-950">{r.title}</span><span className="block text-xs text-slate-500">{r.subtitle}</span><span className="font-bold text-blue-600">{r.price}</span></button>)}{!results.length&&!catalogLoading&&!esimSearchLoading&&<p className="p-3 text-slate-800">{isArabic?'لا توجد نتائج':'Aucun résultat'}</p>}</div>
+                    <button type="button" className="w-full border-t p-3 font-bold text-blue-600" onClick={handleSearchSubmit}>{isArabic?'عرض جميع النتائج':'Voir tous les résultats'}</button>
                   </div>
                 )}
             </div>

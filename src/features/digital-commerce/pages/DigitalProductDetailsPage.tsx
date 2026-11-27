@@ -242,7 +242,7 @@ function DigitalProductDetailsPage() {
     }
 
     const defaultPlan =
-      firstAvailableGroup.plans.find(plan => plan.databaseId === requestedPlan && plan.availability === 'available') ??
+      firstAvailableGroup.plans.find(plan => plan.databaseId === requestedPlan) ??
       firstAvailableGroup.plans.find(
         (plan) =>
           plan.availability ===
@@ -360,8 +360,9 @@ function DigitalProductDetailsPage() {
   // Read the same plan/service fields configured in ADMIN. Plan values override service defaults.
   const deliveryMinutes = selectedPlan?.delivery_minutes ?? selectedGroup?.delivery_minutes ?? service.delivery_minutes ?? null
   const validityDays = selectedPlan?.validity_days ?? selectedGroup?.validity_days ?? service.validity_days ?? null
-  const warrantyDays = selectedPlan?.warranty_days ?? selectedGroup?.warranty_days ?? service.warranty_days ?? null
-  const fullWarranty = selectedPlan?.warranty_full_subscription ?? selectedGroup?.warranty_full_subscription ?? service.warranty_full_subscription ?? false
+  const warrantySource = [selectedPlan,selectedGroup,service].find(source=>source&&(source.warranty_days!=null||source.warranty_full_subscription!=null))
+  const warrantyDays = warrantySource?.warranty_days ?? null
+  const fullWarranty = warrantySource?.warranty_full_subscription === true
   const durationText = (days: number | null) => {
     if (days === null || !Number.isFinite(days) || days <= 0) return isArabic ? 'غير محددة' : 'Non précisée'
     if (days % 365 === 0) return isArabic ? `${days / 365} سنة` : `${days / 365} an(s)`
@@ -724,7 +725,7 @@ function DigitalProductDetailsPage() {
                   { label: isArabic ? 'مدة التسليم' : 'Délai de livraison', value: deliveryMinutes !== null ? deliveryText : '', Icon: Zap },
                   { label: isArabic ? 'مدة الاشتراك' : 'Durée de l’abonnement', value: selectedPlan?.duration_value && selectedPlan.duration_unit ? `${selectedPlan.duration_value} ${isArabic ? ({minutes:"دقيقة",hours:"ساعة",days:"يوم",weeks:"أسبوع",months:"شهر",years:"سنة"} as Record<string,string>)[selectedPlan.duration_unit] ?? selectedPlan.duration_unit : ({minutes:"min",hours:"h",days:"jours",weeks:"semaines",months:"mois",years:"ans"} as Record<string,string>)[selectedPlan.duration_unit] ?? selectedPlan.duration_unit}` : validityDays !== null && validityDays > 0 ? durationText(validityDays) : '', Icon: CalendarDays },
                   { label: isArabic ? 'طريقة الاستلام' : 'Mode de réception', value: selectedGroup && selectedGroup.fulfillment.type !== 'coming_soon' ? getLocalizedFulfillmentLabel(selectedGroup.fulfillment.type, language) : '', Icon: KeyRound },
-                  { label: isArabic ? 'الضمان' : 'Garantie', value: fullWarranty || warrantyDays !== null ? warrantyText : '', Icon: ShieldCheck },
+                  { label: isArabic ? 'الضمان' : 'Garantie', value: warrantyText, Icon: ShieldCheck },
                 ].filter(item => !!item.value).map(({label,value,Icon}) => (
                   <div key={label} className="teo-detail-fact">
                     <span className="teo-detail-fact-label flex min-w-0 items-center gap-2"><Icon size={19} className="shrink-0 text-blue-600" aria-hidden="true"/>{label}</span>

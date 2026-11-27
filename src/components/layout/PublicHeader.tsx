@@ -14,14 +14,8 @@ import {
   useNavigate,
 } from 'react-router-dom'
 
-import {
-  getLocalizedCategory,
-  getLocalizedServiceName,
-} from '../../features/digital-commerce/data/serviceCatalogTranslations'
-
-import {
-  searchServices,
-} from '../../features/digital-commerce/utils/searchServices'
+import { searchCatalog } from '../../features/digital-commerce/utils/searchCatalog'
+import { useEsimCatalog } from '../../features/digital-commerce/data/useEsimCatalog'
 
 import {
   useLanguage,
@@ -495,7 +489,8 @@ const toastTimerRef = useRef<number | null>(null)
     navigate(url && /^\/(?![\/\\])/.test(url) ? url : '/profil?section=notifications')
   }
   const {catalog,loading:catalogLoading} = useLiveCatalog()
-  const results = useMemo(() => searchServices(searchQuery,6,catalog),[searchQuery,catalog])
+  const {countries:searchCountries,loading:esimSearchLoading,error:esimSearchError}=useEsimCatalog(isSearchOpen&&!!searchQuery.trim())
+  const results = useMemo(() => searchCatalog(searchQuery,catalog,searchCountries,language),[searchQuery,catalog,searchCountries,language])
 
   const isAuthenticated =
     Boolean(
@@ -520,7 +515,7 @@ const toastTimerRef = useRef<number | null>(null)
 
   const handleServiceSelect =
     (
-      slug: string,
+      href: string,
     ) => {
       setSearchQuery(
         '',
@@ -543,7 +538,7 @@ const toastTimerRef = useRef<number | null>(null)
       )
 
       navigate(
-        `/services-numeriques/${slug}`,
+        href,
       )
     }
 
@@ -658,66 +653,14 @@ const toastTimerRef = useRef<number | null>(null)
               ? 'rtl'
               : 'ltr'
           }
-          className="absolute left-0 right-0 top-[calc(100%+8px)] z-[120] overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-xl"
+          className="absolute left-0 right-0 top-[calc(100%+8px)] z-[120] overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
         >
-          {catalogLoading ? <p className="p-4 text-sm">{isArabic ? 'جار التحميل...' : 'Chargement...'}</p> : results.length >
-          0 ? (
-            <div className="p-2">
-              {results.map(
-                ({
-                  service,
-                }) => (
-                  <button
-                    key={
-                      service.slug
-                    }
-                    type="button"
-                    onClick={() =>
-                      handleServiceSelect(
-                        service.slug,
-                      )
-                    }
-                    className={[
-                      'flex w-full items-center justify-between gap-3 rounded-[13px] px-3 py-3 transition hover:bg-blue-50',
-                      isArabic
-                        ? 'text-right'
-                        : 'text-left',
-                    ].join(
-                      ' ',
-                    )}
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-slate-950">
-                        {getLocalizedServiceName(
-                          service,
-                          language,
-                        )}
-                      </p>
-
-                      <p className="mt-1 truncate text-xs text-slate-500">
-                        {getLocalizedCategory(
-                          service.category,
-                          language,
-                        )}
-                      </p>
-                    </div>
-
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-black text-slate-500">
-                      →
-                    </span>
-                  </button>
-                ),
-              )}
-            </div>
-          ) : (
-            <div className="px-5 py-7 text-center">
-              <p className="text-sm font-black text-slate-700">
-                {isArabic
-                  ? 'لم يتم العثور على نتيجة'
-                  : 'Aucun résultat trouvé'}
-              </p>
-            </div>
-          )}
+          {(catalogLoading||esimSearchLoading)&&<p className="p-3 text-xs">{isArabic?'جارٍ تحميل النتائج…':'Chargement des résultats…'}</p>}
+          {esimSearchError&&<p className="p-3 text-xs">{isArabic?'تعذر تحميل نتائج eSIM':'Résultats eSIM indisponibles'}</p>}
+          <div className="max-h-[50vh] overflow-y-auto p-2">
+            {results.map(result=><button key={result.id} type="button" onClick={()=>handleServiceSelect(result.href)} className="block w-full rounded-xl p-3 text-start hover:bg-blue-50 dark:hover:bg-slate-800"><span className="block break-words text-sm font-black text-slate-900 dark:text-white">{result.title}</span><span className="block text-xs text-slate-500">{result.subtitle}</span><span className="text-sm font-bold text-blue-600">{result.price}</span>{!result.available&&<span className="ms-2 text-xs">{isArabic?'غير متوفر':'Indisponible'}</span>}</button>)}
+            {!results.length&&!catalogLoading&&!esimSearchLoading&&<p className="p-4 text-sm">{isArabic?'لا توجد نتائج':'Aucun résultat'}</p>}
+          </div>
           <button type="button" onClick={handleSearchSubmit} className="w-full border-t p-3 text-sm font-bold text-blue-600">{isArabic ? 'عرض جميع النتائج' : 'Voir tous les résultats'}</button>
         </div>
       )

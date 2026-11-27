@@ -81,7 +81,7 @@ function localized(
   }
 }
 
-export function useEsimCatalog() {
+export function useEsimCatalog(enabled = true) {
   const [countries,setCountries] =
     useState<LiveCountry[]>([])
 
@@ -92,6 +92,8 @@ export function useEsimCatalog() {
     useState('')
 
   useEffect(()=>{
+    if(!enabled){setCountries([]);setLoading(false);setError('');return}
+    setLoading(true)
     let live = true
     let version = 0
 
@@ -464,7 +466,7 @@ export function useEsimCatalog() {
       void supabase.removeChannel(channel)
     }
 
-  },[])
+  },[enabled])
 
   return {
     countries,
