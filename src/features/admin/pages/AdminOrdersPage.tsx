@@ -16,6 +16,7 @@ import {
 } from '../../../lib/supabase'
 
 import { useLanguage } from '../../../i18n/LanguageContext'
+import OrderDetailsSummary from '../components/OrderDetailsSummary'
 
 type OrderStatus =
   | 'payment_review'
@@ -41,6 +42,7 @@ type DigitalOrderRow = {
 
   plan_id: string
   plan_label: string
+  teo_order_details: Record<string, unknown> | null
 
   quantity: number
   unit_price: number
@@ -585,6 +587,7 @@ function AdminOrdersPage() {
                 group_name,
                 plan_id,
                 plan_label,
+                teo_order_details,
                 quantity,
                 unit_price,
                 total_amount,
@@ -3108,7 +3111,7 @@ function AdminOrdersPage() {
 
                         <p className="mt-1 text-xs text-slate-500">
                           {
-                            order.plan_label
+                            [order.group_name, order.plan_label].filter(Boolean).join(" · ")
                           }
                         </p>
                       </div>
@@ -3178,6 +3181,8 @@ function AdminOrdersPage() {
                         </p>
                       </div>
                     </div>
+
+                    <OrderDetailsSummary order={order} ar={esimArabic} />
 
                     {status ===
                       'payment_partial' && (

@@ -34,10 +34,10 @@ import {
   ExternalLink,
   FileText,
   RefreshCw,
-  Bell,
   UserCircle,
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import TeoAdminOrderBell from '../components/TeoAdminOrderBell'
 
 type AdminProfile = {
   email: string
@@ -1042,27 +1042,7 @@ function AdminLayout() {
                   {ar ? 'FR' : 'AR'}
                 </button>
 
-                <NavLink
-                  to="/admin/store-reviews"
-                  title={t('التقييمات الجديدة', 'Nouveaux avis')}
-                  aria-label={t('التقييمات الجديدة', 'Nouveaux avis')}
-                  className="relative flex h-10 w-10 items-center justify-center rounded-xl border"
-                  style={{
-                    background: colors.soft,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <Bell size={18} />
-
-                  {newReviewsCount > 0 && (
-                    <span
-                      dir="ltr"
-                      className="absolute -end-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-black text-white"
-                    >
-                      {newReviewsCount > 99 ? '99+' : newReviewsCount}
-                    </span>
-                  )}
-                </NavLink>
+                {hasSession && <TeoAdminOrderBell ar={ar} newReviewsCount={newReviewsCount} />}
 
                 <div ref={profileMenuRef} className="relative">
                   <button
