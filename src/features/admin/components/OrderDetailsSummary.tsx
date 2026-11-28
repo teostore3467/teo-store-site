@@ -28,9 +28,28 @@ export default function OrderDetailsSummary({order, ar}: {order: Order; ar: bool
     [t('بريد الزبون','E-mail du client'),text(order.customer_email)||unknown],
   ]
   if (esim) { rows.splice(3,0,[t('الإنترنت','Données'),localized('data') || (d.unlimited===true?t('غير محدود','Illimité'):text(d.data_gb)?`${text(d.data_gb)} GB`:unknown)],[t('الشبكة','Réseau'),text(d.network_type)||unknown]) }
-  return <section dir={ar?'rtl':'ltr'} className="mt-4 rounded-2xl border border-slate-200 p-4 dark:border-slate-700" style={{color:'var(--color-text)',backgroundColor:'var(--color-surface)'}}>
-    <h3 className="font-black">{t('تفاصيل الطلب والباقة','Détails de la commande et de l’offre')}</h3>
-    <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">{rows.map(([label,value])=><div key={label} className="min-w-0 rounded-xl p-3" style={{backgroundColor:'var(--color-background)'}}><dt className="text-xs opacity-70">{label}</dt><dd className="mt-1 break-words text-sm font-bold">{value}</dd></div>)}</dl>
-    {!order.teo_order_details && <p className="mt-3 text-xs opacity-70">{t('طلب سابق: نعرض المعلومات المسجلة فقط، ولا نستنتج مدة أو ضمانًا من الباقة الحالية.','Commande antérieure : seules les informations enregistrées sont affichées, sans déduire la durée ou la garantie du catalogue actuel.')}</p>}
-  </section>
+  // Preserve all recorded order values; collapse only an exactly duplicated offer/duration.
+  const offer = rows[1][1]
+  const duplicateDuration = Boolean(duration) && offer === duration
+  const visibleRows = rows.filter((_, index) => !(index === 1 && duplicateDuration))
+  return (
+    <section dir={ar?'rtl':'ltr'} className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700" style={{color:'var(--color-text)',backgroundColor:'var(--color-surface)',padding:'10px 12px'}}>
+      <h3 className="font-bold" style={{fontSize:14,lineHeight:1.4,margin:0}}>{t('تفاصيل الطلب والباقة','Détails de la commande et de l’offre')}</h3>
+      <dl style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:'0 12px',margin:'8px 0 0',padding:0}}>
+        {visibleRows.map(([label,value], index) => {
+          const full = index === 0 || label === t('بريد الزبون','E-mail du client')
+          const total = label === t('الإجمالي المسجل','Total enregistré')
+          return (
+            <div key={label} style={{gridColumn:full?'1 / -1':undefined,minWidth:0,padding:'7px 0',borderTop:'1px solid var(--teo-summary-divider, rgba(148,163,184,0.22))'}}>
+              <dt style={{fontSize:11,lineHeight:1.35,opacity:0.75,margin:0}}>{label}</dt>
+              <dd style={{fontSize:total?14:13,lineHeight:1.4,fontWeight:total?800:650,margin:'2px 0 0',overflowWrap:'anywhere'}}>
+                <bdi>{value}</bdi>
+              </dd>
+            </div>
+          )
+        })}
+      </dl>
+      {!order.teo_order_details && <p style={{margin:'6px 0 0',fontSize:11,lineHeight:1.4,opacity:0.75}}>{t('طلب سابق: نعرض المعلومات المسجلة فقط، ولا نستنتج مدة أو ضمانًا من الباقة الحالية.','Commande antérieure : seules les informations enregistrées sont affichées, sans déduire la durée ou la garantie du catalogue actuel.')}</p>}
+    </section>
+  )
 }
